@@ -246,19 +246,20 @@ class MainActivity : AppCompatActivity() {
         handlePromptExtra()
     }
 
-    /** 从数据库加载全部历史到列表（一次性，正序）。仅在没有活跃对话时刷新。 */
+    /** 从数据库加载全部历史到列表（一次性构建，正序）。仅在没有活跃对话时刷新。 */
     private fun loadHistoryFromDb() {
         // 对话进行中不刷新（避免清掉正在流式显示的内容）
         if (assistant != null) return
         lifecycleScope.launch {
             val history = ChatStore.loadAll()
-            adapter.clearAll()
-            history.forEach { m ->
-                adapter.add(ChatMessage.create(
+            // ★ 一次性构建整个列表再提交，避免 clearAll+逐个 add 的异步 DiffUtil 竞态叠加
+            val msgs = history.map { m ->
+                ChatMessage.create(
                     if (m.isFromUser) ChatMessage.Role.USER else ChatMessage.Role.ASSISTANT,
                     m.content,
-                ))
+                )
             }
+            adapter.submitAll(msgs)
             scrollToEnd(smooth = false)
         }
     }
