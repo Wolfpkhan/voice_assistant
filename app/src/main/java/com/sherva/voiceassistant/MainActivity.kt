@@ -137,7 +137,16 @@ class MainActivity : AppCompatActivity() {
 
     /** 开始/停止 切换（ChatGPT 风格：单个主按钮 toggle）。仅语音模式。 */
     private fun toggleConversation() {
-        if (assistant != null) stopAssistant() else ensurePermissionAndStart()
+        // 当前是文字模式的 assistant（无语音会话）→ 释放并新建语音会话
+        if (assistant != null && assistant?.textMode == true) {
+            assistant?.release()
+            assistant = null
+            ensurePermissionAndStart()
+        } else if (assistant != null) {
+            stopAssistant()
+        } else {
+            ensurePermissionAndStart()
+        }
     }
 
     /** 切换语音/文字模式（互斥：切走时停掉对方的会话）。 */
@@ -145,9 +154,13 @@ class MainActivity : AppCompatActivity() {
         if (mode == newMode) return
         mode = newMode
         // 切走时若语音在跑，立即停止
-        if (newMode == Mode.TEXT && assistant != null) stopAssistant()
+        if (newMode == Mode.TEXT && assistant != null && assistant?.textMode == false) stopAssistant()
         assistant?.textMode = (newMode == Mode.TEXT)
         applyMode()
+        // 切到语音模式：若当前无语音会话，按钮复位为“开始对话”
+        if (newMode == Mode.VOICE && (assistant == null || assistant?.textMode == true)) {
+            setStartedUi(false)
+        }
     }
 
     /** 应用当前模式的可见性。 */
@@ -274,7 +287,7 @@ class MainActivity : AppCompatActivity() {
             val cfg = buildConfig()
             if (cfg.llmApiKey.isBlank()) return
             assistant = VoiceAssistant(this, cfg, listener)
-            setStartedUi(true)
+            // 不调 setStartedUi(true)：语音按钮状态只由语音会话管理
         }
         assistant?.textMode = true
         assistant?.sendText(prompt)
@@ -294,7 +307,7 @@ class MainActivity : AppCompatActivity() {
             val cfg = buildConfig()
             if (cfg.llmApiKey.isBlank()) return
             assistant = VoiceAssistant(this, cfg, listener)
-            setStartedUi(true)
+            // 不调 setStartedUi(true)：语音按钮状态只由语音会话管理
         }
         assistant?.textMode = true
         assistant?.sendText(text)
