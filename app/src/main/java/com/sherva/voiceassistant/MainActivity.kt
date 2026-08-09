@@ -108,6 +108,7 @@ class MainActivity : AppCompatActivity() {
 
         // 聊天记录存储初始化 + 一次性加载历史（借鉴 hermes：getAllMessages 加载到内存，之后手动追加）
         ChatStore.initialize(this)
+        com.sherva.voiceassistant.audio.SoundEffects.init(this)   // 音效初始化
         loadHistoryFromDb()
 
         startButton.setOnClickListener { toggleConversation() }

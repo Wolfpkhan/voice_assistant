@@ -121,6 +121,8 @@ class VoiceAssistant(
         setState(State.LISTENING)
         active = false
         AppLog.i("VA", "开始聆听（流式ASR）")
+        // 模型就绪开始聆听的提示音
+        com.sherva.voiceassistant.audio.SoundEffects.startListen()
         asr.start(
             onPartial = { partial -> listener.onPartialText(partial) },
             onFinal = { final -> onFinalText(final) },
@@ -238,6 +240,8 @@ class VoiceAssistant(
         // ★ 打断支持：TTS 播报期间开启 Barge-in 检测，用户一开口就停
         bargeIn.start(onInterrupt = {
             AppLog.i("VA", "打断触发 → 停 TTS，跳过剩余播报")
+            // 被打断确认音
+            com.sherva.voiceassistant.audio.SoundEffects.interrupt()
             interrupted = true
             tts.stop()
             llm.cancel()
