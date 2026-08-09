@@ -118,15 +118,22 @@ class VoiceAssistant(
     }
 
     private fun startListening() {
-        setState(State.LISTENING)
-        active = false
-        AppLog.i("VA", "开始聆听（流式ASR）")
-        // 模型就绪开始聆听的提示音
-        com.sherva.voiceassistant.audio.SoundEffects.startListen()
-        asr.start(
-            onPartial = { partial -> listener.onPartialText(partial) },
-            onFinal = { final -> onFinalText(final) },
-        )
+        // ★ 先确保 ASR 模型已就绪（首次 lazy 加载耗时 ~3s），再进入聆听态+音效
+        AppLog.i("VA", "准备聆听（加载 ASR 模型）")
+        scope.launch {
+            withContext(Dispatchers.Default) {
+                asr   // 触发 lazy 加载
+            }
+            setState(State.LISTENING)
+            active = false
+            AppLog.i("VA", "模型就绪，开始聆听")
+            // 模型就绪开始聆听的提示音
+            com.sherva.voiceassistant.audio.SoundEffects.startListen()
+            asr.start(
+                onPartial = { partial -> listener.onPartialText(partial) },
+                onFinal = { final -> onFinalText(final) },
+            )
+        }
     }
 
     /** 端点命中：拿到完整一句话 → 停 ASR → LLM → TTS。 */
