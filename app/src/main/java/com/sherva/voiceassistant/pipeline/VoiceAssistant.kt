@@ -64,16 +64,21 @@ class VoiceAssistant(
 
     private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val asr = run {
+    // ★ 引擎 lazy 加载：首次使用才初始化（加载模型），避免构造阻塞 UI。
+    //   文字模式只用 LLM，不触发 asr/tts/bargeIn 加载，发送不卡顿。
+    private val asrLazy: Lazy<StreamingAsrEngine> = lazy {
         AppLog.i("VA", "初始化流式 ASR 引擎...")
         StreamingAsrEngine(appContext, endpointTrailingSilenceSec = config.endpointTrailingSilenceSec)
     }
-    private val tts = run { AppLog.i("VA", "初始化 TTS 引擎..."); TtsEngine(appContext) }
-    private val bargeIn = run {
+    private val ttsLazy: Lazy<TtsEngine> = lazy { AppLog.i("VA", "初始化 TTS 引擎..."); TtsEngine(appContext) }
+    private val bargeInLazy: Lazy<BargeInDetector> = lazy {
         AppLog.i("VA", "初始化打断检测器...")
         BargeInDetector(appContext, threshold = config.bargeThreshold,
             startGuardMs = config.bargeGuardMs, minSpeechMs = config.bargeConfirmMs)
     }
+    private val asr: StreamingAsrEngine get() = asrLazy.value
+    private val tts: TtsEngine get() = ttsLazy.value
+    private val bargeIn: BargeInDetector get() = bargeInLazy.value
     private val llm = LlmClient(
         baseUrl = config.llmBaseUrl,
         apiKey = config.llmApiKey,
@@ -151,7 +156,8 @@ class VoiceAssistant(
         active = true
         scope.launch {
             AppLog.i("VA", "文字输入: \"$t\"")
-            asr.stop()   // 确保停掉任何残留聆听
+            // 若语音引擎已初始化（此前切过语音模式）则停掉聆听，避免冲突
+            if (asrLazy.isInitialized()) asr.stop()
             listener.onUserText(t)
             history += LlmClient.Message.user(t)
             handleLlmTurn()
@@ -207,6 +213,7 @@ class VoiceAssistant(
             // 文字模式：不自动重新聆听，等用户下次输入
             if (textMode) {
                 AppLog.i("VA", "文字模式，保持待听（不自动开启聆听）")
+                active = false   // ★ 复位，允许下次文字输入
                 setState(State.IDLE)
             } else {
                 // 打断后立即重新聆听（不等冷却）；正常播完才冷却防回声
@@ -216,9 +223,11 @@ class VoiceAssistant(
                 } else {
                     AppLog.i("VA", "打断恢复，立即重新聆听")
                 }
+                active = false   // 复位，准备下一轮
                 startListening()
             }
         } else {
+            active = false   // ★ 复位
             setState(State.IDLE)
         }
     }
@@ -249,10 +258,11 @@ class VoiceAssistant(
         convJob = null
         active = false
         interrupted = true
-        bargeIn.stop()
-        asr.stop()
+        // 只停已初始化的引擎（避免 lazy 触发加载）
+        if (bargeInLazy.isInitialized()) bargeIn.stop()
+        if (asrLazy.isInitialized()) asr.stop()
         llm.cancel()
-        tts.stop()
+        if (ttsLazy.isInitialized()) tts.stop()
         setState(State.IDLE)
     }
 
@@ -267,16 +277,16 @@ class VoiceAssistant(
     fun stopPlayback() {
         AppLog.i("VA", "手动终止 TTS 播放")
         interrupted = true
-        bargeIn.stop()
-        tts.stop()
+        if (bargeInLazy.isInitialized()) bargeIn.stop()
+        if (ttsLazy.isInitialized()) tts.stop()
     }
 
     fun release() {
         stop()
         scope.cancel()
-        runCatching { asr.release() }
-        runCatching { tts.release() }
-        runCatching { bargeIn.release() }
+        if (asrLazy.isInitialized()) runCatching { asr.release() }
+        if (ttsLazy.isInitialized()) runCatching { tts.release() }
+        if (bargeInLazy.isInitialized()) runCatching { bargeIn.release() }
     }
 
     // ---------- 分句工具 ----------
