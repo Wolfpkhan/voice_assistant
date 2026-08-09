@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 圆角、间距统一管理 -->
+    <dimen name="bubble_radius">18dp</dimen>
+    <dimen name="bubble_radius_small">4dp</dimen>
+    <dimen name="bubble_padding_h">14dp</dimen>
+    <dimen name="bubble_padding_v">10dp</dimen>
+    <dimen name="avatar_size">28dp</dimen>
+    <dimen name="msg_text_size">15sp</dimen>
+    <dimen name="bottom_bar_radius">24dp</dimen>
+</resources>

@@ -38,6 +38,8 @@ object ModelPaths {
     const val TTS_ACOUSTIC = "$TTS_DIR/model-steps-3.onnx"
     const val TTS_LEXICON = "$TTS_DIR/lexicon.txt"
     const val TTS_TOKENS = "$TTS_DIR/tokens.txt"
+    // 文本归一化 FST（数字→汉字、日期、电话号、多音字），TTS 正确读数字的关键
+    const val TTS_RULE_FSTS = "$TTS_DIR/phone.fst,$TTS_DIR/date.fst,$TTS_DIR/number.fst"
     // vocoder 放在 models 根目录（sherpa 约定）
     const val TTS_VOCODER = "$ROOT/vocos-22khz-univ.onnx"
 

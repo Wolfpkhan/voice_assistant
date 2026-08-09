@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 助手消息：左对齐，圆形绿头像 + 文本（无气泡） -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="6dp">
+
+    <ImageView
+        android:id="@+id/avatar"
+        android:layout_width="@dimen/avatar_size"
+        android:layout_height="@dimen/avatar_size"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="12dp"
+        android:src="@drawable/avatar_assistant"
+        android:contentDescription="@string/app_name" />
+
+    <TextView
+        android:id="@+id/messageText"
+        style="@style/MessageText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textIsSelectable="true" />
+
+</LinearLayout>

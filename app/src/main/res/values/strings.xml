@@ -13,6 +13,8 @@
     <!-- 按钮 -->
     <string name="btn_start">开始对话</string>
     <string name="btn_stop">停止</string>
+    <string name="btn_interrupt">中断输出</string>
+    <string name="btn_mute">静音播放</string>
     <string name="btn_settings">设置</string>
 
     <!-- 设置键 -->

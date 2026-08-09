@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 助手头像：品牌绿圆 + 白色波纹图标底 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@color/brand" />
+        </shape>
+    </item>
+</layer-list>

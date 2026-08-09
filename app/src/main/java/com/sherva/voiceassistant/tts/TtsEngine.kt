@@ -47,6 +47,9 @@ class TtsEngine(
                     numThreads = numThreads,
                     provider = "cpu",
                 ),
+                // ★ 文本归一化：让 TTS 正确读数字/日期/电话号/多音字
+                //   否则纯数字字符进模型读不出（如 1945 → 需转 “一九四五”）
+                ruleFsts = ModelPaths.TTS_RULE_FSTS,
                 maxNumSentences = 2,
                 silenceScale = 0.2f,
             )

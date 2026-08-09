@@ -210,6 +210,21 @@ class VoiceAssistant(
         setState(State.IDLE)
     }
 
+    /** ★ 手动中断输出：只取消当前 LLM 生成（不再出新文字），TTS 可继续播已生成的。 */
+    fun interruptOutput() {
+        AppLog.i("VA", "手动中断 LLM 输出")
+        interrupted = true   // 阻止剩余句子进入 TTS
+        llm.cancel()
+    }
+
+    /** ★ 手动终止音频播放：只停 TTS（打断当前播报），LLM 若还在跑继续跑完。 */
+    fun stopPlayback() {
+        AppLog.i("VA", "手动终止 TTS 播放")
+        interrupted = true
+        bargeIn.stop()
+        tts.stop()
+    }
+
     fun release() {
         stop()
         scope.cancel()
@@ -220,8 +235,8 @@ class VoiceAssistant(
 
     // ---------- 分句工具 ----------
     private val STRONG_END = charArrayOf('。', '！', '？', '!', '?', '；', ';', '\n', '…')
-    /** TTS 不该念出的符号/markdown 标记，合成前全部剔除。 */
-    private val TTS_STRIP = charArrayOf('*', '#', '`', '~', '_', '-', '·', '•', '【', '】', '[', ']', '(', ')', '《', '》', '"', '\'', ':')
+    /** TTS 不该念出的符号/markdown/emoji，合成前剔除（界面展示保留原文）。 */
+    private val TTS_STRIP = charArrayOf('*', '#', '`', '~', '_', '-', '·', '•', '|', '/', '【', '】', '[', ']', '(', ')', '《', '》', '"', '\'', ':', '=', '>')
 
     /** 将完整回复拆分为句子（用于 TTS 串行播报，并净化为口语友好）。 */
     private fun splitSentences(text: String): List<String> {
@@ -229,10 +244,12 @@ class VoiceAssistant(
         val cleaned = StringBuilder()
         for (ch in text) {
             if (ch in TTS_STRIP) continue   // 跳过 markdown 标记
+            if (Character.isSurrogate(ch)) continue   // 跳过 emoji（代理对）
             if (ch == '\n') { cleaned.append('。'); continue }  // 换行→句号
             cleaned.append(ch)
         }
-        val safe = cleaned.toString().replace(Regex("\\s+"), " ").trim()
+        // 合并空格并去首尾
+        val safe = cleaned.toString().replace(Regex("[ \t]+"), " ").replace(Regex("[。]{2,}"), "。").trim()
         // 2. 再分句
         val result = mutableListOf<String>()
         val buf = StringBuilder()

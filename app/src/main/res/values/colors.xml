@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ===== 品牌主色（强调色，少用） ===== -->
+    <color name="brand">#10A37F</color>            <!-- ChatGPT 标志绿 -->
+    <color name="brand_dark">#0D8A6A</color>
+    <color name="brand_light">#1A7F64</color>
+
+    <!-- ===== 浅色主题 ===== -->
+    <color name="light_bg">#FFFFFF</color>
+    <color name="light_surface">#F7F7F8</color>     <!-- 用户气泡 / 次要面板 -->
+    <color name="light_text_primary">#0D0D0D</color>
+    <color name="light_text_secondary">#6E6E80</color>
+    <color name="light_divider">#E5E5E5</color>
+    <color name="bubble_user_light">#F0F0F3</color>
+
+    <!-- ===== 深色主题（默认） ===== -->
+    <color name="dark_bg">#212121</color>           <!-- 主背景，比纯黑略亮 -->
+    <color name="dark_surface">#2F2F2F</color>      <!-- 卡片/面板/输入框 -->
+    <color name="dark_surface_elevated">#383838</color>
+    <color name="dark_text_primary">#ECECEC</color>
+    <color name="dark_text_secondary">#9B9BA7</color>
+    <color name="dark_divider">#3D3D3D</color>
+    <color name="bubble_user_dark">#2F2F2F</color>
+
+    <!-- ===== 状态色 ===== -->
+    <color name="state_listening">#10A37F</color>   <!-- 聆听 绿 -->
+    <color name="state_thinking">#5B8DEF</color>    <!-- 思考 蓝 -->
+    <color name="state_speaking">#A855F7</color>    <!-- 播报 紫 -->
+    <color name="state_idle">#6E6E80</color>        <!-- 待机 灰 -->
+    <color name="warn">#E5484D</color>              <!-- 停止/警示 红 -->
+</resources>

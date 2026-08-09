@@ -1,86 +1,143 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <!-- 状态栏 -->
-    <TextView
-        android:id="@+id/stateText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="12dp"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:gravity="center"
-        android:textColor="#FFFFFF"
-        android:background="#3F51B5"
-        tools:ignore="HardcodedText"
-        android:text="待机" />
-
-    <!-- 对话内容 -->
-    <ScrollView
-        android:id="@+id/conversationScroll"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:fillViewport="true">
-
-        <TextView
-            android:id="@+id/conversationText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="14dp"
-            android:textSize="16sp"
-            android:lineSpacingExtra="4dp"
-            android:textIsSelectable="true"
-            android:text="点「开始对话」启动语音助手。\n\n首次使用请先在「设置」里填写 LLM 的 baseUrl / apiKey / model。\n\n端侧 VAD + ASR + TTS 全程本地运行，只有大模型走云端。" />
-
-    </ScrollView>
-
-    <!-- 你说的话（最近一句） -->
-    <TextView
-        android:id="@+id/youSaidText"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:padding="8dp"
-        android:textSize="13sp"
-        android:textColor="#666666"
-        android:background="#F5F5F5"
-        tools:ignore="HardcodedText"
-        android:visibility="gone" />
-
-    <!-- 底部按钮 -->
+    <!-- ===== 顶部极简标题栏 ===== -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="10dp">
+        android:gravity="center_vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="6dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/startButton"
-            android:layout_width="0dp"
+        <!-- 状态指示胶囊 -->
+        <TextView
+            android:id="@+id/stateText"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="@string/btn_start" />
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="6dp"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:textColor="#FFFFFF"
+            android:background="@drawable/bg_status_pill"
+            android:text="@string/state_idle" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/stopButton"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+        <View
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:enabled="false"
-            android:text="@string/btn_stop" />
+            android:layout_height="0dp"
+            android:layout_weight="1" />
 
+        <!-- 设置图标按钮 -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/settingsButton"
             style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp"
+            app:icon="@drawable/ic_settings"
+            app:iconSize="22dp"
+            app:iconTint="?android:attr/textColorSecondary" />
+    </LinearLayout>
+
+    <!-- ===== 实时识别提示（聆听时显示） ===== -->
+    <TextView
+        android:id="@+id/partialText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingVertical="6dp"
+        android:textSize="13sp"
+        android:textColor="?android:attr/textColorSecondary"
+        android:textStyle="italic"
+        android:visibility="gone"
+        tools:text="你(实时)：今天天气" />
+
+    <!-- ===== 对话列表 ===== -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/messagesView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:paddingBottom="8dp"
+        android:overScrollMode="never" />
+
+    <!-- ===== 底部控制栏 ===== -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/bg_bottom_bar"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp">
+
+        <!-- 静音播放 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/muteButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp"
+            android:enabled="false"
+            app:icon="@drawable/ic_mute"
+            app:iconSize="22dp"
+            app:iconTint="?android:attr/textColorSecondary" />
+
+        <!-- 中断输出 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/interruptButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp"
+            android:enabled="false"
+            app:icon="@drawable/ic_interrupt"
+            app:iconSize="22dp"
+            app:iconTint="?android:attr/textColorSecondary" />
+
+        <View
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <!-- 开始/停止 对话（主按钮：图标+文字） -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/startButton"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/btn_settings" />
+            android:layout_height="52dp"
+            android:minWidth="120dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="24dp"
+            android:text="@string/btn_start"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/brand"
+            app:cornerRadius="26dp"
+            app:icon="@drawable/ic_mic"
+            app:iconSize="22dp"
+            app:iconTint="#FFFFFF" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/stopButton"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:visibility="gone" />
     </LinearLayout>
 
 </LinearLayout>

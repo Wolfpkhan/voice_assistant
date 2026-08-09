@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 用户消息：右对齐，灰底圆角气泡 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="end"
+    android:paddingHorizontal="16dp"
+    android:paddingTop="10dp"
+    android:paddingBottom="4dp">
+
+    <TextView
+        android:id="@+id/messageText"
+        style="@style/MessageText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end"
+        android:maxWidth="280dp"
+        android:background="@drawable/bubble_user"
+        android:paddingHorizontal="@dimen/bubble_padding_h"
+        android:paddingVertical="@dimen/bubble_padding_v"
+        android:textIsSelectable="true" />
+
+</LinearLayout>
