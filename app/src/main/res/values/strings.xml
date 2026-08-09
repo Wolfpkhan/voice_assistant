@@ -35,6 +35,7 @@
     <string name="pref_llm_apikey">llm_apikey</string>
     <string name="pref_llm_model">llm_model</string>
     <string name="pref_llm_system">llm_system</string>
+    <string name="pref_llm_system_text">llm_system_text</string>
     <string name="pref_tts_speed">tts_speed</string>
     <string name="pref_tts_sid">tts_sid</string>
     <!-- 高级时间参数（单位见 title） -->
@@ -51,4 +52,5 @@
     <string name="default_model">deepseek-v4-flash</string>
     <string name="default_apikey">sk-4a125f52422534403c0d7edf</string>
     <string name="default_system">你是中文语音助手，直接用嘴说话的方式回答。规则：1.只用1到2个短句，像日常聊天；2.禁止markdown、列表、符号、emoji、编号；3.禁止书面语和长难句，用大白话；4.不解释过程，直接给答案。例如问“你是谁”只答“我是你的语音助手呀，有啥事尽管说。”</string>
+    <string name="default_system_text">你是中文 AI 助手，用 Markdown 回答（表格/列表/代码块均可）。简洁准确，可展开说明，适合阅读。</string>
 </resources>

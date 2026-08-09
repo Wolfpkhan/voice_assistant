@@ -36,7 +36,8 @@ class VoiceAssistant(
         val llmBaseUrl: String,
         val llmApiKey: String,
         val llmModel: String,
-        val systemPrompt: String,
+        val systemPrompt: String,                 // 语音模式系统提示词
+        val systemPromptText: String = systemPrompt,  // 文字模式系统提示词（默认同语音）
         // —— 高级时间参数（从设置页读取）——
         val cooldownMs: Long = 600L,              // 播报后冷却（防回声）
         val endpointTrailingSilenceSec: Float = 1.2f,  // 说完判定延时
@@ -101,12 +102,14 @@ class VoiceAssistant(
         listener.onState(s)
     }
 
-    /** 初始化对话历史（system prompt）。语音/文字共用。 */
+    /** 初始化对话历史（system prompt）。语音/文字模式用不同提示词。 */
     private fun ensureHistory() {
         if (historyInitialized) return
         history.clear()
-        if (config.systemPrompt.isNotBlank()) {
-            history += LlmClient.Message.system(config.systemPrompt)
+        // 根据 textMode 选对应系统提示词
+        val prompt = if (textMode) config.systemPromptText else config.systemPrompt
+        if (prompt.isNotBlank()) {
+            history += LlmClient.Message.system(prompt)
         }
         historyInitialized = true
     }

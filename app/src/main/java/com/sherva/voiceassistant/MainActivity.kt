@@ -240,6 +240,7 @@ class MainActivity : AppCompatActivity() {
         val model = sp.getString(getString(R.string.pref_llm_model), getString(R.string.default_model))!!
         AppLog.i("Main", "★ baseUrl=$baseUrl, model=$model")
         val system = sp.getString(getString(R.string.pref_llm_system), getString(R.string.default_system))!!
+        val systemText = sp.getString(getString(R.string.pref_llm_system_text), getString(R.string.default_system_text))!!
         val speed = sp.getInt(getString(R.string.pref_tts_speed), 10) / 10.0f
         val cooldownMs = sp.getInt(getString(R.string.pref_cooldown_ms), 600).toLong()
         val endpointSilence = sp.getInt(getString(R.string.pref_endpoint_silence), 12) / 10.0f
@@ -251,7 +252,8 @@ class MainActivity : AppCompatActivity() {
         if (apiKey.isBlank()) toast("请先在「设置」里填写 API Key")
         return VoiceAssistant.Config(
             continuous = true, ttsSpeed = speed,
-            llmBaseUrl = baseUrl, llmApiKey = apiKey, llmModel = model, systemPrompt = system,
+            llmBaseUrl = baseUrl, llmApiKey = apiKey, llmModel = model,
+            systemPrompt = system, systemPromptText = systemText,
             cooldownMs = cooldownMs, endpointTrailingSilenceSec = endpointSilence,
             bargeGuardMs = bargeGuardMs, bargeConfirmMs = bargeConfirmMs, bargeThreshold = bargeThreshold,
             micGain = micGain,

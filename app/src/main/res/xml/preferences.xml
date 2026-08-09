@@ -26,9 +26,16 @@
 
         <EditTextPreference
             android:key="@string/pref_llm_system"
-            android:title="系统提示词"
-            android:summary="定义助手人设与回答风格"
+            android:title="系统提示词（语音模式）"
+            android:summary="语音对话的人设与风格（口语化、短句）"
             android:defaultValue="@string/default_system"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            android:key="@string/pref_llm_system_text"
+            android:title="系统提示词（文字模式）"
+            android:summary="文字对话的人设与风格（可用 Markdown）"
+            android:defaultValue="@string/default_system_text"
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
