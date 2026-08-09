@@ -106,21 +106,9 @@ class MainActivity : AppCompatActivity() {
         textModeButton.setOnClickListener { switchMode(Mode.TEXT) }
         applyMode()
 
-        // 聊天记录存储初始化 + 响应式历史加载（借鉴 hermes：Flow collect 自动跟随数据库变化）
+        // 聊天记录存储初始化 + 一次性加载历史（借鉴 hermes：getAllMessages 加载到内存，之后手动追加）
         ChatStore.initialize(this)
-        lifecycleScope.launch {
-            ChatStore.messagesFlow().collect { history ->
-                // 数据库变化（保存/清空/导入）→ 重建列表
-                adapter.clearAll()
-                history.forEach { m ->
-                    adapter.add(ChatMessage.create(
-                        if (m.isFromUser) ChatMessage.Role.USER else ChatMessage.Role.ASSISTANT,
-                        m.content,
-                    ))
-                }
-                scrollToEnd(smooth = false)
-            }
-        }
+        loadHistoryFromDb()
 
         startButton.setOnClickListener { toggleConversation() }
         settingsButton.setOnClickListener {
@@ -219,11 +207,8 @@ class MainActivity : AppCompatActivity() {
         val cfg = buildConfig()
         if (cfg.llmApiKey.isBlank()) return
         assistant?.release()
-        // 语音模式每次开始是新一轮（清空列表）；文字模式保留历史
-        if (mode == Mode.VOICE) {
-            adapter.clearAll()
-            curAssistantId = -1L
-        }
+        // ★ 不清空列表：保留已加载的历史对话，新对话继续追加
+        curAssistantId = -1L
         assistant = VoiceAssistant(this, cfg, listener).also { it.startConversation() }
         setStartedUi(true)
     }
@@ -255,8 +240,27 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (StoragePermission.granted()) AppLog.init(this)
+        // 从历史页返回（可能清空/导入了历史）→ 重新加载
+        loadHistoryFromDb()
         // 从历史页跳来：处理待发送文本
         handlePromptExtra()
+    }
+
+    /** 从数据库加载全部历史到列表（一次性，正序）。仅在没有活跃对话时刷新。 */
+    private fun loadHistoryFromDb() {
+        // 对话进行中不刷新（避免清掉正在流式显示的内容）
+        if (assistant != null) return
+        lifecycleScope.launch {
+            val history = ChatStore.loadAll()
+            adapter.clearAll()
+            history.forEach { m ->
+                adapter.add(ChatMessage.create(
+                    if (m.isFromUser) ChatMessage.Role.USER else ChatMessage.Role.ASSISTANT,
+                    m.content,
+                ))
+            }
+            scrollToEnd(smooth = false)
+        }
     }
 
     /** 处理 EXTRA_TEXT_PROMPT（从历史页点击消息继续提问）。 */
