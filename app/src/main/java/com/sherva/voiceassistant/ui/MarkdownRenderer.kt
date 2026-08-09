@@ -40,8 +40,10 @@ object MarkdownRenderer {
     /** 在 TextView 上渲染 markdown，并自动检测纯文本链接。 */
     fun render(textView: TextView, markdown: String) {
         val ctx = textView.context
-        // 主题文字色（跟随深浅色）
-        val color = ContextCompat.getColor(ctx, R.color.markdown_text)
+        // 主题文字色（用 ?attr/textColorPrimary，随深浅主题自动切换，避免资源 ID 坑）
+        val ta = ctx.theme.obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))
+        val color = ta.getColor(0, 0xFF0D0D0D.toInt())
+        ta.recycle()
         textView.setTextColor(color)
 
         get(ctx).setMarkdown(textView, markdown)

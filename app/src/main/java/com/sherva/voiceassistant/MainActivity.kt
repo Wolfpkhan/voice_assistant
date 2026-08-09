@@ -163,15 +163,13 @@ class MainActivity : AppCompatActivity() {
         val voice = mode == Mode.VOICE
         voiceBar.visibility = if (voice) android.view.View.VISIBLE else android.view.View.GONE
         textBar.visibility = if (voice) android.view.View.GONE else android.view.View.VISIBLE
-        voiceModeButton.isSelected = voice
-        textModeButton.isSelected = !voice
-        // 高亮当前模式按钮
-        val activeTint = ContextCompat.getColorStateList(this, R.color.brand)
-        val inactiveTint = ContextCompat.getColorStateList(this, R.color.dark_surface_elevated)
+        // 高亮当前模式按钮（用十六进制色值，避免依赖可能存在裁剪风险的 dark_* 资源）
+        val activeTint = android.content.res.ColorStateList.valueOf(0xFF10A37F.toInt())       // 品牌绿
+        val inactiveTint = android.content.res.ColorStateList.valueOf(0xFF383838.toInt())     // 深灰
         voiceModeButton.backgroundTintList = if (voice) activeTint else inactiveTint
-        voiceModeButton.setTextColor(ContextCompat.getColor(this, if (voice) android.graphics.Color.WHITE else R.color.dark_text_secondary))
+        voiceModeButton.setTextColor(if (voice) android.graphics.Color.WHITE else 0xFF9B9BA7.toInt())
         textModeButton.backgroundTintList = if (!voice) activeTint else inactiveTint
-        textModeButton.setTextColor(ContextCompat.getColor(this, if (!voice) android.graphics.Color.WHITE else R.color.dark_text_secondary))
+        textModeButton.setTextColor(if (!voice) android.graphics.Color.WHITE else 0xFF9B9BA7.toInt())
         // 文字模式不显示实时识别提示
         if (!voice) partialText.visibility = android.view.View.GONE
     }
@@ -239,14 +237,14 @@ class MainActivity : AppCompatActivity() {
             // 对话中：变“停止”样式（深色背景 + 方块图标）
             startButton.text = getString(R.string.btn_stop)
             startButton.icon = ContextCompat.getDrawable(this, R.drawable.ic_stop)
-            startButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.warn)
+            startButton.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFE5484D.toInt())  // warn 红
         } else {
             // 待机：变“开始对话”样式（绿背景 + 麦克风）
             startButton.text = getString(R.string.btn_start)
             startButton.icon = ContextCompat.getDrawable(this, R.drawable.ic_mic)
-            startButton.backgroundTintList = ContextCompat.getColorStateList(this, R.color.brand)
+            startButton.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF10A37F.toInt())  // 品牌绿
             stateText.text = getString(R.string.state_idle)
-            stateText.backgroundTintList = ContextCompat.getColorStateList(this, R.color.state_idle)
+            stateText.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF6E6E80.toInt())  // 待机灰
         }
     }
 
@@ -297,13 +295,13 @@ class MainActivity : AppCompatActivity() {
     private val listener = object : VoiceAssistant.Listener {
         override fun onState(state: VoiceAssistant.State) = runOnUiThread {
             val (label, color) = when (state) {
-                VoiceAssistant.State.IDLE -> R.string.state_idle to R.color.state_idle
-                VoiceAssistant.State.LISTENING -> R.string.state_listening to R.color.state_listening
-                VoiceAssistant.State.THINKING -> R.string.state_thinking to R.color.state_thinking
-                VoiceAssistant.State.SPEAKING -> R.string.state_speaking to R.color.state_speaking
+                VoiceAssistant.State.IDLE -> R.string.state_idle to 0xFF6E6E80.toInt()
+                VoiceAssistant.State.LISTENING -> R.string.state_listening to 0xFF10A37F.toInt()
+                VoiceAssistant.State.THINKING -> R.string.state_thinking to 0xFF5B8DEF.toInt()
+                VoiceAssistant.State.SPEAKING -> R.string.state_speaking to 0xFFA855F7.toInt()
             }
             stateText.text = getString(label)
-            stateText.backgroundTintList = ContextCompat.getColorStateList(this@MainActivity, color)
+            stateText.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this@MainActivity, color))
             if (state != VoiceAssistant.State.LISTENING) {
                 partialText.visibility = android.view.View.GONE
             }
