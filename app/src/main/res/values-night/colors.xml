@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 深色主题下 markdown 文字色覆盖 -->
+    <color name="markdown_text">@color/dark_text_primary</color>
+</resources>

@@ -46,8 +46,8 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
     override fun onBindViewHolder(h: RecyclerView.ViewHolder, position: Int) {
         val m = getItem(position)
         when (h) {
-            is UserVH -> h.text.text = m.text
-            is AssistantVH -> h.text.text = m.text
+            is UserVH -> MarkdownRenderer.render(h.text, m.text)
+            is AssistantVH -> MarkdownRenderer.render(h.text, m.text)
         }
     }
 

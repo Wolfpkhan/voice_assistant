@@ -12,6 +12,7 @@
     <color name="light_text_secondary">#6E6E80</color>
     <color name="light_divider">#E5E5E5</color>
     <color name="bubble_user_light">#F0F0F3</color>
+    <color name="markdown_text">@color/light_text_primary</color>
 
     <!-- ===== 深色主题（默认） ===== -->
     <color name="dark_bg">#212121</color>           <!-- 主背景，比纯黑略亮 -->
