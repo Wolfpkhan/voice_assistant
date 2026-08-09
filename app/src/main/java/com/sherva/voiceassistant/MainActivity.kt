@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var interruptButton: MaterialButton
     private lateinit var muteButton: MaterialButton
     private lateinit var textInput: TextInputEditText
-    private lateinit var sendButton: MaterialButton
+    private lateinit var sendButton: android.widget.ImageButton
     private lateinit var voiceModeButton: MaterialButton
     private lateinit var textModeButton: MaterialButton
     private lateinit var voiceBar: android.view.View
