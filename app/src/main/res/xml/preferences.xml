@@ -100,6 +100,16 @@
             android:min="3"
             android:max="9"
             app:showSeekBarValue="true" />
+
+        <!-- 麦克风增益（远距离收音） -->
+        <SeekBarPreference
+            android:key="@string/pref_mic_gain"
+            android:title="麦克风增益 (×0.1)"
+            android:summary="放大收音。1.0=原始，2.0~3.0适合远距离/小声说话"
+            android:defaultValue="10"
+            android:min="10"
+            android:max="30"
+            app:showSeekBarValue="true" />
     </PreferenceCategory>
 
 </PreferenceScreen>

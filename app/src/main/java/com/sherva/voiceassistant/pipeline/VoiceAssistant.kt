@@ -43,6 +43,7 @@ class VoiceAssistant(
         val bargeGuardMs: Long = 300L,           // 打断起播保护期
         val bargeConfirmMs: Long = 200L,         // 打断确认时长
         val bargeThreshold: Float = 0.6f,        // 打断 VAD 阈值
+        val micGain: Float = 1.0f,               // 麦克风增益（远距离收音）
     )
 
     interface Listener {
@@ -68,7 +69,7 @@ class VoiceAssistant(
     //   文字模式只用 LLM，不触发 asr/tts/bargeIn 加载，发送不卡顿。
     private val asrLazy: Lazy<StreamingAsrEngine> = lazy {
         AppLog.i("VA", "初始化流式 ASR 引擎...")
-        StreamingAsrEngine(appContext, endpointTrailingSilenceSec = config.endpointTrailingSilenceSec)
+        StreamingAsrEngine(appContext, endpointTrailingSilenceSec = config.endpointTrailingSilenceSec, micGain = config.micGain)
     }
     private val ttsLazy: Lazy<TtsEngine> = lazy { AppLog.i("VA", "初始化 TTS 引擎..."); TtsEngine(appContext) }
     private val bargeInLazy: Lazy<BargeInDetector> = lazy {
@@ -225,13 +226,10 @@ class VoiceAssistant(
                 active = false   // ★ 复位，允许下次文字输入
                 setState(State.IDLE)
             } else {
-                // 打断后立即重新聆听（不等冷却）；正常播完才冷却防回声
-                if (!wasInterrupted) {
-                    AppLog.i("VA", "冷却 ${config.cooldownMs}ms")
-                    delay(config.cooldownMs)
-                } else {
-                    AppLog.i("VA", "打断恢复，立即重新聆听")
-                }
+                // 重新聆听前都冷却（正常播完防回声；打断后给用户准备时间），
+                // 确保 startListening 的开始音效在冷却后才响（不被打断音效覆盖）
+                AppLog.i("VA", "冷却 ${config.cooldownMs}ms 后重新聆听")
+                delay(config.cooldownMs)
                 active = false   // 复位，准备下一轮
                 startListening()
             }

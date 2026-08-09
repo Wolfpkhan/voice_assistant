@@ -225,6 +225,19 @@
                 android:inputType="text" />
         </com.google.android.material.textfield.TextInputLayout>
 
+        <!-- 停止生成（文字模式也可用，停 LLM） -->
+        <ImageButton
+            android:id="@+id/stopGenButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="8dp"
+            android:padding="0dp"
+            android:scaleType="centerInside"
+            android:background="@drawable/bg_circle_brand"
+            android:src="@drawable/ic_stop_gen"
+            android:contentDescription="@string/btn_stop"
+            android:visibility="gone" />
+
         <ImageButton
             android:id="@+id/sendButton"
             android:layout_width="48dp"

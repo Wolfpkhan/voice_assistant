@@ -44,6 +44,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var muteButton: MaterialButton
     private lateinit var textInput: TextInputEditText
     private lateinit var sendButton: android.widget.ImageButton
+    private lateinit var stopGenButton: android.widget.ImageButton
     private lateinit var voiceModeButton: MaterialButton
     private lateinit var textModeButton: MaterialButton
     private lateinit var voiceBar: android.view.View
@@ -90,6 +91,7 @@ class MainActivity : AppCompatActivity() {
             muteButton = findViewById(R.id.muteButton)
             textInput = findViewById(R.id.textInput)
             sendButton = findViewById(R.id.sendButton)
+            stopGenButton = findViewById(R.id.stopGenButton)
             voiceModeButton = findViewById(R.id.voiceModeButton)
             textModeButton = findViewById(R.id.textModeButton)
             voiceBar = findViewById(R.id.voiceBar)
@@ -130,6 +132,11 @@ class MainActivity : AppCompatActivity() {
         }
         // 文字输入发送
         sendButton.setOnClickListener { sendTextFromInput() }
+        // ★ 停止生成（文字/语音模式通用：停 LLM + 清除流式状态）
+        stopGenButton.setOnClickListener {
+            assistant?.interruptOutput()
+            toast("已停止")
+        }
         textInput.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEND ||
                 (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER &&
@@ -239,12 +246,15 @@ class MainActivity : AppCompatActivity() {
         val bargeGuardMs = sp.getInt(getString(R.string.pref_barge_guard_ms), 300).toLong()
         val bargeConfirmMs = sp.getInt(getString(R.string.pref_barge_confirm_ms), 200).toLong()
         val bargeThreshold = sp.getInt(getString(R.string.pref_barge_threshold), 6) / 10.0f
+        // 麦克风增益 SeekBar 10..30 → 1.0..3.0
+        val micGain = sp.getInt(getString(R.string.pref_mic_gain), 10) / 10.0f
         if (apiKey.isBlank()) toast("请先在「设置」里填写 API Key")
         return VoiceAssistant.Config(
             continuous = true, ttsSpeed = speed,
             llmBaseUrl = baseUrl, llmApiKey = apiKey, llmModel = model, systemPrompt = system,
             cooldownMs = cooldownMs, endpointTrailingSilenceSec = endpointSilence,
             bargeGuardMs = bargeGuardMs, bargeConfirmMs = bargeConfirmMs, bargeThreshold = bargeThreshold,
+            micGain = micGain,
         )
     }
 
@@ -362,6 +372,8 @@ class MainActivity : AppCompatActivity() {
             }
             stateText.text = getString(label)
             stateText.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+            // 停止生成按钮：思考中显示（文字/语音模式通用）
+            stopGenButton.visibility = if (state == VoiceAssistant.State.THINKING) android.view.View.VISIBLE else android.view.View.GONE
             if (state != VoiceAssistant.State.LISTENING) {
                 partialText.visibility = android.view.View.GONE
             }

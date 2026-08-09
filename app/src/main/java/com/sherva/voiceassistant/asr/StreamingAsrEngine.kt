@@ -42,6 +42,8 @@ class StreamingAsrEngine(
     private val numThreads: Int = 4,
     /** 端点尾静默(s)：说完停顿多久判定该句结束。 */
     endpointTrailingSilenceSec: Float = 1.2f,
+    /** ★ 麦克风软件增益（1.0=原始，>1 放大让远距离也能识别）。 */
+    private val micGain: Float = 1.0f,
 ) {
     private val recognizer = run {
         AppLog.i("SASR", "构造 OnlineRecognizer: encoder=${ModelPaths.STREAM_ENCODER}")
@@ -111,7 +113,13 @@ class StreamingAsrEngine(
                 while (running) {
                     val n = record!!.read(buf, 0, buf.size)
                     if (n <= 0) continue
-                    val raw = FloatArray(n) { buf[it] / 32768.0f }
+                    // ★ 软件增益：放大采样值，让远距离/小声说话也能识别
+                    val raw = FloatArray(n) { (buf[it] / 32768.0f) * micGain }
+                    // 钳制到 [-1,1]，防削波失真
+                    for (i in raw.indices) {
+                        if (raw[i] > 1f) raw[i] = 1f
+                        else if (raw[i] < -1f) raw[i] = -1f
+                    }
                     // ★ GTCRN 实时降噪后再喂 ASR（提精度 + 消 TTS 回声污染）
                     val clean = denoiser.process(raw, sampleRate)
                     if (clean.isEmpty()) continue
