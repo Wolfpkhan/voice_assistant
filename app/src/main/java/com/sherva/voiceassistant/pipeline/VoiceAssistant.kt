@@ -85,6 +85,7 @@ class VoiceAssistant(
     @Volatile private var interrupted = false  // 本轮是否被用户打断（打断后跳过剩余 TTS）
     /** 文字模式标志：文字模式发送后不自动重新聆听（保持静默等下一轮输入）。 */
     @Volatile var textMode = false
+    private var historyInitialized = false
 
     @Volatile var state: State = State.IDLE
         private set
@@ -94,16 +95,21 @@ class VoiceAssistant(
         listener.onState(s)
     }
 
-    /** 启动对话循环。 */
+    /** 初始化对话历史（system prompt）。语音/文字共用。 */
+    private fun ensureHistory() {
+        if (historyInitialized) return
+        history.clear()
+        if (config.systemPrompt.isNotBlank()) {
+            history += LlmClient.Message.system(config.systemPrompt)
+        }
+        historyInitialized = true
+    }
+
+    /** 启动对话循环（语音模式：开始聆听）。 */
     fun startConversation() {
         if (state != State.IDLE) return
-        convJob = scope.launch {
-            history.clear()
-            if (config.systemPrompt.isNotBlank()) {
-                history += LlmClient.Message.system(config.systemPrompt)
-            }
-            startListening()
-        }
+        ensureHistory()
+        scope.launch { startListening() }
     }
 
     private fun startListening() {
@@ -132,6 +138,7 @@ class VoiceAssistant(
     /**
      * ★ 文字输入消息：不经过语音，直接把文本送入 LLM 链路（复用同一逻辑）。
      * 用于聊天记录里点某条消息继续提问、或界面文字输入框发送。
+     * 不会开启语音侦听。
      */
     fun sendText(text: String) {
         val t = text.trim()
@@ -140,10 +147,11 @@ class VoiceAssistant(
             AppLog.w("VA", "对话进行中，忽略 sendText")
             return
         }
+        ensureHistory()
         active = true
         scope.launch {
             AppLog.i("VA", "文字输入: \"$t\"")
-            asr.stop()   // 停掉聆听（如有）
+            asr.stop()   // 确保停掉任何残留聆听
             listener.onUserText(t)
             history += LlmClient.Message.user(t)
             handleLlmTurn()
@@ -178,12 +186,17 @@ class VoiceAssistant(
             listener.onAssistantComplete(fullReply)
             history += LlmClient.Message.assistant(fullReply)
 
-            // TTS 播报：分句串行播放（不再依赖流式切句，避免 reasoning 模型 content 延迟漏播）
-            setState(State.SPEAKING)
-            interrupted = false
-            for (sentence in splitSentences(fullReply)) {
-                if (!kotlinx.coroutines.currentCoroutineContext().isActive || interrupted || state == State.IDLE) break
-                speakSentence(sentence)
+            if (textMode) {
+                // 文字模式：不播报 TTS，只显示文字
+                AppLog.i("VA", "文字模式，跳过 TTS 播报")
+            } else {
+                // TTS 播报：分句串行播放（不再依赖流式切句，避免 reasoning 模型 content 延迟漏播）
+                setState(State.SPEAKING)
+                interrupted = false
+                for (sentence in splitSentences(fullReply)) {
+                    if (!kotlinx.coroutines.currentCoroutineContext().isActive || interrupted || state == State.IDLE) break
+                    speakSentence(sentence)
+                }
             }
         }
         Log.i(TAG, "本轮耗时 ${System.currentTimeMillis() - startTime}ms")

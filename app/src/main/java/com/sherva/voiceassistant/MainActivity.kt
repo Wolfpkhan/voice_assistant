@@ -267,29 +267,34 @@ class MainActivity : AppCompatActivity() {
     private fun handlePromptExtra() {
         val prompt = intent.getStringExtra(EXTRA_TEXT_PROMPT) ?: return
         intent.removeExtra(EXTRA_TEXT_PROMPT)
-        // 自动开始对话并发送文本
+        // 文字模式发送：不开启语音侦听，不播报 TTS
+        switchMode(Mode.TEXT)
         if (assistant == null) {
-            if (hasRecordPermission()) startAssistant() else ensurePermissionAndStart()
+            val cfg = buildConfig()
+            if (cfg.llmApiKey.isBlank()) return
+            assistant = VoiceAssistant(this, cfg, listener)
+            setStartedUi(true)
         }
+        assistant?.textMode = true
         assistant?.sendText(prompt)
     }
 
-    /** 文字输入发送（仅文字模式；语音在跑则先停，保证互斥）。 */
+    /** 文字输入发送（仅文字模式；不开启语音侦听，不播报 TTS）。 */
     private fun sendTextFromInput() {
         val text = textInput.text?.toString()?.trim().orEmpty()
         if (text.isEmpty()) return
         // 文字模式：确保不在语音模式
         if (mode != Mode.TEXT) switchMode(Mode.TEXT)
-        // 若语音会话还在跑（如刚切过来残留），先停
-        if (assistant != null) stopAssistant()
         textInput.text?.clear()
-        // 初始化并发送
+        // 若语音会话还在跑，先停
+        if (assistant != null && assistant?.textMode == false) stopAssistant()
+        // 文字模式下不调 startAssistant（那会开启语音侦听），直接建实例发送
         if (assistant == null) {
-            if (!hasRecordPermission()) {
-                toast("文字模式无需录音，但需要初始化")
-            }
+            val cfg = buildConfig()
+            if (cfg.llmApiKey.isBlank()) return
+            assistant = VoiceAssistant(this, cfg, listener)
+            setStartedUi(true)
         }
-        startAssistant()
         assistant?.textMode = true
         assistant?.sendText(text)
     }
