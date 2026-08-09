@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sherpa语音助手</string>
+    <string name="settings_title">设置</string>
+
+    <!-- 状态文案 -->
+    <string name="state_idle">待机</string>
+    <string name="state_listening">聆听中…</string>
+    <string name="state_recognizing">识别中…</string>
+    <string name="state_thinking">思考中…</string>
+    <string name="state_speaking">回答中…</string>
+
+    <!-- 按钮 -->
+    <string name="btn_start">开始对话</string>
+    <string name="btn_stop">停止</string>
+    <string name="btn_settings">设置</string>
+
+    <!-- 设置键 -->
+    <string name="pref_llm_baseurl">llm_baseurl</string>
+    <string name="pref_llm_apikey">llm_apikey</string>
+    <string name="pref_llm_model">llm_model</string>
+    <string name="pref_llm_system">llm_system</string>
+    <string name="pref_tts_speed">tts_speed</string>
+    <string name="pref_tts_sid">tts_sid</string>
+    <!-- 高级时间参数（单位见 title） -->
+    <string name="pref_cooldown_ms">cooldown_ms</string>
+    <string name="pref_endpoint_silence">endpoint_silence</string>
+    <string name="pref_barge_guard_ms">barge_guard_ms</string>
+    <string name="pref_barge_confirm_ms">barge_confirm_ms</string>
+    <string name="pref_barge_threshold">barge_threshold</string>
+
+    <!-- 默认值：pi-proxy（包装 pi agent 为 OpenAI 兼容 API，带工具能力）
+         备选 llm-wire 直连: http://127.0.0.1:8989/v1 -->
+    <string name="default_baseurl">http://127.0.0.1:8988/v1</string>
+    <string name="default_model">deepseek-v4-flash</string>
+    <string name="default_apikey">sk-4a125f52422534403c0d7edf</string>
+    <string name="default_system">你是中文语音助手，直接用嘴说话的方式回答。规则：1.只用1到2个短句，像日常聊天；2.禁止markdown、列表、符号、emoji、编号；3.禁止书面语和长难句，用大白话；4.不解释过程，直接给答案。例如问“你是谁”只答“我是你的语音助手呀，有啥事尽管说。”</string>
+</resources>

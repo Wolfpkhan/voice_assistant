@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <PreferenceCategory android:title="云端大模型 (OpenAI 兼容)">
+        <EditTextPreference
+            android:key="@string/pref_llm_baseurl"
+            android:title="Base URL"
+            android:summary="OpenAI 兼容接口地址"
+            android:defaultValue="@string/default_baseurl"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            android:key="@string/pref_llm_apikey"
+            android:title="API Key"
+            android:summary="服务端密钥（本地保存）"
+            android:defaultValue="@string/default_apikey"
+            android:inputType="textPassword" />
+
+        <EditTextPreference
+            android:key="@string/pref_llm_model"
+            android:title="模型"
+            android:summary="如 deepseek-chat / qwen-plus / gpt-4o-mini"
+            android:defaultValue="@string/default_model"
+            app:useSimpleSummaryProvider="true" />
+
+        <EditTextPreference
+            android:key="@string/pref_llm_system"
+            android:title="系统提示词"
+            android:summary="定义助手人设与回答风格"
+            android:defaultValue="@string/default_system"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="语音合成">
+        <SeekBarPreference
+            android:key="@string/pref_tts_speed"
+            android:title="语速"
+            android:summary="1.0 = 正常"
+            android:defaultValue="10"
+            android:min="5"
+            android:max="20"
+            app:showSeekBarValue="true" />
+
+        <EditTextPreference
+            android:key="@string/pref_tts_sid"
+            android:title="说话人 ID"
+            android:summary="Baker 单人模型固定为 0"
+            android:defaultValue="0"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="高级 · 对话节奏与打断">
+        <!-- 冷却：正常播完后重新聆听的间隔，防回声。打断后会跳过此冷却。 -->
+        <SeekBarPreference
+            android:key="@string/pref_cooldown_ms"
+            android:title="播报后冷却 (ms)"
+            android:summary="正常答完后等多久重新聆听，防回声"
+            android:defaultValue="600"
+            android:min="0"
+            android:max="2000"
+            app:showSeekBarValue="true" />
+
+        <!-- ASR 端点尾静默：说完停顿多久判定该句结束 -->
+        <SeekBarPreference
+            android:key="@string/pref_endpoint_silence"
+            android:title="说完判定延时 (×0.1s)"
+            android:summary="停顿多久判定一句话说完整。越小响应越快、越大越稳"
+            android:defaultValue="12"
+            android:min="5"
+            android:max="30"
+            app:showSeekBarValue="true" />
+
+        <!-- 打断起播保护期：TTS 出声后多久开始检测打断 -->
+        <SeekBarPreference
+            android:key="@string/pref_barge_guard_ms"
+            android:title="打断保护期 (ms)"
+            android:summary="TTS 刚出声多久内不检测打断，防误触发"
+            android:defaultValue="300"
+            android:min="0"
+            android:max="1000"
+            app:showSeekBarValue="true" />
+
+        <!-- 打断确认时长：连续语音多久才算真打断 -->
+        <SeekBarPreference
+            android:key="@string/pref_barge_confirm_ms"
+            android:title="打断确认时长 (ms)"
+            android:summary="连续检测到语音多久才算真打断。越大越不容易误打断"
+            android:defaultValue="200"
+            android:min="50"
+            android:max="800"
+            app:showSeekBarValue="true" />
+
+        <!-- 打断灵敏度（阈值，×0.1）。数值越小越灵敏。 -->
+        <SeekBarPreference
+            android:key="@string/pref_barge_threshold"
+            android:title="打断灵敏度 (×0.1，越小越灵敏)"
+            android:summary="GTCRN 降噪后的 VAD 阈值。越小越容易触发打断"
+            android:defaultValue="6"
+            android:min="3"
+            android:max="9"
+            app:showSeekBarValue="true" />
+    </PreferenceCategory>
+
+</PreferenceScreen>

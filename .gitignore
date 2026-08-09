@@ -1,0 +1,25 @@
+# Gradle / 构建产物
+.gradle/
+build/
+app/build/
+local.properties
+*.apk
+
+# Android Studio
+.idea/
+*.iml
+.cxx/
+
+# sherpa-onnx AAR（49MB，从 release 下载，不入库）
+app/libs/*.aar
+
+# 端侧模型（VAD/ASR/TTS/降噪，合计 ~400MB，用 scripts 下载，不入库）
+app/src/main/assets/models/
+
+# 日志
+*.log
+sherpa_assistant.log
+
+# 签名
+*.keystore
+*.jks

@@ -1,0 +1,63 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.sherva.voiceassistant'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.sherva.voiceassistant"
+        minSdk 26          // Android 8.0；sherpa-onnx AAR 要求 24+，26 覆盖绝大多数骁龙机型
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        // 目标是骁龙 arm64 手机，只保留该架构以瘦身 APK（57MB→~30MB）。
+        // 若需在 x86 模拟器调试，加入 'x86', 'x86_64'。
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
+    // 不压缩 sherpa 的 .so，避免加载失败
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+}
+
+dependencies {
+    // ★ sherpa-onnx 预编译 AAR（含 kotlin-api 类 com.k2fsa.sherpa.onnx.* + 各架构 .so）
+    // 由 scripts/download-aar.sh 下载到 app/libs/sherpa-onnx-1.13.4.aar
+    implementation files('libs/sherpa-onnx-1.13.4.aar')
+
+    // AndroidX
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+    implementation 'androidx.preference:preference-ktx:1.2.1'
+
+    // Kotlin 协程
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+
+    // OkHttp（云端 LLM 的 SSE 流式调用）
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'com.squareup.okhttp3:okhttp-sse:4.12.0'
+
+    // JSON 解析
+    implementation 'org.json:json:20231013'
+}
