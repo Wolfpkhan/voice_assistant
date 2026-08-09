@@ -106,17 +106,20 @@ class MainActivity : AppCompatActivity() {
         textModeButton.setOnClickListener { switchMode(Mode.TEXT) }
         applyMode()
 
-        // 聊天记录存储初始化 + 加载历史
+        // 聊天记录存储初始化 + 响应式历史加载（借鉴 hermes：Flow collect 自动跟随数据库变化）
         ChatStore.initialize(this)
         lifecycleScope.launch {
-            val history = ChatStore.loadAll()
-            history.forEach { m ->
-                adapter.add(ChatMessage.create(
-                    if (m.isFromUser) ChatMessage.Role.USER else ChatMessage.Role.ASSISTANT,
-                    m.content,
-                ))
+            ChatStore.messagesFlow().collect { history ->
+                // 数据库变化（保存/清空/导入）→ 重建列表
+                adapter.clearAll()
+                history.forEach { m ->
+                    adapter.add(ChatMessage.create(
+                        if (m.isFromUser) ChatMessage.Role.USER else ChatMessage.Role.ASSISTANT,
+                        m.content,
+                    ))
+                }
+                scrollToEnd(smooth = false)
             }
-            scrollToEnd()
         }
 
         startButton.setOnClickListener { toggleConversation() }
@@ -362,10 +365,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun scrollToEnd() {
+    /** 滚动到底部。smooth=true 平滑（新消息到达），false 直接跳（首次加载）。借鉴 hermes 的 animateScrollToItem。 */
+    private fun scrollToEnd(smooth: Boolean = true) {
         messagesView.post {
             val pos = adapter.itemCount - 1
-            if (pos >= 0) messagesView.scrollToPosition(pos)
+            if (pos >= 0) {
+                if (smooth) messagesView.smoothScrollToPosition(pos)
+                else messagesView.scrollToPosition(pos)
+            }
         }
     }
 

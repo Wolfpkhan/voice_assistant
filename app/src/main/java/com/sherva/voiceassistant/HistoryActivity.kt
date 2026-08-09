@@ -73,13 +73,28 @@ class HistoryActivity : AppCompatActivity() {
         historyList.layoutManager = LinearLayoutManager(this)
         historyList.adapter = adapter
 
-        // 搜索：实时过滤
+        // 搜索：实时过滤（分页）
         searchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) {}
             override fun afterTextChanged(s: Editable?) {
                 val q = s?.toString()?.trim().orEmpty()
-                loadMessages(q)
+                query = q
+                items = emptyList()
+                offset = 0
+                hasMore = true
+                adapter.submitList(emptyList())
+                loadMoreItems()
+            }
+        })
+
+        // 滚动到顶部加载更早的历史（借鉴 hermes 的分页加载）
+        historyList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(v: RecyclerView, dx: Int, dy: Int) {
+                val lm = v.layoutManager as LinearLayoutManager
+                if (lm.findFirstVisibleItemPosition() <= 2 && hasMore) {
+                    loadMoreItems()
+                }
             }
         })
 
@@ -105,15 +120,41 @@ class HistoryActivity : AppCompatActivity() {
                 .show()
         }
 
-        loadMessages("")
+        initialLoad()
     }
 
-    private fun loadMessages(query: String) {
+    // ---------- 分页加载（借鉴 hermes：最近 PAGE_SIZE 条 + 滚动顶部加载更早） ----------
+    private var query = ""
+    private var items: List<MessageEntity> = emptyList()
+    private var offset = 0
+    private var hasMore = true
+    @Volatile private var loading = false
+
+    /** 初始加载：最近 PAGE_SIZE 条（倒序，最新在上）。 */
+    private fun initialLoad() {
         lifecycleScope.launch {
-            val list = if (query.isEmpty()) ChatStore.loadAll() else ChatStore.search(query)
-            // 搜索时倒序（最新在上），浏览时正序
-            adapter.submitList(if (query.isEmpty()) list else list.reversed())
+            val latest = if (query.isEmpty()) ChatStore.loadLatest() else ChatStore.search(query)
+            // 倒序显示（最新在上）
+            items = latest.reversed()
+            offset = latest.size
+            adapter.submitList(items)
             updateEmpty()
+        }
+    }
+
+    /** 加载更早的一页（插到列表尾部）。 */
+    private fun loadMoreItems() {
+        if (loading || !hasMore) return
+        loading = true
+        lifecycleScope.launch {
+            val older = if (query.isEmpty()) ChatStore.loadMore(offset) else ChatStore.search(query, offset)
+            loading = false
+            if (older.isEmpty()) { hasMore = false; return@launch }
+            // 插到末尾（更早的在下面）
+            val merged = items + older.reversed()
+            items = merged
+            offset += older.size
+            adapter.submitList(merged)
         }
     }
 
@@ -141,7 +182,7 @@ class HistoryActivity : AppCompatActivity() {
                 // 先确认是追加还是替换
                 val count = BackupManager.import(this@HistoryActivity, uri, ChatStore.getDao(), replace = false)
                 toast("已导入 $count 条记录")
-                loadMessages("")
+                initialLoad()
             } catch (e: Exception) {
                 toast("导入失败: ${e.message}")
             }
