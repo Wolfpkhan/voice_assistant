@@ -83,8 +83,44 @@
         android:paddingBottom="8dp"
         android:overScrollMode="never" />
 
-    <!-- ===== 底部控制栏 ===== -->
+    <!-- ===== 模式切换（语音/文字 互斥） ===== -->
     <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/voiceModeButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="18dp"
+            android:text="🎤 语音"
+            android:textSize="14sp"
+            app:cornerRadius="18dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/textModeButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="36dp"
+            android:layout_marginStart="10dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:paddingHorizontal="18dp"
+            android:text="⌨ 文字"
+            android:textSize="14sp"
+            app:cornerRadius="18dp" />
+    </LinearLayout>
+
+    <!-- ===== 底部控制栏（语音模式） ===== -->
+    <LinearLayout
+        android:id="@+id/voiceBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -146,8 +182,9 @@
             app:iconTint="#FFFFFF" />
     </LinearLayout>
 
-    <!-- ===== 文字输入条 ===== -->
+    <!-- ===== 文字输入条（文字模式） ===== -->
     <LinearLayout
+        android:id="@+id/textBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"

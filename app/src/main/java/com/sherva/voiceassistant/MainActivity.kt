@@ -43,6 +43,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var muteButton: MaterialButton
     private lateinit var textInput: TextInputEditText
     private lateinit var sendButton: MaterialButton
+    private lateinit var voiceModeButton: MaterialButton
+    private lateinit var textModeButton: MaterialButton
+    private lateinit var voiceBar: android.view.View
+    private lateinit var textBar: android.view.View
+
+    private enum class Mode { VOICE, TEXT }
+    private var mode = Mode.VOICE   // 默认语音模式
 
     private val adapter = ChatAdapter()
     private var assistant: VoiceAssistant? = null
@@ -81,6 +88,10 @@ class MainActivity : AppCompatActivity() {
             muteButton = findViewById(R.id.muteButton)
             textInput = findViewById(R.id.textInput)
             sendButton = findViewById(R.id.sendButton)
+            voiceModeButton = findViewById(R.id.voiceModeButton)
+            textModeButton = findViewById(R.id.textModeButton)
+            voiceBar = findViewById(R.id.voiceBar)
+            textBar = findViewById(R.id.textBar)
             messagesView.layoutManager = LinearLayoutManager(this).apply {
                 stackFromEnd = true
             }
@@ -89,6 +100,11 @@ class MainActivity : AppCompatActivity() {
         } catch (t: Throwable) {
             AppLog.e("Main", "View 绑定失败", t); throw t
         }
+
+        // 模式切换（互斥）
+        voiceModeButton.setOnClickListener { switchMode(Mode.VOICE) }
+        textModeButton.setOnClickListener { switchMode(Mode.TEXT) }
+        applyMode()
 
         // 聊天记录存储初始化 + 加载历史
         ChatStore.initialize(this)
@@ -128,9 +144,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 开始/停止 切换（ChatGPT 风格：单个主按钮 toggle）。 */
+    /** 开始/停止 切换（ChatGPT 风格：单个主按钮 toggle）。仅语音模式。 */
     private fun toggleConversation() {
         if (assistant != null) stopAssistant() else ensurePermissionAndStart()
+    }
+
+    /** 切换语音/文字模式（互斥：切走时停掉对方的会话）。 */
+    private fun switchMode(newMode: Mode) {
+        if (mode == newMode) return
+        mode = newMode
+        // 切走时若语音在跑，立即停止
+        if (newMode == Mode.TEXT && assistant != null) stopAssistant()
+        applyMode()
+    }
+
+    /** 应用当前模式的可见性。 */
+    private fun applyMode() {
+        val voice = mode == Mode.VOICE
+        voiceBar.visibility = if (voice) android.view.View.VISIBLE else android.view.View.GONE
+        textBar.visibility = if (voice) android.view.View.GONE else android.view.View.VISIBLE
+        voiceModeButton.isSelected = voice
+        textModeButton.isSelected = !voice
+        // 高亮当前模式按钮
+        val activeTint = ContextCompat.getColorStateList(this, R.color.brand)
+        val inactiveTint = ContextCompat.getColorStateList(this, R.color.dark_surface_elevated)
+        voiceModeButton.backgroundTintList = if (voice) activeTint else inactiveTint
+        voiceModeButton.setTextColor(ContextCompat.getColor(this, if (voice) android.graphics.Color.WHITE else R.color.dark_text_secondary))
+        textModeButton.backgroundTintList = if (!voice) activeTint else inactiveTint
+        textModeButton.setTextColor(ContextCompat.getColor(this, if (!voice) android.graphics.Color.WHITE else R.color.dark_text_secondary))
+        // 文字模式不显示实时识别提示
+        if (!voice) partialText.visibility = android.view.View.GONE
     }
 
     private fun ensurePermissionAndStart() {
@@ -174,8 +217,11 @@ class MainActivity : AppCompatActivity() {
         val cfg = buildConfig()
         if (cfg.llmApiKey.isBlank()) return
         assistant?.release()
-        adapter.clearAll()
-        curAssistantId = -1L
+        // 语音模式每次开始是新一轮（清空列表）；文字模式保留历史
+        if (mode == Mode.VOICE) {
+            adapter.clearAll()
+            curAssistantId = -1L
+        }
         assistant = VoiceAssistant(this, cfg, listener).also { it.startConversation() }
         setStartedUi(true)
     }
@@ -222,18 +268,22 @@ class MainActivity : AppCompatActivity() {
         assistant?.sendText(prompt)
     }
 
-    /** 文字输入发送。 */
+    /** 文字输入发送（仅文字模式；语音在跑则先停，保证互斥）。 */
     private fun sendTextFromInput() {
         val text = textInput.text?.toString()?.trim().orEmpty()
         if (text.isEmpty()) return
+        // 文字模式：确保不在语音模式
+        if (mode != Mode.TEXT) switchMode(Mode.TEXT)
+        // 若语音会话还在跑（如刚切过来残留），先停
+        if (assistant != null) stopAssistant()
         textInput.text?.clear()
-        // 若未开始对话，先初始化
+        // 初始化并发送
         if (assistant == null) {
-            if (hasRecordPermission()) startAssistant() else {
-                ensurePermissionAndStart()
-                return
+            if (!hasRecordPermission()) {
+                toast("文字模式无需录音，但需要初始化")
             }
         }
+        startAssistant()
         assistant?.sendText(text)
     }
 
