@@ -41,6 +41,12 @@
             android:exported="false"
             android:label="@string/settings_title" />
 
+        <!-- 聊天记录：查看/搜索/导入导出 -->
+        <activity
+            android:name=".HistoryActivity"
+            android:exported="false"
+            android:label="@string/history_title" />
+
     </application>
 
 </manifest>

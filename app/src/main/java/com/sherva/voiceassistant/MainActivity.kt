@@ -6,6 +6,8 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.graphics.PorterDuff
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.inputmethod.EditorInfo
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,21 +16,33 @@ import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.textfield.TextInputEditText
+import com.sherva.voiceassistant.data.ChatStore
+import com.sherva.voiceassistant.data.MessageEntity
 import com.sherva.voiceassistant.pipeline.VoiceAssistant
 import com.sherva.voiceassistant.ui.ChatAdapter
 import com.sherva.voiceassistant.ui.ChatMessage
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        /** 从历史/外部跳入时携带的文本，直接作为消息发送。 */
+        const val EXTRA_TEXT_PROMPT = "extra_text_prompt"
+    }
 
     private lateinit var stateText: TextView
     private lateinit var partialText: TextView
     private lateinit var messagesView: RecyclerView
     private lateinit var startButton: MaterialButton
-    private lateinit var stopButton: MaterialButton
     private lateinit var settingsButton: MaterialButton
+    private lateinit var historyButton: MaterialButton
     private lateinit var interruptButton: MaterialButton
     private lateinit var muteButton: MaterialButton
+    private lateinit var textInput: TextInputEditText
+    private lateinit var sendButton: MaterialButton
 
     private val adapter = ChatAdapter()
     private var assistant: VoiceAssistant? = null
@@ -61,10 +75,12 @@ class MainActivity : AppCompatActivity() {
             partialText = findViewById(R.id.partialText)
             messagesView = findViewById(R.id.messagesView)
             startButton = findViewById(R.id.startButton)
-            stopButton = findViewById(R.id.stopButton)
             settingsButton = findViewById(R.id.settingsButton)
+            historyButton = findViewById(R.id.historyButton)
             interruptButton = findViewById(R.id.interruptButton)
             muteButton = findViewById(R.id.muteButton)
+            textInput = findViewById(R.id.textInput)
+            sendButton = findViewById(R.id.sendButton)
             messagesView.layoutManager = LinearLayoutManager(this).apply {
                 stackFromEnd = true
             }
@@ -74,15 +90,41 @@ class MainActivity : AppCompatActivity() {
             AppLog.e("Main", "View 绑定失败", t); throw t
         }
 
+        // 聊天记录存储初始化 + 加载历史
+        ChatStore.initialize(this)
+        lifecycleScope.launch {
+            val history = ChatStore.loadAll()
+            history.forEach { m ->
+                adapter.add(ChatMessage.create(
+                    if (m.isFromUser) ChatMessage.Role.USER else ChatMessage.Role.ASSISTANT,
+                    m.content,
+                ))
+            }
+            scrollToEnd()
+        }
+
         startButton.setOnClickListener { toggleConversation() }
         settingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
+        }
+        historyButton.setOnClickListener {
+            startActivity(Intent(this, HistoryActivity::class.java))
         }
         interruptButton.setOnClickListener {
             assistant?.interruptOutput(); toast("已中断输出")
         }
         muteButton.setOnClickListener {
             assistant?.stopPlayback(); toast("已停止播放")
+        }
+        // 文字输入发送
+        sendButton.setOnClickListener { sendTextFromInput() }
+        textInput.setOnEditorActionListener { _, actionId, event ->
+            if (actionId == EditorInfo.IME_ACTION_SEND ||
+                (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER &&
+                    event.action == KeyEvent.ACTION_DOWN)
+            ) {
+                sendTextFromInput(); true
+            } else false
         }
     }
 
@@ -165,6 +207,34 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (StoragePermission.granted()) AppLog.init(this)
+        // 从历史页跳来：处理待发送文本
+        handlePromptExtra()
+    }
+
+    /** 处理 EXTRA_TEXT_PROMPT（从历史页点击消息继续提问）。 */
+    private fun handlePromptExtra() {
+        val prompt = intent.getStringExtra(EXTRA_TEXT_PROMPT) ?: return
+        intent.removeExtra(EXTRA_TEXT_PROMPT)
+        // 自动开始对话并发送文本
+        if (assistant == null) {
+            if (hasRecordPermission()) startAssistant() else ensurePermissionAndStart()
+        }
+        assistant?.sendText(prompt)
+    }
+
+    /** 文字输入发送。 */
+    private fun sendTextFromInput() {
+        val text = textInput.text?.toString()?.trim().orEmpty()
+        if (text.isEmpty()) return
+        textInput.text?.clear()
+        // 若未开始对话，先初始化
+        if (assistant == null) {
+            if (hasRecordPermission()) startAssistant() else {
+                ensurePermissionAndStart()
+                return
+            }
+        }
+        assistant?.sendText(text)
     }
 
     override fun onDestroy() {
@@ -198,6 +268,7 @@ class MainActivity : AppCompatActivity() {
             partialText.visibility = android.view.View.GONE
             curAssistantId = -1L   // 新一轮，下一条助手消息会是新的
             adapter.add(ChatMessage.create(ChatMessage.Role.USER, text))
+            ChatStore.save(text, isFromUser = true)   // 落库
             scrollToEnd()
         }
 
@@ -229,6 +300,7 @@ class MainActivity : AppCompatActivity() {
                 curAssistantId = msg.id
                 adapter.add(msg)
             }
+            ChatStore.save(final, isFromUser = false)   // 落库
             scrollToEnd()
             // 保持在"进行中"状态，供下一轮 onUserText 重置（避免与尾部 delta 竞态）
         }

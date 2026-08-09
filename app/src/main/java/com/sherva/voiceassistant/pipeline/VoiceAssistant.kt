@@ -123,57 +123,82 @@ class VoiceAssistant(
             asr.stop()
             listener.onUserText(text)
             history += LlmClient.Message.user(text)
+            handleLlmTurn()
+        }
+    }
 
-            // LLM 流式（收集完整回复）
-            setState(State.THINKING)
-            val reply = StringBuilder()
-            val startTime = System.currentTimeMillis()
-            var reasoningSeen = false
-            try {
-                llm.chat(history,
-                    onToken = { delta ->
-                        reply.append(delta)
-                        listener.onAssistantDelta(delta)
-                    },
-                    onReasoning = {
-                        if (!reasoningSeen) { reasoningSeen = true; listener.onReasoningStart() }
-                    },
-                ).collect { full ->
-                    if (full.length > reply.length) reply.clear().append(full)
-                }
-            } catch (e: Throwable) {
-                listener.onError("LLM 调用失败: ${e.message}")
+    /**
+     * ★ 文字输入消息：不经过语音，直接把文本送入 LLM 链路（复用同一逻辑）。
+     * 用于聊天记录里点某条消息继续提问、或界面文字输入框发送。
+     */
+    fun sendText(text: String) {
+        val t = text.trim()
+        if (t.isEmpty()) return
+        if (active) {
+            AppLog.w("VA", "对话进行中，忽略 sendText")
+            return
+        }
+        active = true
+        scope.launch {
+            AppLog.i("VA", "文字输入: \"$t\"")
+            asr.stop()   // 停掉聆听（如有）
+            listener.onUserText(t)
+            history += LlmClient.Message.user(t)
+            handleLlmTurn()
+        }
+    }
+
+    /** LLM 流式 → TTS 播报（共用逻辑）。 */
+    private suspend fun handleLlmTurn() {
+        // LLM 流式（收集完整回复）
+        setState(State.THINKING)
+        val reply = StringBuilder()
+        val startTime = System.currentTimeMillis()
+        var reasoningSeen = false
+        try {
+            llm.chat(history,
+                onToken = { delta ->
+                    reply.append(delta)
+                    listener.onAssistantDelta(delta)
+                },
+                onReasoning = {
+                    if (!reasoningSeen) { reasoningSeen = true; listener.onReasoningStart() }
+                },
+            ).collect { full ->
+                if (full.length > reply.length) reply.clear().append(full)
             }
-            val fullReply = reply.toString().trim()
-            AppLog.i("VA", "LLM 完成: reasoning=$reasoningSeen, 回复 ${fullReply.length} 字: \"${fullReply.take(50)}\"")
-            if (fullReply.isNotEmpty()) {
-                listener.onAssistantComplete(fullReply)
-                history += LlmClient.Message.assistant(fullReply)
+        } catch (e: Throwable) {
+            listener.onError("LLM 调用失败: ${e.message}")
+        }
+        val fullReply = reply.toString().trim()
+        AppLog.i("VA", "LLM 完成: reasoning=$reasoningSeen, 回复 ${fullReply.length} 字: \"${fullReply.take(50)}\"")
+        if (fullReply.isNotEmpty()) {
+            listener.onAssistantComplete(fullReply)
+            history += LlmClient.Message.assistant(fullReply)
 
-                // TTS 播报：分句串行播放（不再依赖流式切句，避免 reasoning 模型 content 延迟漏播）
-                setState(State.SPEAKING)
-                interrupted = false
-                for (sentence in splitSentences(fullReply)) {
-                    if (!isActive || interrupted || state == State.IDLE) break
-                    speakSentence(sentence)
-                }
+            // TTS 播报：分句串行播放（不再依赖流式切句，避免 reasoning 模型 content 延迟漏播）
+            setState(State.SPEAKING)
+            interrupted = false
+            for (sentence in splitSentences(fullReply)) {
+                if (!kotlinx.coroutines.currentCoroutineContext().isActive || interrupted || state == State.IDLE) break
+                speakSentence(sentence)
             }
-            Log.i(TAG, "本轮耗时 ${System.currentTimeMillis() - startTime}ms")
-            val wasInterrupted = interrupted
-            AppLog.i("VA", "本轮完成" + if (wasInterrupted) "（被用户打断）" else "")
+        }
+        Log.i(TAG, "本轮耗时 ${System.currentTimeMillis() - startTime}ms")
+        val wasInterrupted = interrupted
+        AppLog.i("VA", "本轮完成" + if (wasInterrupted) "（被用户打断）" else "")
 
-            if (config.continuous && state != State.IDLE) {
-                // 打断后立即重新聆听（不等冷却）；正常播完才冷却防回声
-                if (!wasInterrupted) {
-                    AppLog.i("VA", "冷却 ${config.cooldownMs}ms")
-                    delay(config.cooldownMs)
-                } else {
-                    AppLog.i("VA", "打断恢复，立即重新聆听")
-                }
-                startListening()
+        if (config.continuous && state != State.IDLE) {
+            // 打断后立即重新聆听（不等冷却）；正常播完才冷却防回声
+            if (!wasInterrupted) {
+                AppLog.i("VA", "冷却 ${config.cooldownMs}ms")
+                delay(config.cooldownMs)
             } else {
-                setState(State.IDLE)
+                AppLog.i("VA", "打断恢复，立即重新聆听")
             }
+            startListening()
+        } else {
+            setState(State.IDLE)
         }
     }
 

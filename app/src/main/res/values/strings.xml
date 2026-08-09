@@ -17,6 +17,18 @@
     <string name="btn_mute">静音播放</string>
     <string name="btn_settings">设置</string>
 
+    <!-- 文字输入 -->
+    <string name="input_hint">输入消息…</string>
+    <string name="action_send">发送</string>
+
+    <!-- 历史/备份菜单 -->
+    <string name="history_title">聊天记录</string>
+    <string name="history_search_hint">搜索聊天记录…</string>
+    <string name="history_empty">暂无聊天记录</string>
+    <string name="action_export">导出备份</string>
+    <string name="action_import">导入备份</string>
+    <string name="action_clear">清空历史</string>
+
     <!-- 设置键 -->
     <string name="pref_llm_baseurl">llm_baseurl</string>
     <string name="pref_llm_apikey">llm_apikey</string>
