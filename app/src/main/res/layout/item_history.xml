@@ -39,8 +39,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="4dp"
         android:textSize="15sp"
-        android:maxLines="3"
-        android:ellipsize="end"
+        android:textIsSelectable="true"
         android:textColor="?android:attr/textColorPrimary" />
 
 </LinearLayout>

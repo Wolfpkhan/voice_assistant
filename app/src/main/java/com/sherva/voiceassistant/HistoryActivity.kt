@@ -218,7 +218,8 @@ class HistoryAdapter(
     override fun onBindViewHolder(h: VH, position: Int) {
         val m = items[position]
         h.prefix.text = if (m.isFromUser) "你" else "助手"
-        h.content.text = m.content
+        // 用 MarkdownRenderer 渲染（与主界面一致）
+        com.sherva.voiceassistant.ui.MarkdownRenderer.render(h.content, m.content)
         h.time.text = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
             .format(Date(m.timestamp))
         h.itemView.setOnClickListener { onClick(m) }
