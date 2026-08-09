@@ -83,6 +83,8 @@ class VoiceAssistant(
     private var convJob: Job? = null
     @Volatile private var active = false   // 是否处于一轮对话中（防重入）
     @Volatile private var interrupted = false  // 本轮是否被用户打断（打断后跳过剩余 TTS）
+    /** 文字模式标志：文字模式发送后不自动重新聆听（保持静默等下一轮输入）。 */
+    @Volatile var textMode = false
 
     @Volatile var state: State = State.IDLE
         private set
@@ -189,14 +191,20 @@ class VoiceAssistant(
         AppLog.i("VA", "本轮完成" + if (wasInterrupted) "（被用户打断）" else "")
 
         if (config.continuous && state != State.IDLE) {
-            // 打断后立即重新聆听（不等冷却）；正常播完才冷却防回声
-            if (!wasInterrupted) {
-                AppLog.i("VA", "冷却 ${config.cooldownMs}ms")
-                delay(config.cooldownMs)
+            // 文字模式：不自动重新聆听，等用户下次输入
+            if (textMode) {
+                AppLog.i("VA", "文字模式，保持待听（不自动开启聆听）")
+                setState(State.IDLE)
             } else {
-                AppLog.i("VA", "打断恢复，立即重新聆听")
+                // 打断后立即重新聆听（不等冷却）；正常播完才冷却防回声
+                if (!wasInterrupted) {
+                    AppLog.i("VA", "冷却 ${config.cooldownMs}ms")
+                    delay(config.cooldownMs)
+                } else {
+                    AppLog.i("VA", "打断恢复，立即重新聆听")
+                }
+                startListening()
             }
-            startListening()
         } else {
             setState(State.IDLE)
         }

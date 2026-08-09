@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var muteButton: MaterialButton
     private lateinit var textInput: TextInputEditText
     private lateinit var sendButton: android.widget.ImageButton
+    private lateinit var voiceInputButton: android.widget.ImageButton
     private lateinit var voiceModeButton: MaterialButton
     private lateinit var textModeButton: MaterialButton
     private lateinit var voiceBar: android.view.View
@@ -88,6 +89,7 @@ class MainActivity : AppCompatActivity() {
             muteButton = findViewById(R.id.muteButton)
             textInput = findViewById(R.id.textInput)
             sendButton = findViewById(R.id.sendButton)
+            voiceInputButton = findViewById(R.id.voiceInputButton)
             voiceModeButton = findViewById(R.id.voiceModeButton)
             textModeButton = findViewById(R.id.textModeButton)
             voiceBar = findViewById(R.id.voiceBar)
@@ -134,6 +136,8 @@ class MainActivity : AppCompatActivity() {
         }
         // 文字输入发送
         sendButton.setOnClickListener { sendTextFromInput() }
+        // 文字模式语音输入：按住说话 → 松开识别填入输入框
+        setupVoiceInput()
         textInput.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEND ||
                 (event != null && event.keyCode == KeyEvent.KEYCODE_ENTER &&
@@ -155,6 +159,7 @@ class MainActivity : AppCompatActivity() {
         mode = newMode
         // 切走时若语音在跑，立即停止
         if (newMode == Mode.TEXT && assistant != null) stopAssistant()
+        assistant?.textMode = (newMode == Mode.TEXT)
         applyMode()
     }
 
@@ -163,6 +168,8 @@ class MainActivity : AppCompatActivity() {
         val voice = mode == Mode.VOICE
         voiceBar.visibility = if (voice) android.view.View.VISIBLE else android.view.View.GONE
         textBar.visibility = if (voice) android.view.View.GONE else android.view.View.VISIBLE
+        // 文字模式显示语音输入按钮
+        voiceInputButton.visibility = if (voice) android.view.View.GONE else android.view.View.VISIBLE
         // 高亮当前模式按钮（用十六进制色值，避免依赖可能存在裁剪风险的 dark_* 资源）
         val activeTint = android.content.res.ColorStateList.valueOf(0xFF10A37F.toInt())       // 品牌绿
         val inactiveTint = android.content.res.ColorStateList.valueOf(0xFF383838.toInt())     // 深灰
@@ -266,6 +273,60 @@ class MainActivity : AppCompatActivity() {
         assistant?.sendText(prompt)
     }
 
+    /** 文字模式语音输入：按住说话（录音+实时识别），松开填入输入框。 */
+    private var voiceAsr: com.sherva.voiceassistant.asr.StreamingAsrEngine? = null
+    @Volatile private var voiceRecording = false
+    @Volatile private var voicePartial = ""
+
+    private fun setupVoiceInput() {
+        voiceInputButton.setOnTouchListener { _, event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    if (!hasRecordPermission()) {
+                        toast("需要录音权限")
+                        requestPermission.launch(Manifest.permission.RECORD_AUDIO)
+                        return@setOnTouchListener true
+                    }
+                    startVoiceInput()
+                    true
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    stopVoiceInput()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun startVoiceInput() {
+        if (voiceRecording) return
+        voiceRecording = true
+        voicePartial = ""
+        voiceInputButton.setBackgroundColor(0xFFE5484D.toInt())  // 变红提示录音中
+        toast("说话中…松开结束")
+        val asr = com.sherva.voiceassistant.asr.StreamingAsrEngine(this)
+        voiceAsr = asr
+        asr.start(
+            onPartial = { t -> voicePartial = t },
+            onFinal = { t -> if (t.isNotBlank()) voicePartial = t },
+        )
+    }
+
+    private fun stopVoiceInput() {
+        if (!voiceRecording) return
+        voiceRecording = false
+        voiceAsr?.stop()
+        voiceAsr?.release()
+        voiceAsr = null
+        voiceInputButton.setBackgroundColor(0xFF10A37F.toInt())  // 恢复绿色
+        val t = voicePartial.trim()
+        if (t.isNotEmpty()) {
+            textInput.setText(t)
+            textInput.setSelection(t.length)
+        }
+    }
+
     /** 文字输入发送（仅文字模式；语音在跑则先停，保证互斥）。 */
     private fun sendTextFromInput() {
         val text = textInput.text?.toString()?.trim().orEmpty()
@@ -282,6 +343,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         startAssistant()
+        assistant?.textMode = true
         assistant?.sendText(text)
     }
 
@@ -301,7 +363,7 @@ class MainActivity : AppCompatActivity() {
                 VoiceAssistant.State.SPEAKING -> R.string.state_speaking to 0xFFA855F7.toInt()
             }
             stateText.text = getString(label)
-            stateText.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this@MainActivity, color))
+            stateText.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
             if (state != VoiceAssistant.State.LISTENING) {
                 partialText.visibility = android.view.View.GONE
             }
