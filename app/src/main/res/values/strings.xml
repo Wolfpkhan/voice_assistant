@@ -23,6 +23,7 @@
 
     <!-- 历史/备份菜单 -->
     <string name="history_title">聊天记录</string>
+    <string name="action_new_chat">新对话</string>
     <string name="history_search_hint">搜索聊天记录…</string>
     <string name="history_empty">暂无聊天记录</string>
     <string name="action_export">导出备份</string>

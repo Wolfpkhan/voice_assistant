@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var startButton: MaterialButton
     private lateinit var settingsButton: MaterialButton
     private lateinit var historyButton: MaterialButton
+    private lateinit var newChatButton: MaterialButton
     private lateinit var interruptButton: MaterialButton
     private lateinit var muteButton: MaterialButton
     private lateinit var textInput: TextInputEditText
@@ -84,6 +85,7 @@ class MainActivity : AppCompatActivity() {
             startButton = findViewById(R.id.startButton)
             settingsButton = findViewById(R.id.settingsButton)
             historyButton = findViewById(R.id.historyButton)
+            newChatButton = findViewById(R.id.newChatButton)
             interruptButton = findViewById(R.id.interruptButton)
             muteButton = findViewById(R.id.muteButton)
             textInput = findViewById(R.id.textInput)
@@ -118,6 +120,8 @@ class MainActivity : AppCompatActivity() {
         historyButton.setOnClickListener {
             startActivity(Intent(this, HistoryActivity::class.java))
         }
+        // ★ 新对话：调 proxy /v1/new-session 开新 session（旧会话保留供 agent grep）
+        newChatButton.setOnClickListener { startNewChat() }
         interruptButton.setOnClickListener {
             assistant?.interruptOutput(); toast("已中断输出")
         }
@@ -137,6 +141,34 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** 开始/停止 切换（ChatGPT 风格：单个主按钮 toggle）。仅语音模式。 */
+    /** 新对话：调 proxy 开新 session，并重置本地状态。 */
+    private fun startNewChat() {
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.action_new_chat))
+            .setMessage("开启新对话？之前的对话会保留在历史记录里，助手仍可搜索到。")
+            .setPositiveButton("新对话") { _, _ ->
+                // 停掉当前会话，释放旧 assistant
+                stopAssistant()
+                // 后台调 proxy /v1/new-session（旧会话存盘，agent 可 grep）
+                lifecycleScope.launch {
+                    runCatching {
+                        val sp = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this@MainActivity)
+                        val baseUrl = sp.getString(getString(R.string.pref_llm_baseurl), getString(R.string.default_baseurl))!!
+                        val url = baseUrl.trimEnd('/') + "/new-session"
+                        val client = okhttp3.OkHttpClient()
+                        val req = okhttp3.Request.Builder().url(url)
+                            .header("Authorization", "Bearer " + sp.getString(getString(R.string.pref_llm_apikey), ""))
+                            .post(okhttp3.RequestBody.create(null, ByteArray(0)))
+                            .build()
+                        client.newCall(req).execute().use { it.body?.string() }
+                    }
+                    toast("已开启新对话")
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
+
     private fun toggleConversation() {
         // 当前是文字模式的 assistant（无语音会话）→ 释放并新建语音会话
         if (assistant != null && assistant?.textMode == true) {

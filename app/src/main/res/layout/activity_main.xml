@@ -35,6 +35,19 @@
             android:layout_weight="1" />
 
         <!-- 设置图标按钮 -->
+        <!-- 新对话按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/newChatButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp"
+            app:icon="@drawable/ic_new_chat"
+            app:iconSize="22dp"
+            app:iconTint="?android:attr/textColorSecondary" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/historyButton"
             style="@style/Widget.MaterialComponents.Button.TextButton"
