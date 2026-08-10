@@ -257,11 +257,6 @@ class VoiceAssistant(
         }
     }
 
-    private suspend fun speakSentence(sentence: String) {
-        // 现在仅传首句，实际使用下面的 speakAll（多句预生成）
-        speakAll(listOf(sentence))
-    }
-
     /**
      * 整段一次性喂 sherpa Kokoro（内部按 token 分 batch 连续生成）。
      * Barge-in 通过 callback 返回 0 实现。
