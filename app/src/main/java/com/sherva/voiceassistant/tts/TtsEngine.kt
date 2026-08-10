@@ -238,15 +238,11 @@ class TtsEngine(
         onComplete: (() -> Unit)? = null,
     ) {
         if (texts.isEmpty()) { onComplete?.invoke(); return }
-        // ★ 自增代次、设 stopped、重置 track 为可写状态
+        // ★ 自增代次、设 stopped
         val gen = ++generation
         stopped = true
         val oldJob = speakJob
         speakJob = null
-        // ★ 暂停 + 清空 AudioTrack 缓冲，避免上一句末尾静音帧混入新句开头
-        track?.runCatching {
-            pause(); flush(); play()
-        }
         // 同步等待旧任务彻底退出（取消旧 Kokoro 推理、关闭 callback）
         speakJob = scope.launch {
             try {
