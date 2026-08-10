@@ -61,7 +61,9 @@ class TtsEngine(
                     provider = "cpu",
                 ),
                 maxNumSentences = 2,
-                silenceScale = 0.2f,
+                // ★ silenceScale = 0.05：极小静音帧（只保留声母/韵母间必要静音）
+                //   默认 0.2 在中英切换处有可感知停顿
+                silenceScale = 0.05f,
             )
         ).also {
             AppLog.i("TTS", "OfflineTts (Kokoro) 构造成功, sampleRate=${it.sampleRate()}, numSpeakers=${it.numSpeakers()}")
@@ -166,7 +168,12 @@ class TtsEngine(
             stopped = false
             AppLog.i("TTS", "开始合成播放: \"${text.take(30)}\" speed=$speed")
             try {
-                val genConfig = GenerationConfig(sid = sid, speed = speed)
+                val genConfig = GenerationConfig(
+                    sid = sid,
+                    speed = speed,
+                    // ★ per-call silenceScale 也设小，避免中英切换停顿（sherpa 会用 per-call 值）
+                    silenceScale = 0.05f,
+                )
                 val audio = tts.generateWithConfigAndCallback(
                     text = text,
                     config = genConfig,
