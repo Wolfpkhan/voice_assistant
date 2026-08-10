@@ -251,9 +251,9 @@ class MainActivity : AppCompatActivity() {
         val speed = sp.getInt(getString(R.string.pref_tts_speed), 10) / 10.0f
         val cooldownMs = sp.getInt(getString(R.string.pref_cooldown_ms), 600).toLong()
         val endpointSilence = sp.getInt(getString(R.string.pref_endpoint_silence), 12) / 10.0f
-        val bargeGuardMs = sp.getInt(getString(R.string.pref_barge_guard_ms), 300).toLong()
-        val bargeConfirmMs = sp.getInt(getString(R.string.pref_barge_confirm_ms), 200).toLong()
-        val bargeThreshold = sp.getInt(getString(R.string.pref_barge_threshold), 6) / 10.0f
+        val bargeGuardMs = sp.getInt(getString(R.string.pref_barge_guard_ms), 600).toLong()
+        val bargeConfirmMs = sp.getInt(getString(R.string.pref_barge_confirm_ms), 400).toLong()
+        val bargeThreshold = sp.getInt(getString(R.string.pref_barge_threshold), 7) / 10.0f
         // 麦克风增益 SeekBar 10..30 → 1.0..3.0
         val micGain = sp.getInt(getString(R.string.pref_mic_gain), 10) / 10.0f
         if (apiKey.isBlank()) toast("请先在「设置」里填写 API Key")

@@ -114,7 +114,11 @@ class BargeInDetector(
                             return@thread
                         }
                     } else {
-                        speechStart = 0L
+                        // ★ 只要中间有1次非语音，就重置计时器（真人说话会换气，TTS 能量持续）
+                        // 这样 TTS 长句能量连续也保持计时器，只有真人说话中停顿才重置后仍能重计
+                        if (System.currentTimeMillis() - speechStart < startGuardMs) {
+                            speechStart = 0L
+                        }
                     }
                 }
             } catch (e: Throwable) {
