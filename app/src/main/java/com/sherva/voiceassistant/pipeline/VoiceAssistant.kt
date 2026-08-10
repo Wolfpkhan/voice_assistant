@@ -279,7 +279,7 @@ class VoiceAssistant(
         })
         try {
             suspendCancellableCoroutine<Unit> { cont ->
-                tts.speakWithPreGen(
+                tts.speak(
                     texts = clean,
                     sid = config.ttsSid,
                     speed = config.ttsSpeed,
