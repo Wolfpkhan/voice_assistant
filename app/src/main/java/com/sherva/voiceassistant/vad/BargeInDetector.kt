@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import androidx.annotation.RequiresPermission
@@ -53,6 +54,7 @@ class BargeInDetector(
             debug = false,
         )
     )
+    private val appContext = context.applicationContext
 
     private var record: AudioRecord? = null
     @Volatile private var running = false
@@ -76,7 +78,12 @@ class BargeInDetector(
             sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufBytes
         )
         record!!.startRecording()
-        // 系统层 AEC 在 VOICE_COMMUNICATION 下自动启用（不需要手动）
+        // ★★★ 关键：切换 AudioManager 到 IN_COMMUNICATION 模式
+        //   否则仅 AudioSource=VOICE_COMMUNICATION 系统不会启用 AEC
+        //   （vivo/多数厂商要求显式 setMode 才能拿到 TTS 参考信号）
+        val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+        AppLog.i("BargeIn", "AudioManager.mode = MODE_IN_COMMUNICATION（AEC 真正启用）")
         running = true
         armed = false
         vad.reset()
@@ -134,6 +141,13 @@ class BargeInDetector(
         try { record?.stop() } catch (_: Throwable) {}
         record?.release()
         record = null
+        // ★ 退出 IN_COMMUNICATION 模式，恢复正常媒体音量路由
+        runCatching {
+            val audioManager = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            if (audioManager.mode == AudioManager.MODE_IN_COMMUNICATION) {
+                audioManager.mode = AudioManager.MODE_NORMAL
+            }
+        }
     }
 
     fun release() {
