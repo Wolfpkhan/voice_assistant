@@ -1,6 +1,7 @@
 package com.sherva.voiceassistant.pipeline
 
 import android.content.Context
+import android.os.PowerManager
 import android.util.Log
 import com.sherva.voiceassistant.AppLog
 import com.sherva.voiceassistant.asr.StreamingAsrEngine
@@ -65,6 +66,13 @@ class VoiceAssistant(
     }
 
     private val appContext = context.applicationContext
+    // ★ Wake Lock：语音会话期间保持 CPU 唤醒，息屏不中断录音/播放
+    private val wakeLock: PowerManager.WakeLock by lazy {
+        val pm = appContext.getSystemService(Context.POWER_SERVICE) as PowerManager
+        pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "SherpaVoice::session").apply {
+            setReferenceCounted(false)
+        }
+    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     // ★ 引擎 lazy 加载：首次使用才初始化（加载模型），避免构造阻塞 UI。
     //   文字模式只用 LLM，不触发 asr/tts/bargeIn 加载，发送不卡顿。
@@ -118,6 +126,7 @@ class VoiceAssistant(
     fun startConversation() {
         if (state != State.IDLE) return
         ensureHistory()
+        acquireWakeLock()
         scope.launch { startListening() }
     }
 
@@ -267,6 +276,42 @@ class VoiceAssistant(
         bargeIn.stop()
     }
 
+    private fun acquireWakeLock() {
+        if (!wakeLock.isHeld) {
+            wakeLock.acquire(30 * 60 * 1000L)  // 30分钟超时兜底，防泄漏
+            AppLog.i("VA", "WakeLock 已获取（息屏保活）")
+        }
+    }
+
+    private fun releaseWakeLock() {
+        if (wakeLock.isHeld) {
+            wakeLock.release()
+            AppLog.i("VA", "WakeLock 已释放")
+        }
+    }
+
+    /** ★ 切后台暂停：停侦听+TTS+BargeIn（保留会话历史，不释放引擎）。 */
+    fun pause() {
+        AppLog.i("VA", "切后台，暂停侦听与播放")
+        interrupted = true
+        if (bargeInLazy.isInitialized()) bargeIn.stop()
+        if (asrLazy.isInitialized()) asr.stop()
+        if (ttsLazy.isInitialized()) tts.stop()
+        // 注意：不取消 LLM（让进行中的请求自然完成或超时），不释放 wakeLock（保持可恢复）
+        setState(State.IDLE)
+    }
+
+    /** ★ 回到前台恢复：重新开始聆听（仅语音模式且有活跃会话时）。 */
+    fun resume() {
+        if (textMode) return  // 文字模式无需恢复聆听
+        if (state != State.IDLE) return
+        // 仅当之前是语音会话（引擎已初始化）才恢复
+        if (!asrLazy.isInitialized()) return
+        AppLog.i("VA", "回前台，恢复聆听")
+        active = false
+        scope.launch { startListening() }
+    }
+
     fun stop() {
         convJob?.cancel()
         convJob = null
@@ -277,6 +322,7 @@ class VoiceAssistant(
         if (asrLazy.isInitialized()) asr.stop()
         llm.cancel()
         if (ttsLazy.isInitialized()) tts.stop()
+        releaseWakeLock()
         setState(State.IDLE)
     }
 
@@ -301,6 +347,7 @@ class VoiceAssistant(
         if (asrLazy.isInitialized()) runCatching { asr.release() }
         if (ttsLazy.isInitialized()) runCatching { tts.release() }
         if (bargeInLazy.isInitialized()) runCatching { bargeIn.release() }
+        releaseWakeLock()
     }
 
     // ---------- 分句工具 ----------

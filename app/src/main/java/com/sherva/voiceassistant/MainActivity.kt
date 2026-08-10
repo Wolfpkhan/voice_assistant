@@ -297,10 +297,18 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (StoragePermission.granted()) AppLog.init(this)
+        // 回前台：恢复语音侦听（若有活跃语音会话）
+        assistant?.resume()
         // 从历史页返回（可能清空/导入了历史）→ 重新加载
         loadHistoryFromDb()
         // 从历史页跳来：处理待发送文本
         handlePromptExtra()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 切后台：暂停侦听与播放（省电、防后台录音）
+        assistant?.pause()
     }
 
     /** 从数据库加载全部历史到列表（一次性构建，正序）。仅在没有活跃对话时刷新。 */
