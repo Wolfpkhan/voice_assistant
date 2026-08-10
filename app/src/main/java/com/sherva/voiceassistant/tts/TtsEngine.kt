@@ -39,7 +39,24 @@ class TtsEngine(
     context: Context,
     private val numThreads: Int = 2,
 ) {
-    companion object { private const val TAG = "TtsEngine" }
+    companion object {
+        private const val TAG = "TtsEngine"
+        private const val DIGITS = "0123456789"
+        private const val CN_DIGITS = "零一二三四五六七八九"
+        /**
+         * 阿拉伯数字 → 中文数字（逐位替换）。
+         * Kokoro espeak 默认逐位读英文 ("773" → "seven seven three")，
+         * 中文场景下应读 "七七三" / "七七三"。
+         */
+        fun digitsToChinese(text: String): String {
+            val sb = StringBuilder(text.length)
+            for (c in text) {
+                val idx = DIGITS.indexOf(c)
+                if (idx >= 0) sb.append(CN_DIGITS[idx]) else sb.append(c)
+            }
+            return sb.toString()
+        }
+    }
 
     private val tts = run {
         AppLog.i("TTS", "构造 OfflineTts (Kokoro): model=${ModelPaths.TTS_MODEL}, voices=${ModelPaths.TTS_VOICES}")
@@ -157,6 +174,9 @@ class TtsEngine(
         onComplete: (() -> Unit)? = null,
     ) {
         if (text.isBlank()) { onComplete?.invoke(); return }
+        // ★ 阿拉伯数字 → 中文数字：避免 Kokoro espeak 逐位英文读
+        //   （Kokoro 按 [\u4e00-\u9fff]+ 分段，数字非中文，被 espeak 读为 "seven seven three..."）
+        val normalized = digitsToChinese(text)
         // 取消上一句（如有）后等待其退出，避免两个生成线程并发
         speakJob?.cancel()
         speakJob = scope.launch {
@@ -166,7 +186,7 @@ class TtsEngine(
             // 对齐官方：每次播报前重置 track 状态
             t.pause(); t.flush(); t.play()
             stopped = false
-            AppLog.i("TTS", "开始合成播放: \"${text.take(30)}\" speed=$speed")
+            AppLog.i("TTS", "开始合成播放: \"${normalized.take(30)}\" speed=$speed")
             try {
                 val genConfig = GenerationConfig(
                     sid = sid,
@@ -175,7 +195,7 @@ class TtsEngine(
                     silenceScale = 0.05f,
                 )
                 val audio = tts.generateWithConfigAndCallback(
-                    text = text,
+                    text = normalized,
                     config = genConfig,
                     callback = ::onSamples,
                 )
