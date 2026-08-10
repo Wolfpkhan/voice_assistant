@@ -307,6 +307,14 @@ class MainActivity : AppCompatActivity() {
         applyKeepScreenOn()  // 从设置页返回后重新应用
         // 回前台：恢复语音侦听（若有活跃语音会话）
         assistant?.resume()
+        // 按当前状态刷新 UI（避免状态丢失）: 文字模式不需要 startButton
+        assistant?.let { a ->
+            if (a.state == com.sherva.voiceassistant.pipeline.VoiceAssistant.State.IDLE) {
+                setStartedUi(false)
+            } else {
+                setStartedUi(true)
+            }
+        }
         // 从历史页返回（可能清空/导入了历史）→ 重新加载
         loadHistoryFromDb()
         // 从历史页跳来：处理待发送文本
@@ -317,6 +325,8 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         // 切后台：暂停侦听与播放（省电、防后台录音）
         assistant?.pause()
+        // UI 临时复位（避免切回时看到误导状态；resume 后会按真实 state 恢复）
+        setStartedUi(false)
     }
 
     /** 从数据库加载全部历史到列表（一次性构建，正序）。仅在没有活跃对话时刷新。 */

@@ -290,7 +290,7 @@ class VoiceAssistant(
         }
     }
 
-    /** ★ 切后台暂停：停侦听+TTS+BargeIn（保留会话历史，不释放引擎）。 */
+    /** ★ 切后台暂停：停侦听+TTS+BargeIn（保留会话状态，不释放引擎）。 */
     fun pause() {
         AppLog.i("VA", "切后台，暂停侦听与播放")
         interrupted = true
@@ -298,17 +298,35 @@ class VoiceAssistant(
         if (asrLazy.isInitialized()) asr.stop()
         if (ttsLazy.isInitialized()) tts.stop()
         // 注意：不取消 LLM（让进行中的请求自然完成或超时），不释放 wakeLock（保持可恢复）
-        setState(State.IDLE)
+        // 注意：不重置 state！保留 THINKING/SPEAKING 以便回前台后显示，
+        //    仅仅隐藏 UI（setStartedUi(false) 会处理）
+        // 如果原来是 LISTENING，状态可视为“后台停顿”。
+        if (state == State.IDLE) {
+            // 已经是空，不动作
+        } else if (state == State.LISTENING) {
+            // 后台停顿：保留 LISTENING 但停引擎
+            AppLog.i("VA", "后台停顿（从 LISTENING）")
+        } else {
+            // THINKING/SPEAKING：保留状态，后台继续 LLM/TTS 请求
+            AppLog.i("VA", "后台进行中（$state 保留）")
+        }
     }
 
-    /** ★ 回到前台恢复：重新开始聆听（仅语音模式且有活跃会话时）。 */
+    /** ★ 回到前台恢复：重新开始聆听（仅语音模式且之前在聆听时）。 */
     fun resume() {
         if (textMode) return  // 文字模式无需恢复聆听
-        if (state != State.IDLE) return
-        // 仅当之前是语音会话（引擎已初始化）才恢复
+        // 仅当之前是语音会话（引擎已初始化）才考虑恢复
         if (!asrLazy.isInitialized()) return
+        // 如果正在 THINKING/SPEAKING，仅停 TTS 让用户回到前台后从对应进度继续
+        if (state == State.THINKING || state == State.SPEAKING) {
+            AppLog.i("VA", "回前台，进度继续 ($state)")
+            // 状态保持，不重启聆听（避免打断 LLM 流式输出的 TTS）
+            return
+        }
+        // LISTENING 或 IDLE：重新开始聆听
         AppLog.i("VA", "回前台，恢复聆听")
         active = false
+        interrupted = false
         scope.launch { startListening() }
     }
 
