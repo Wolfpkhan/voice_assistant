@@ -222,12 +222,12 @@ class VoiceAssistant(
                 // 文字模式：不播报 TTS，只显示文字
                 AppLog.i("VA", "文字模式，跳过 TTS 播报")
             } else {
-                // TTS 播报：分句串行播放（不再依赖流式切句，避免 reasoning 模型 content 延迟漏播）
+                // TTS 播报：一次性 split + 预生成串行播放（句间停顿从 ~Kokoro 推理耗时压到 ~25ms）
                 setState(State.SPEAKING)
                 interrupted = false
-                for (sentence in splitSentences(fullReply)) {
-                    if (!kotlinx.coroutines.currentCoroutineContext().isActive || interrupted || state == State.IDLE) break
-                    speakSentence(sentence)
+                val sentences = splitSentences(fullReply).filter { it.isNotBlank() }
+                if (sentences.isNotEmpty()) {
+                    speakAll(sentences)
                 }
             }
         }
@@ -256,28 +256,40 @@ class VoiceAssistant(
     }
 
     private suspend fun speakSentence(sentence: String) {
-        if (sentence.isBlank()) return
-        AppLog.i("VA", "调用 TTS 播报: \"${sentence.take(40)}\"")
-        // ★ 打断支持：TTS 播报期间开启 Barge-in 检测，用户一开口就停
+        // 现在仅传首句，实际使用下面的 speakAll（多句预生成）
+        speakAll(listOf(sentence))
+    }
+
+    /**
+     * 多句串行播报（后台预生成下一句，句间停顿压到 ~25ms）。
+     * 同时开启 Barge-in：每句结束检查打断。
+     */
+    private suspend fun speakAll(sentences: List<String>) {
+        if (sentences.isEmpty() || sentences.all { it.isBlank() }) return
+        val clean = sentences.filter { it.isNotBlank() }
+        AppLog.i("VA", "TTS 预生成播报：${clean.size}句")
+        // ★ 打断支持：整个播报期间都开 Barge-in
         bargeIn.start(onInterrupt = {
-            if (!config.enableBargeIn) return@start  // 默认关闭语音打断
+            if (!config.enableBargeIn) return@start
             AppLog.i("VA", "打断触发 → 停 TTS，跳过剩余播报")
-            // 被打断确认音
             com.sherva.voiceassistant.audio.SoundEffects.interrupt()
             interrupted = true
             tts.stop()
             llm.cancel()
         })
-        suspendCancellableCoroutine<Unit> { cont ->
-            tts.speak(
-                text = sentence,
-                sid = config.ttsSid,
-                speed = config.ttsSpeed,
-                onComplete = { if (cont.isActive) cont.resume(Unit) { } },
-            )
-            cont.invokeOnCancellation { tts.stop() }
+        try {
+            suspendCancellableCoroutine<Unit> { cont ->
+                tts.speakWithPreGen(
+                    texts = clean,
+                    sid = config.ttsSid,
+                    speed = config.ttsSpeed,
+                    onComplete = { if (cont.isActive) cont.resume(Unit) { } },
+                )
+                cont.invokeOnCancellation { tts.stop() }
+            }
+        } finally {
+            bargeIn.stop()
         }
-        bargeIn.stop()
     }
 
     private fun acquireWakeLock() {
