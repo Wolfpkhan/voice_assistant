@@ -109,6 +109,7 @@ class MainActivity : AppCompatActivity() {
         voiceModeButton.setOnClickListener { switchMode(Mode.VOICE) }
         textModeButton.setOnClickListener { switchMode(Mode.TEXT) }
         applyMode()
+        applyKeepScreenOn()
 
         // 聊天记录存储初始化 + 一次性加载历史（借鉴 hermes：getAllMessages 加载到内存，之后手动追加）
         ChatStore.initialize(this)
@@ -199,6 +200,17 @@ class MainActivity : AppCompatActivity() {
         // 切到语音模式：若当前无语音会话，按钮复位为“开始对话”
         if (newMode == Mode.VOICE && (assistant == null || assistant?.textMode == true)) {
             setStartedUi(false)
+        }
+    }
+
+    /** 根据设置开关屏幕常亮（前台时 FLAG_KEEP_SCREEN_ON）。 */
+    private fun applyKeepScreenOn() {
+        val sp = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+        val keep = sp.getBoolean(getString(R.string.pref_keep_screen_on), false)
+        if (keep) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 
@@ -297,6 +309,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (StoragePermission.granted()) AppLog.init(this)
+        applyKeepScreenOn()  // 从设置页返回后重新应用
         // 回前台：恢复语音侦听（若有活跃语音会话）
         assistant?.resume()
         // 从历史页返回（可能清空/导入了历史）→ 重新加载

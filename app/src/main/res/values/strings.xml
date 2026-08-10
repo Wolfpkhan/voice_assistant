@@ -45,6 +45,7 @@
     <string name="pref_barge_confirm_ms">barge_confirm_ms</string>
     <string name="pref_barge_threshold">barge_threshold</string>
     <string name="pref_mic_gain">mic_gain</string>
+    <string name="pref_keep_screen_on">keep_screen_on</string>
 
     <!-- 默认值：pi-proxy（包装 pi agent 为 OpenAI 兼容 API，带工具能力）
          备选 llm-wire 直连: http://127.0.0.1:8989/v1 -->

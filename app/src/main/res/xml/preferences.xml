@@ -39,6 +39,14 @@
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="界面">
+        <SwitchPreferenceCompat
+            android:key="@string/pref_keep_screen_on"
+            android:title="屏幕常亮"
+            android:summary="前台时保持屏幕常亮（语音对话时方便查看，耗电增加）"
+            android:defaultValue="false" />
+    </PreferenceCategory>
+
     <PreferenceCategory android:title="语音合成">
         <SeekBarPreference
             android:key="@string/pref_tts_speed"
