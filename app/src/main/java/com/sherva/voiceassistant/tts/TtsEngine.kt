@@ -133,11 +133,19 @@ class TtsEngine(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Volatile private var stopped = false
+    /** ★ 代次计数：每次新 speak 自增。旧任务的 callback 检查到代次不一致就退出，防止新旧任务重复写 AudioTrack。 */
+    @Volatile private var generation = 0
     private var speakJob: Job? = null
 
     /** 创建并启动 AudioTrack（一次性创建后持续 play，不每句重置）。 */
     private fun ensureTrack(): AudioTrack {
-        track?.let { return it }
+        track?.let { existing ->
+            if (existing.playState == AudioTrack.PLAYSTATE_STOPPED) {
+                existing.play()
+                AppLog.i("TTS", "AudioTrack 重新 play（状态=STOPPED）")
+            }
+            return existing
+        }
         val bufLength = AudioTrack.getMinBufferSize(
             sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT
         )
@@ -179,15 +187,16 @@ class TtsEngine(
      * 流式播放单句音频（首响低），同时可选地预生成下一句。
      * 推荐使用 [speakWithPreGen]。
      */
-    private suspend fun playOneStreaming(text: String, sid: Int, speed: Float) {
+    private suspend fun playOneStreaming(text: String, sid: Int, speed: Float, gen: Int) {
         val t = ensureTrack()
         val normalized = digitsToChinese(text)
-        AppLog.i("TTS", "流式播放: \"${normalized.take(30)}\"")
+        AppLog.i("TTS", "流式播放: \"${normalized.take(30)}\" gen=$gen")
         tts.generateWithConfigAndCallback(
             text = normalized,
             config = GenerationConfig(sid = sid, speed = speed, silenceScale = 0.05f),
             callback = { samples ->
-                if (stopped) { return@generateWithConfigAndCallback 0 }
+                // ★ 代次检查：旧任务的回调不再写 AudioTrack
+                if (stopped || generation != gen) return@generateWithConfigAndCallback 0
                 t.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
                 return@generateWithConfigAndCallback 1
             },
@@ -197,11 +206,11 @@ class TtsEngine(
     /**
      * 同步播放预生成的 FloatArray（分块 write，避免冲爆 AudioTrack 缓冲）。
      */
-    private suspend fun playOneSync(samples: FloatArray) {
+    private suspend fun playOneSync(samples: FloatArray, gen: Int) {
         val t = ensureTrack()
         val chunkSize = 4096
         var pos = 0
-        while (pos < samples.size && !stopped) {
+        while (pos < samples.size && !stopped && generation == gen) {
             val n = minOf(chunkSize, samples.size - pos)
             t.write(samples, pos, n, AudioTrack.WRITE_BLOCKING)
             pos += n
@@ -223,12 +232,14 @@ class TtsEngine(
         onComplete: (() -> Unit)? = null,
     ) {
         if (texts.isEmpty()) { onComplete?.invoke(); return }
-        // 取消上一批
+        // ★ 自增代次、取消旧任务、确保新任务在新代次下运行
+        val gen = ++generation
         speakJob?.cancel()
+        stopped = false
         speakJob = scope.launch {
             try {
                 for (i in texts.indices) {
-                    if (stopped) break
+                    if (stopped || generation != gen) break
                     val text = texts[i]
                     // ★ 后台预生成下一句（除了最后一句）
                     var nextDeferred: Deferred<FloatArray?>? = null
@@ -239,13 +250,13 @@ class TtsEngine(
                         }
                     }
                     // 播放当前句（流式）
-                    playOneStreaming(text, sid, speed)
-                    if (stopped) break
+                    playOneStreaming(text, sid, speed, gen)
+                    if (stopped || generation != gen) break
                     // 接续下一句（若预生成已就绪）
                     if (nextDeferred != null) {
                         val nextSamples = try { nextDeferred.await() } catch (_: Throwable) { null }
-                        if (nextSamples != null && nextSamples.isNotEmpty() && !stopped) {
-                            playOneSync(nextSamples)
+                        if (nextSamples != null && nextSamples.isNotEmpty() && !stopped && generation == gen) {
+                            playOneSync(nextSamples, gen)
                         }
                     }
                 }
@@ -257,12 +268,15 @@ class TtsEngine(
         }
     }
 
-    /** 立即停止当前播报（含预生成）。 */
+    /** 立即停止当前播报（含预生成）。
+     *
+     * 不 pause/flush/play（引入噪声 + 让后续 ensureTrack 需重启），
+     * 仅让 callback 看到 stopped/代次不一致而退出，后续 speak 直接继续写同一 track。 */
     fun stop() {
         stopped = true
+        generation++  // ★ 让旧任务全部失效
         speakJob?.cancel()
         speakJob = null
-        track?.let { runCatching { it.pause(); it.flush(); it.play() } }
     }
 
     fun release() {
