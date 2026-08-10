@@ -256,6 +256,7 @@ class MainActivity : AppCompatActivity() {
         val bargeGuardMs = sp.getInt(getString(R.string.pref_barge_guard_ms), 300).toLong()
         val bargeConfirmMs = sp.getInt(getString(R.string.pref_barge_confirm_ms), 200).toLong()
         val bargeThreshold = sp.getInt(getString(R.string.pref_barge_threshold), 6) / 10.0f
+        val enableBargeIn = sp.getBoolean(getString(R.string.pref_enable_barge_in), false)  // 默认关闭
         // 麦克风增益 SeekBar 10..30 → 1.0..3.0
         val micGain = sp.getInt(getString(R.string.pref_mic_gain), 10) / 10.0f
         if (apiKey.isBlank()) toast("请先在「设置」里填写 API Key")
@@ -265,6 +266,7 @@ class MainActivity : AppCompatActivity() {
             systemPrompt = system, systemPromptText = systemText,
             cooldownMs = cooldownMs, endpointTrailingSilenceSec = endpointSilence,
             bargeGuardMs = bargeGuardMs, bargeConfirmMs = bargeConfirmMs, bargeThreshold = bargeThreshold,
+            enableBargeIn = enableBargeIn,
             micGain = micGain,
         )
     }

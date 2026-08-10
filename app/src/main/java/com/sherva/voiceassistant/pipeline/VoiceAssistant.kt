@@ -46,6 +46,7 @@ class VoiceAssistant(
         val bargeGuardMs: Long = 300L,           // 打断起播保护期
         val bargeConfirmMs: Long = 200L,         // 打断确认时长
         val bargeThreshold: Float = 0.6f,        // 打断 VAD 阈值
+        val enableBargeIn: Boolean = false,     // 默认关闭（Kokoro 容易自打断，需手动开）
         val micGain: Float = 1.0f,               // 麦克风增益（远距离收音）
     )
 
@@ -259,6 +260,7 @@ class VoiceAssistant(
         AppLog.i("VA", "调用 TTS 播报: \"${sentence.take(40)}\"")
         // ★ 打断支持：TTS 播报期间开启 Barge-in 检测，用户一开口就停
         bargeIn.start(onInterrupt = {
+            if (!config.enableBargeIn) return@start  // 默认关闭语音打断
             AppLog.i("VA", "打断触发 → 停 TTS，跳过剩余播报")
             // 被打断确认音
             com.sherva.voiceassistant.audio.SoundEffects.interrupt()

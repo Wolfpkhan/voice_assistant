@@ -44,6 +44,7 @@
     <string name="pref_barge_guard_ms">barge_guard_ms</string>
     <string name="pref_barge_confirm_ms">barge_confirm_ms</string>
     <string name="pref_barge_threshold">barge_threshold</string>
+    <string name="pref_enable_barge_in">enable_barge_in</string>
     <string name="pref_mic_gain">mic_gain</string>
     <string name="pref_keep_screen_on">keep_screen_on</string>
 
