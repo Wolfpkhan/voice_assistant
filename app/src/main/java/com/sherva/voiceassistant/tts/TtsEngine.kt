@@ -9,7 +9,7 @@ import android.util.Log
 import com.k2fsa.sherpa.onnx.GenerationConfig
 import com.k2fsa.sherpa.onnx.OfflineTts
 import com.k2fsa.sherpa.onnx.OfflineTtsConfig
-import com.k2fsa.sherpa.onnx.OfflineTtsMatchaModelConfig
+import com.k2fsa.sherpa.onnx.OfflineTtsKokoroModelConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
 import com.sherva.voiceassistant.AppLog
 import com.sherva.voiceassistant.ModelPaths
@@ -31,30 +31,27 @@ class TtsEngine(
     companion object { private const val TAG = "TtsEngine" }
 
     private val tts = run {
-        AppLog.i("TTS", "构造 OfflineTts: acoustic=${ModelPaths.TTS_ACOUSTIC}, vocoder=${ModelPaths.TTS_VOCODER}")
+        AppLog.i("TTS", "构造 OfflineTts (Kokoro): model=${ModelPaths.TTS_MODEL}, voices=${ModelPaths.TTS_VOICES}")
         OfflineTts(
             assetManager = context.assets,
             config = OfflineTtsConfig(
                 model = OfflineTtsModelConfig(
-                    matcha = OfflineTtsMatchaModelConfig(
-                        acousticModel = ModelPaths.TTS_ACOUSTIC,
-                        vocoder = ModelPaths.TTS_VOCODER,
-                        lexicon = ModelPaths.TTS_LEXICON,
+                    kokoro = OfflineTtsKokoroModelConfig(
+                        model = ModelPaths.TTS_MODEL,
+                        voices = ModelPaths.TTS_VOICES,
                         tokens = ModelPaths.TTS_TOKENS,
-                        noiseScale = 1.0f,
+                        lexicon = ModelPaths.TTS_LEXICON,  // 多 lexicon：中文+美音英文（逗号分隔）
+                        dataDir = ModelPaths.TTS_DATA_DIR,  // espeak-ng-data，英文发音必需
                         lengthScale = 1.0f,
                     ),
                     numThreads = numThreads,
                     provider = "cpu",
                 ),
-                // ★ 文本归一化：让 TTS 正确读数字/日期/电话号/多音字
-                //   否则纯数字字符进模型读不出（如 1945 → 需转 “一九四五”）
-                ruleFsts = ModelPaths.TTS_RULE_FSTS,
                 maxNumSentences = 2,
                 silenceScale = 0.2f,
             )
         ).also {
-            AppLog.i("TTS", "OfflineTts 构造成功, sampleRate=${it.sampleRate()}, numSpeakers=${it.numSpeakers()}")
+            AppLog.i("TTS", "OfflineTts (Kokoro) 构造成功, sampleRate=${it.sampleRate()}, numSpeakers=${it.numSpeakers()}")
         }
     }
 

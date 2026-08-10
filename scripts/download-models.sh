@@ -2,10 +2,10 @@
 # ============================================================
 # download-models.sh — 下载 VAD / ASR / TTS 模型到 app/src/main/assets/models
 #
-# 模型清单（体积合计 ~120MB，解压后 ~300MB）：
-#   VAD : silero_vad.onnx                                  (~2MB)
-#   ASR : sherpa-onnx-paraformer-zh-2023-09-14 (含 int8)    (~234MB 压缩)
-#   TTS : matcha-icefall-zh-baker + vocos-22khz-univ 声码器  (~76MB)
+# 模型清单（体积合计 ~450MB，解压后 ~600MB）：
+#   VAD : silero_vad.onnx + GTCRN 增强                       (~3MB)
+#   ASR : sherpa-onnx-streaming-zipformer-bilingual int8     (~234MB 压缩)
+#   TTS : kokoro-int8-multi-lang-v1_1（中英双语+103 音色）   (~175MB)
 #
 # 注意：assets 打包进 APK 会增大安装包。若想减小 APK，可改用运行时
 # 下载到 filesDir（见工程内 ModelManager.kt 的实现）。
@@ -40,17 +40,14 @@ if [ ! -d "sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20" ]; then
 fi
 echo "✓ ASR(流式): $(ls -d sherpa-onnx-streaming-zipformer-bilingual-zh-en-2023-02-20)"
 
-echo "======== 3/4 TTS: matcha-baker + vocos 声码器 ========"
-if [ ! -d "matcha-icefall-zh-baker" ]; then
-    wget -c -O mk.tar.bz2 \
-      "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/matcha-icefall-zh-baker.tar.bz2"
-    tar xjf mk.tar.bz2
-    rm -f mk.tar.bz2
+echo "======== 3/4 TTS: kokoro-int8-multi-lang-v1_1（中英双语+103 音色）========"
+if [ ! -d "kokoro-int8-multi-lang-v1_1" ]; then
+    wget -c -O kokoro-int8.tar.bz2 \
+      "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-int8-multi-lang-v1_1.tar.bz2"
+    tar xjf kokoro-int8.tar.bz2
+    rm -f kokoro-int8.tar.bz2
 fi
-# vocos 声码器放在 models 根目录（与模型根同级，按 sherpa 约定）
-dl "https://github.com/k2-fsa/sherpa-onnx/releases/download/vocoder-models/vocos-22khz-univ.onnx" \
-   "$MODELS_DIR/vocos-22khz-univ.onnx"
-echo "✓ TTS: matcha-icefall-zh-baker + vocos-22khz-univ.onnx"
+echo "✓ TTS: kokoro-int8-multi-lang-v1_1（中英双语+103音色，int8 量化）"
 
 echo ""
 echo "========================================"
