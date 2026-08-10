@@ -14,6 +14,17 @@ import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
 import com.sherva.voiceassistant.AppLog
 import com.sherva.voiceassistant.ModelPaths
 import kotlinx.coroutines.*
+import java.io.File
+import java.io.FileOutputStream
+
+/**
+ * TTS 引擎：封装 Kokoro int8 multi-lang（中英双语，103 音色）。
+ *
+ * 重点：Kokoro 的 espeak-ng-data 必须释放到 filesDir（eSpeak 是 POSIX 文件访问，
+ * AssetManager 不支持）。model/voices/tokens/lexicon 仍走 AssetManager。
+ *
+ * 参考实现：https://github.com/vishalkdn/VocalBridge
+ */
 
 /**
  * TTS 引擎：封装 matcha-icefall-zh-baker + vocos 声码器。
@@ -32,6 +43,8 @@ class TtsEngine(
 
     private val tts = run {
         AppLog.i("TTS", "构造 OfflineTts (Kokoro): model=${ModelPaths.TTS_MODEL}, voices=${ModelPaths.TTS_VOICES}")
+        // ★ Kokoro 的 espeak-ng-data 需要 POSIX 文件访问，必须先释放到 filesDir
+        val espeakFilesDir = extractEspeakData(context)
         OfflineTts(
             assetManager = context.assets,
             config = OfflineTtsConfig(
@@ -41,7 +54,7 @@ class TtsEngine(
                         voices = ModelPaths.TTS_VOICES,
                         tokens = ModelPaths.TTS_TOKENS,
                         lexicon = ModelPaths.TTS_LEXICON,  // 多 lexicon：中文+美音英文（逗号分隔）
-                        dataDir = ModelPaths.TTS_DATA_DIR,  // espeak-ng-data，英文发音必需
+                        dataDir = espeakFilesDir.absolutePath,  // ★ filesDir 绝对路径，eSpeak 用 POSIX 访问
                         lengthScale = 1.0f,
                     ),
                     numThreads = numThreads,
@@ -52,6 +65,47 @@ class TtsEngine(
             )
         ).also {
             AppLog.i("TTS", "OfflineTts (Kokoro) 构造成功, sampleRate=${it.sampleRate()}, numSpeakers=${it.numSpeakers()}")
+        }
+    }
+
+    /**
+     * 将 assets/models/.../espeak-ng-data 释放到 filesDir，返回文件对象。
+     * 首次拷贝后写个标记文件，后续跳过（避免启动时重复拷贝 19MB）。
+     */
+    private fun extractEspeakData(context: Context): File {
+        val appCtx = context.applicationContext
+        val dest = File(appCtx.filesDir, "kokoro-espeak-ng-data")
+        val marker = File(dest, ".extracted")
+        if (marker.exists()) {
+            AppLog.i("TTS", "espeak-ng-data 已就绪: ${dest.absolutePath}")
+            return dest
+        }
+        val assetPath = ModelPaths.TTS_DATA_DIR  // "models/kokoro-int8-multi-lang-v1_1/espeak-ng-data"
+        AppLog.i("TTS", "释放 espeak-ng-data: $assetPath → $dest")
+        dest.mkdirs()
+        copyAssetDir(appCtx, assetPath, dest)
+        marker.writeText("ok")
+        AppLog.i("TTS", "espeak-ng-data 释放完成")
+        return dest
+    }
+
+    private fun copyAssetDir(context: Context, assetPath: String, destDir: File) {
+        val am = context.assets
+        val entries = am.list(assetPath) ?: return
+        for (entry in entries) {
+            val src = "$assetPath/$entry"
+            val out = File(destDir, entry)
+            if (out.exists()) continue  // 递归过程中可能遇到部分已存在的
+            if (am.list(src)?.isNotEmpty() == true) {
+                // 子目录
+                out.mkdirs()
+                copyAssetDir(context, src, out)
+            } else {
+                // 文件
+                am.open(src).use { input ->
+                    FileOutputStream(out).use { output -> input.copyTo(output) }
+                }
+            }
         }
     }
 
