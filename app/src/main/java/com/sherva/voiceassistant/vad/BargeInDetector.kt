@@ -15,6 +15,7 @@ import com.sherva.voiceassistant.AppLog
 import com.sherva.voiceassistant.ModelPaths
 import com.sherva.voiceassistant.audio.SpeechEnhancer
 import kotlin.concurrent.thread
+import kotlin.math.sqrt
 
 /**
  * 打断检测器（Barge-in）：TTS 播报期间监听麦克风，一旦检测到用户开口说话立即回调。
@@ -43,8 +44,11 @@ class BargeInDetector(
             sileroVadModelConfig = SileroVadModelConfig(
                 model = ModelPaths.VAD_MODEL,
                 threshold = threshold,
-                minSilenceDuration = 0.3f,
-                minSpeechDuration = 0.1f,
+                // ★ minSilenceDuration = 0.5：单点噪声不算静音结束
+                minSilenceDuration = 0.5f,
+                // ★ minSpeechDuration = 0.3：需要 300ms 连续人声才认是语音
+                //   0.1f 太短，TTS 漏音中偶尔超过阈值就被计入
+                minSpeechDuration = 0.3f,
                 windowSize = 512,
                 maxSpeechDuration = 30f,
             ),
@@ -94,6 +98,11 @@ class BargeInDetector(
             val guardEnd = System.currentTimeMillis() + startGuardMs
             val buf = ShortArray(512)
             var speechStart = 0L
+            // ★ GTCRN 输出能量基线校准：仅参考非零输出帧
+            var baselineRms = 0.005f
+            // ★ 连续帧确认：silero 检测到人声后还要连续 N 帧才算
+            var voiceConfirmCount = 0
+            val requiredConfirmFrames = 4  // 4帧 * 32ms = 128ms 连续人声确认
             try {
                 while (running) {
                     if (!armed && System.currentTimeMillis() >= guardEnd) {
@@ -107,6 +116,17 @@ class BargeInDetector(
                     // ★ GTCRN 实时消回声：剩嘴人声 → 再喂 VAD
                     val clean = denoiser.process(raw, 16000)
                     if (clean.isEmpty()) continue
+                    // ★ 计算 GTCRN 输出能量
+                    var sumSq = 0f
+                    for (s in clean) sumSq += s * s
+                    val rms = sqrt(sumSq / clean.size)
+                    // 更新能量基线（EWMA，仅考虑非零样本）
+                    if (rms > 0.0005f) {
+                        baselineRms = 0.95f * baselineRms + 0.05f * rms
+                    }
+                    // ★ 能量门：RMS 低于基线 2.5 倍认为是 TTS 漏音残余，不调 VAD
+                    //   真人说话的能量远大于 TTS 漏音经 GTCRN 后的残余
+                    if (rms < baselineRms * 2.5f) continue
                     vad.acceptWaveform(clean)
                     // 排空（不关心段，只看 isSpeechDetected）
                     while (!vad.empty()) vad.pop()
@@ -114,14 +134,15 @@ class BargeInDetector(
                     if (!armed) continue
                     val speaking = vad.isSpeechDetected()
                     if (speaking) {
-                        if (speechStart == 0L) speechStart = System.currentTimeMillis()
-                        if (System.currentTimeMillis() - speechStart >= minSpeechMs) {
-                            AppLog.i("BargeIn", "★ 检测到用户打断！")
+                        voiceConfirmCount++
+                        if (voiceConfirmCount >= requiredConfirmFrames) {
+                            AppLog.i("BargeIn", "★ 检测到用户打断！（连续 ${voiceConfirmCount} 帧人声）")
                             running = false
                             onInterrupt()
                             return@thread
                         }
                     } else {
+                        voiceConfirmCount = 0
                         speechStart = 0L
                     }
                 }
