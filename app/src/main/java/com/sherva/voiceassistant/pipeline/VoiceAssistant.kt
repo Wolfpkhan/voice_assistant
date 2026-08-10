@@ -34,6 +34,7 @@ class VoiceAssistant(
     data class Config(
         val continuous: Boolean = true,       // 连续对话：答完自动继续聆听
         val ttsSpeed: Float = 1.0f,
+        val ttsSid: Int = 3,                    // 默认中文女声 zf_001
         val llmBaseUrl: String,
         val llmApiKey: String,
         val llmModel: String,
@@ -268,6 +269,7 @@ class VoiceAssistant(
         suspendCancellableCoroutine<Unit> { cont ->
             tts.speak(
                 text = sentence,
+                sid = config.ttsSid,
                 speed = config.ttsSpeed,
                 onComplete = { if (cont.isActive) cont.resume(Unit) { } },
             )

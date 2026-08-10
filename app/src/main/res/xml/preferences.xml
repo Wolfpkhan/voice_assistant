@@ -59,9 +59,9 @@
 
         <EditTextPreference
             android:key="@string/pref_tts_sid"
-            android:title="说话人 ID"
-            android:summary="Baker 单人模型固定为 0"
-            android:defaultValue="0"
+            android:title="说话人 ID (sid)"
+            android:summary="0~2 英文、3~57 中文女声（推荐）、58~102 中文男声"
+            android:defaultValue="3"
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 

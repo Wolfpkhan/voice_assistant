@@ -249,6 +249,7 @@ class MainActivity : AppCompatActivity() {
         val system = sp.getString(getString(R.string.pref_llm_system), getString(R.string.default_system))!!
         val systemText = sp.getString(getString(R.string.pref_llm_system_text), getString(R.string.default_system_text))!!
         val speed = sp.getInt(getString(R.string.pref_tts_speed), 10) / 10.0f
+        val ttsSid = sp.getInt(getString(R.string.pref_tts_sid), 3)  // 默认中文女声 zf_001
         val cooldownMs = sp.getInt(getString(R.string.pref_cooldown_ms), 600).toLong()
         val endpointSilence = sp.getInt(getString(R.string.pref_endpoint_silence), 12) / 10.0f
         val bargeGuardMs = sp.getInt(getString(R.string.pref_barge_guard_ms), 300).toLong()
@@ -258,7 +259,7 @@ class MainActivity : AppCompatActivity() {
         val micGain = sp.getInt(getString(R.string.pref_mic_gain), 10) / 10.0f
         if (apiKey.isBlank()) toast("请先在「设置」里填写 API Key")
         return VoiceAssistant.Config(
-            continuous = true, ttsSpeed = speed,
+            continuous = true, ttsSpeed = speed, ttsSid = ttsSid,
             llmBaseUrl = baseUrl, llmApiKey = apiKey, llmModel = model,
             systemPrompt = system, systemPromptText = systemText,
             cooldownMs = cooldownMs, endpointTrailingSilenceSec = endpointSilence,
