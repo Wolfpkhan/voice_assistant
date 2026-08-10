@@ -224,6 +224,12 @@ class TtsEngine(
      *   - 句 N 还在播放时，后台启动句 N+1 的 Kokoro 同步推理
      *   - 句 N 播放完，句 N+1 音频可能已就绪 → 立即接续
      *   - AudioTrack 持续 play，句末静音由模型生成，不人为重置
+     *
+     * ★ 每句仅播一次：
+     *   - i=0：流式播放句 0（首响低） + 预生成句 1
+     *   - i=1..n-1：await 句 i 预生成 + 同步播放句 i + 启动句 i+1 预生成
+     *
+     * ★ 重复防止：启动前 cancelAndJoin 旧任务 + AudioTrack 重置（清空上一句残留静音帧）
      */
     fun speakWithPreGen(
         texts: List<String>,
@@ -232,33 +238,49 @@ class TtsEngine(
         onComplete: (() -> Unit)? = null,
     ) {
         if (texts.isEmpty()) { onComplete?.invoke(); return }
-        // ★ 自增代次、取消旧任务、确保新任务在新代次下运行
+        // ★ 自增代次、设 stopped、重置 track 为可写状态
         val gen = ++generation
-        speakJob?.cancel()
-        stopped = false
+        stopped = true
+        val oldJob = speakJob
+        speakJob = null
+        // ★ 暂停 + 清空 AudioTrack 缓冲，避免上一句末尾静音帧混入新句开头
+        track?.runCatching {
+            pause(); flush(); play()
+        }
+        // 同步等待旧任务彻底退出（取消旧 Kokoro 推理、关闭 callback）
         speakJob = scope.launch {
             try {
-                for (i in texts.indices) {
-                    if (stopped || generation != gen) break
-                    val text = texts[i]
-                    // ★ 后台预生成下一句（除了最后一句）
-                    var nextDeferred: Deferred<FloatArray?>? = null
-                    if (i + 1 < texts.size) {
-                        val nextText = texts[i + 1]
-                        nextDeferred = scope.async(Dispatchers.Default) {
-                            generateSync(nextText, sid, speed)
-                        }
+                oldJob?.cancelAndJoin()
+                // 双重检查：期间可能又调了一次 speakWithPreGen（代次已变）
+                if (generation != gen) return@launch
+                stopped = false
+                AppLog.i("TTS", "speakWithPreGen 启动：${texts.size}句, gen=$gen")
+                
+                // ★ 关键：每句只播一次
+                // i=0: 流式播放 + 启动句 1 预生成
+                var preGen: Deferred<FloatArray?>? = null
+                if (texts.size > 1) {
+                    preGen = scope.async(Dispatchers.Default) {
+                        generateSync(texts[1], sid, speed)
                     }
-                    // 播放当前句（流式）
-                    playOneStreaming(text, sid, speed, gen)
+                }
+                playOneStreaming(texts[0], sid, speed, gen)
+                if (stopped || generation != gen) return@launch
+                
+                // i=1..n-1: await 预生成 + 同步播 + 启动下一句预生成
+                for (i in 1 until texts.size) {
                     if (stopped || generation != gen) break
-                    // 接续下一句（若预生成已就绪）
-                    if (nextDeferred != null) {
-                        val nextSamples = try { nextDeferred.await() } catch (_: Throwable) { null }
-                        if (nextSamples != null && nextSamples.isNotEmpty() && !stopped && generation == gen) {
-                            playOneSync(nextSamples, gen)
+                    val samples = preGen?.await()
+                    if (samples == null || samples.isEmpty()) break
+                    // 启动下一句预生成（除最后一句）
+                    preGen = if (i + 1 < texts.size) {
+                        scope.async(Dispatchers.Default) {
+                            generateSync(texts[i + 1], sid, speed)
                         }
-                    }
+                    } else null
+                    // 同步播放当前句
+                    playOneSync(samples, gen)
+                    if (stopped || generation != gen) break
                 }
             } catch (e: Throwable) {
                 AppLog.e("TTS", "speakWithPreGen 失败", e)
