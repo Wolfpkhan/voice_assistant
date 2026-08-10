@@ -33,15 +33,15 @@ object ModelPaths {
     const val STREAM_JOINER = "$STREAM_DIR/joiner-epoch-99-avg-1.int8.onnx"
     const val STREAM_TOKENS = "$STREAM_DIR/tokens.txt"
 
-    // ---------- TTS：matcha-icefall-zh-baker + vocos 声码器 ----------
-    private const val TTS_DIR = "$ROOT/matcha-icefall-zh-baker"
-    const val TTS_ACOUSTIC = "$TTS_DIR/model-steps-3.onnx"
-    const val TTS_LEXICON = "$TTS_DIR/lexicon.txt"
+    // ---------- TTS：kokoro-int8-multi-lang-v1_1 (中英双语，103 音色) ----------
+    // 替换原来的 matcha-icefall-zh-baker（仅中文女声）。Kokoro 单模型原生支持中英混合朗读。
+    private const val TTS_DIR = "$ROOT/kokoro-int8-multi-lang-v1_1"
+    const val TTS_MODEL = "$TTS_DIR/model.int8.onnx"
+    const val TTS_VOICES = "$TTS_DIR/voices.bin"
     const val TTS_TOKENS = "$TTS_DIR/tokens.txt"
-    // 文本归一化 FST（数字→汉字、日期、电话号、多音字），TTS 正确读数字的关键
-    const val TTS_RULE_FSTS = "$TTS_DIR/phone.fst,$TTS_DIR/date.fst,$TTS_DIR/number.fst"
-    // vocoder 放在 models 根目录（sherpa 约定）
-    const val TTS_VOCODER = "$ROOT/vocos-22khz-univ.onnx"
+    // 多 lexicon 用逗号分隔（中文+英文）；dataDir 指向 espeak-ng-data（英文发音必得）
+    const val TTS_LEXICON = "$TTS_DIR/lexicon-zh.txt,$TTS_DIR/lexicon-us-en.txt"
+    const val TTS_DATA_DIR = "$TTS_DIR/espeak-ng-data"
 
     /**
      * 运行时下载场景：把 assets 模型释放到 filesDir，返回绝对路径。
