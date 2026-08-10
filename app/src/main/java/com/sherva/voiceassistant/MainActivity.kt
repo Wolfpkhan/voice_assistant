@@ -249,7 +249,8 @@ class MainActivity : AppCompatActivity() {
         val system = sp.getString(getString(R.string.pref_llm_system), getString(R.string.default_system))!!
         val systemText = sp.getString(getString(R.string.pref_llm_system_text), getString(R.string.default_system_text))!!
         val speed = sp.getInt(getString(R.string.pref_tts_speed), 10) / 10.0f
-        val ttsSid = sp.getInt(getString(R.string.pref_tts_sid), 3)  // 默认中文女声 zf_001
+        // ★ EditTextPreference 存的是 String，不能 getInt
+        val ttsSid = sp.getString(getString(R.string.pref_tts_sid), "3")?.toIntOrNull() ?: 3
         val cooldownMs = sp.getInt(getString(R.string.pref_cooldown_ms), 600).toLong()
         val endpointSilence = sp.getInt(getString(R.string.pref_endpoint_silence), 12) / 10.0f
         val bargeGuardMs = sp.getInt(getString(R.string.pref_barge_guard_ms), 300).toLong()
