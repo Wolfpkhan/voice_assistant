@@ -100,21 +100,6 @@ class MainActivity : AppCompatActivity() {
                 stackFromEnd = true
             }
             messagesView.adapter = adapter
-            // ★ 用户滑动聊天列表 → 停 TTS（主动操作 UI，应让出控制权，
-            //   避免振动/滑动噪声被 BargeIn 误判为“用户说话”）
-            messagesView.setOnTouchListener { _, event ->
-                when (event.actionMasked) {
-                    android.view.MotionEvent.ACTION_DOWN,
-                    android.view.MotionEvent.ACTION_MOVE -> {
-                        // 手指按下/拖动：停 TTS
-                        if (assistant != null && assistant!!.isSpeaking) {
-                            AppLog.i("Main", "用户滑动聊天列表 → 停 TTS")
-                            assistant!!.stop()
-                        }
-                    }
-                }
-                false  // 不消费事件，让 RecyclerView 正常滚动
-            }
             AppLog.i("Main", "View 绑定完成")
         } catch (t: Throwable) {
             AppLog.e("Main", "View 绑定失败", t); throw t
