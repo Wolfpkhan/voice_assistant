@@ -16,6 +16,7 @@ object SoundEffects {
     @Volatile private var pool: SoundPool? = null
     private var startId = 0
     private var interruptId = 0
+    private var sentId = 0
     @Volatile private var ready = false
 
     /** 初始化（MainActivity onCreate 调用一次）。 */
@@ -31,6 +32,7 @@ object SoundEffects {
             .build()
         startId = p.load(context, R.raw.sfx_start_listen, 1)
         interruptId = p.load(context, R.raw.sfx_interrupt, 1)
+        sentId = p.load(context, R.raw.sfx_sent, 1)
         p.setOnLoadCompleteListener { _, _, _ -> ready = true }
         pool = p
     }
@@ -49,6 +51,9 @@ object SoundEffects {
 
     /** 被打断（用户打断 TTS）确认音。 */
     fun interrupt() = play(interruptId)
+
+    /** STT 已发送给 pi 服务（开始思考）提示音。 */
+    fun sent() = play(sentId)
 
     private fun play(id: Int) {
         if (id == 0) return

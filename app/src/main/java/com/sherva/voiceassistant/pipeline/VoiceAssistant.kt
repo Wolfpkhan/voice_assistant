@@ -181,6 +181,8 @@ class VoiceAssistant(
     private suspend fun handleLlmTurn() {
         // LLM 流式（收集完整回复）
         setState(State.THINKING)
+        // ★ STT/文字已发送给 pi 服务，开始思考的提示音（仅语音模式）
+        if (!textMode) com.sherva.voiceassistant.audio.SoundEffects.sent()
         val reply = StringBuilder()
         val startTime = System.currentTimeMillis()
         var reasoningSeen = false
