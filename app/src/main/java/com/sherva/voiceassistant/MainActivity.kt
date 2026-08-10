@@ -374,6 +374,9 @@ class MainActivity : AppCompatActivity() {
         }
         assistant?.textMode = true
         assistant?.sendText(text)
+        // 发送后滚动到底（立即一次 + 延迟一次应对键盘收起后的布局变化）
+        scrollToEnd()
+        messagesView.postDelayed({ scrollToEnd() }, 200)
     }
 
     override fun onDestroy() {
