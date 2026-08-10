@@ -149,32 +149,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** 开始/停止 切换（ChatGPT 风格：单个主按钮 toggle）。仅语音模式。 */
-    /** 新对话：调 proxy 开新 session，并重置本地状态。 */
+    /** 新对话：调 proxy 开新 session，并在列表插入提示（不弹框）。 */
     private fun startNewChat() {
-        androidx.appcompat.app.AlertDialog.Builder(this)
-            .setTitle(getString(R.string.action_new_chat))
-            .setMessage("开启新对话？之前的对话会保留在历史记录里，助手仍可搜索到。")
-            .setPositiveButton("新对话") { _, _ ->
-                // 停掉当前会话，释放旧 assistant
-                stopAssistant()
-                // 后台调 proxy /v1/new-session（旧会话存盘，agent 可 grep）
-                lifecycleScope.launch {
-                    runCatching {
-                        val sp = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this@MainActivity)
-                        val baseUrl = sp.getString(getString(R.string.pref_llm_baseurl), getString(R.string.default_baseurl))!!
-                        val url = baseUrl.trimEnd('/') + "/new-session"
-                        val client = okhttp3.OkHttpClient()
-                        val req = okhttp3.Request.Builder().url(url)
-                            .header("Authorization", "Bearer " + sp.getString(getString(R.string.pref_llm_apikey), ""))
-                            .post(okhttp3.RequestBody.create(null, ByteArray(0)))
-                            .build()
-                        client.newCall(req).execute().use { it.body?.string() }
-                    }
-                    toast("已开启新对话")
-                }
+        // 停掉当前会话，释放旧 assistant
+        stopAssistant()
+        // 列表插入提示消息（类似微信聊天列表分隔）
+        adapter.add(ChatMessage.create(ChatMessage.Role.NOTICE, "以下为新对话"))
+        scrollToEnd()
+        // 后台调 proxy /v1/new-session（旧会话存盘，agent 可 grep）
+        lifecycleScope.launch {
+            runCatching {
+                val sp = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this@MainActivity)
+                val baseUrl = sp.getString(getString(R.string.pref_llm_baseurl), getString(R.string.default_baseurl))!!
+                val url = baseUrl.trimEnd('/') + "/new-session"
+                val client = okhttp3.OkHttpClient()
+                val req = okhttp3.Request.Builder().url(url)
+                    .header("Authorization", "Bearer " + sp.getString(getString(R.string.pref_llm_apikey), ""))
+                    .post(okhttp3.RequestBody.create(null, ByteArray(0)))
+                    .build()
+                client.newCall(req).execute().use { it.body?.string() }
             }
-            .setNegativeButton("取消", null)
-            .show()
+        }
     }
 
     private fun toggleConversation() {

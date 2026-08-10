@@ -18,6 +18,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
     companion object {
         private const val TYPE_ASSISTANT = 1
         private const val TYPE_USER = 2
+        private const val TYPE_NOTICE = 3
         private val DIFF = object : DiffUtil.ItemCallback<ChatMessage>() {
             override fun areItemsTheSame(a: ChatMessage, b: ChatMessage) = a.id == b.id
             override fun areContentsTheSame(a: ChatMessage, b: ChatMessage) =
@@ -31,14 +32,22 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
     private class UserVH(v: View) : RecyclerView.ViewHolder(v) {
         val text: TextView = v.findViewById(R.id.messageText)
     }
+    private class NoticeVH(v: View) : RecyclerView.ViewHolder(v) {
+        val text: TextView = v.findViewById(R.id.noticeText)
+    }
 
     override fun getItemViewType(position: Int): Int =
-        if (getItem(position).role == ChatMessage.Role.USER) TYPE_USER else TYPE_ASSISTANT
+        when (getItem(position).role) {
+            ChatMessage.Role.USER -> TYPE_USER
+            ChatMessage.Role.NOTICE -> TYPE_NOTICE
+            else -> TYPE_ASSISTANT
+        }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inf = LayoutInflater.from(parent.context)
         return when (viewType) {
             TYPE_USER -> UserVH(inf.inflate(R.layout.item_message_user, parent, false))
+            TYPE_NOTICE -> NoticeVH(inf.inflate(R.layout.item_message_notice, parent, false))
             else -> AssistantVH(inf.inflate(R.layout.item_message_assistant, parent, false))
         }
     }
@@ -48,6 +57,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         when (h) {
             is UserVH -> MarkdownRenderer.render(h.text, m.text)
             is AssistantVH -> MarkdownRenderer.render(h.text, m.text)
+            is NoticeVH -> h.text.text = m.text
         }
     }
 

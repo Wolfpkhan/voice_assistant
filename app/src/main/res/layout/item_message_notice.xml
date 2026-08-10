@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 提示消息：居中小字灰胶囊（类似微信聊天列表时间分隔） -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingTop="10dp"
+    android:paddingBottom="6dp">
+
+    <TextView
+        android:id="@+id/noticeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="5dp"
+        android:textSize="12sp"
+        android:textColor="#9B9BA7"
+        android:background="@drawable/bg_notice_pill"
+        android:text="以下为新对话" />
+
+</FrameLayout>

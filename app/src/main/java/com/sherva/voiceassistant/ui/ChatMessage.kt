@@ -11,7 +11,7 @@ data class ChatMessage(
     val text: String,
     val id: Long,
 ) {
-    enum class Role { USER, ASSISTANT }
+    enum class Role { USER, ASSISTANT, NOTICE }
 
     companion object {
         @Volatile private var counter = 0L
