@@ -90,6 +90,9 @@ class VoiceAssistant(
     }
     private val asr: StreamingAsrEngine get() = asrLazy.value
     private val tts: TtsEngine get() = ttsLazy.value
+
+    /** 是否正在播报（供 UI 滑动停 TTS 使用）。 */
+    val isSpeaking: Boolean get() = ttsLazy.isInitialized() && tts.isSpeaking()
     private val bargeIn: BargeInDetector get() = bargeInLazy.value
     private val llm = LlmClient(
         baseUrl = config.llmBaseUrl,
