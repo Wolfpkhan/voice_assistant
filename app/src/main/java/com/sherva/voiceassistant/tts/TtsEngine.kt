@@ -161,62 +161,54 @@ class TtsEngine(
     fun isSpeaking() = speakJob?.isActive == true
 
     /**
-     * 串行播报多个句子（Kokoro 单 session 必须**串行**调用）。
+     * 播报整段文本（对齐 sherpa 官方：一次性喂 generateWithConfigAndCallback）。
      *
-     * 流程：
-     *   - AudioTrack pause/flush/play 清空上一轮残留缓冲（对齐官方 onClickGenerate）
-     *   - 串行 for 句子：流式 Kokoro 生成 + callback 边写 AudioTrack
-     *   - 句间停顿 = Kokoro 推理耗时（CPU 限制，无法消除）
+     * sherpa Kokoro 内部流程（源码确认）：
+     *   - ConvertTextToTokenIds 按 [\u4e00-\u9fff]+ 正则分中英文段
+     *   - 每段一个 batch（batch_size=1，maxNumSentences 对 Kokoro 忽略）
+     *   - 串行 Process 每个 batch（一次 Run），callback 返回进度
+     *   - callback 返回 0 → 停止后续 batch 生成（barge-in）
      *
-     * ★ 不能预生成（并发 Kokoro 会竞争 ONNX session 导致音频错乱）。
+     * ★ 整段一次性喂比外层按句分优：
+     *   - 避免每句 generate 的启动开销（token 化、lexicon 查询、session 重新进入）
+     *   - sherpa 内部连续处理所有 token
+     *   - callback 频繁触发，barge-in 响应快
      */
     fun speak(
-        texts: List<String>,
+        text: String,
         sid: Int,
         speed: Float,
         onComplete: (() -> Unit)? = null,
     ) {
-        if (texts.isEmpty()) { onComplete?.invoke(); return }
+        if (text.isBlank()) { onComplete?.invoke(); return }
         val gen = ++generation
         stopped = true
         val oldJob = speakJob
         speakJob = null
         speakJob = scope.launch {
             try {
-                // 同步等待旧任务彻底退出（取消旧 Kokoro 推理、关闭 callback）
                 oldJob?.cancelAndJoin()
                 if (generation != gen) return@launch
                 stopped = false
-                // 对齐官方：每次 speak 前 pause/flush/play 清空残留缓冲
                 track?.runCatching { pause(); flush(); play() }
-                AppLog.i("TTS", "speak 启动：${texts.size}句, gen=$gen")
-                for ((i, text) in texts.withIndex()) {
-                    if (stopped || generation != gen) break
-                    if (text.isBlank()) continue
-                    val normalized = digitsToChinese(text)
-                    AppLog.i("TTS", "  句 $i: \"${normalized.take(40)}\"")
-                    playOneStreaming(normalized, sid, speed, gen)
-                }
+                val normalized = digitsToChinese(text)
+                AppLog.i("TTS", "speak 启动：${normalized.length}字, gen=$gen")
+                val t = ensureTrack()
+                tts.generateWithConfigAndCallback(
+                    text = normalized,
+                    config = GenerationConfig(sid = sid, speed = speed, silenceScale = 0.05f),
+                    callback = { samples ->
+                        if (stopped || generation != gen) return@generateWithConfigAndCallback 0
+                        t.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
+                        return@generateWithConfigAndCallback 1
+                    },
+                )
             } catch (e: Throwable) {
                 AppLog.e("TTS", "speak 失败", e)
             } finally {
                 onComplete?.invoke()
             }
         }
-    }
-
-    /** 流式 Kokoro 生成 + callback 边写 AudioTrack（首响低）。 */
-    private suspend fun playOneStreaming(text: String, sid: Int, speed: Float, gen: Int) {
-        val t = ensureTrack()
-        tts.generateWithConfigAndCallback(
-            text = text,
-            config = GenerationConfig(sid = sid, speed = speed, silenceScale = 0.05f),
-            callback = { samples ->
-                if (stopped || generation != gen) return@generateWithConfigAndCallback 0
-                t.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
-                return@generateWithConfigAndCallback 1
-            },
-        )
     }
 
     /** 立即停止当前播报（清空 AudioTrack 缓冲，避免残留继续播）。 */

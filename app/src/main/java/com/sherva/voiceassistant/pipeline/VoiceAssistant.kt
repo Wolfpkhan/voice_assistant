@@ -222,12 +222,14 @@ class VoiceAssistant(
                 // 文字模式：不播报 TTS，只显示文字
                 AppLog.i("VA", "文字模式，跳过 TTS 播报")
             } else {
-                // TTS 播报：一次性 split + 预生成串行播放（句间停顿从 ~Kokoro 推理耗时压到 ~25ms）
+                // TTS 播报：整段一次性喂 sherpa（内部按 token 分 batch 连续生成）
+                //   不再外层按句分——避免每句 generate 的启动开销
+                //   barge-in 通过 callback 返回 0 实现
                 setState(State.SPEAKING)
                 interrupted = false
-                val sentences = splitSentences(fullReply).filter { it.isNotBlank() }
-                if (sentences.isNotEmpty()) {
-                    speakAll(sentences)
+                val cleaned = cleanTextForTts(fullReply)
+                if (cleaned.isNotBlank()) {
+                    speakAll(cleaned)
                 }
             }
         }
@@ -261,13 +263,12 @@ class VoiceAssistant(
     }
 
     /**
-     * 多句串行播报（后台预生成下一句，句间停顿压到 ~25ms）。
-     * 同时开启 Barge-in：每句结束检查打断。
+     * 整段一次性喂 sherpa Kokoro（内部按 token 分 batch 连续生成）。
+     * Barge-in 通过 callback 返回 0 实现。
      */
-    private suspend fun speakAll(sentences: List<String>) {
-        if (sentences.isEmpty() || sentences.all { it.isBlank() }) return
-        val clean = sentences.filter { it.isNotBlank() }
-        AppLog.i("VA", "TTS 预生成播报：${clean.size}句")
+    private suspend fun speakAll(text: String) {
+        if (text.isBlank()) return
+        AppLog.i("VA", "TTS 整段播报：${text.length}字")
         // ★ 打断支持：整个播报期间都开 Barge-in
         bargeIn.start(onInterrupt = {
             if (!config.enableBargeIn) return@start
@@ -280,7 +281,7 @@ class VoiceAssistant(
         try {
             suspendCancellableCoroutine<Unit> { cont ->
                 tts.speak(
-                    texts = clean,
+                    text = text,
                     sid = config.ttsSid,
                     speed = config.ttsSpeed,
                     onComplete = { if (cont.isActive) cont.resume(Unit) { } },
@@ -398,31 +399,19 @@ class VoiceAssistant(
         '=', '+', '^',
     )
 
-    /** 将完整回复拆分为句子（用于 TTS 串行播报，并净化为口语友好）。 */
-    private fun splitSentences(text: String): List<String> {
-        // 1. 先净化：去 markdown/符号/emoji/多余空白
+    /** 净化文本用于 TTS（去 markdown/符号/emoji，换行转逗号）。
+     * 不分句——整段一次性喂 sherpa Kokoro，让它内部按 token 分 batch。 */
+    private fun cleanTextForTts(text: String): String {
         val cleaned = StringBuilder()
         for (ch in text) {
             if (ch in TTS_STRIP) continue   // 跳过 markdown 标记
             if (Character.isSurrogate(ch)) continue   // 跳过 emoji（代理对）
-            if (ch == '\n') { cleaned.append('。'); continue }  // 换行→句号
+            if (ch == '\n') { cleaned.append('，'); continue }  // 换行→逗号
             cleaned.append(ch)
         }
-        // 合并空格并去首尾
-        val safe = cleaned.toString().replace(Regex("[ \t]+"), " ").replace(Regex("[。]{2,}"), "。").trim()
-        // 2. 再分句
-        val result = mutableListOf<String>()
-        val buf = StringBuilder()
-        for (ch in safe) {
-            buf.append(ch)
-            if (ch in STRONG_END) {
-                val s = buf.toString().trim()
-                if (s.isNotEmpty()) result.add(s)
-                buf.clear()
-            }
-        }
-        val tail = buf.toString().trim()
-        if (tail.isNotEmpty()) result.add(tail)
-        return result
+        return cleaned.toString()
+            .replace(Regex("[ \t]+"), " ")  // 合并空格
+            .replace(Regex("[，。]{2,}"), "。")  // 合并连续逗号/句号
+            .trim()
     }
 }
