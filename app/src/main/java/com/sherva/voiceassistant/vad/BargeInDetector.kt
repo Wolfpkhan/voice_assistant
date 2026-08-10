@@ -72,10 +72,11 @@ class BargeInDetector(
         ).coerceAtLeast(512 * 2 * 4)
         @Suppress("MissingPermission")
         record = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION,  // ★ 开启系统 AEC + NS 回声消除
             sampleRate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufBytes
         )
         record!!.startRecording()
+        // 系统层 AEC 在 VOICE_COMMUNICATION 下自动启用（不需要手动）
         running = true
         armed = false
         vad.reset()
@@ -114,11 +115,7 @@ class BargeInDetector(
                             return@thread
                         }
                     } else {
-                        // ★ 只要中间有1次非语音，就重置计时器（真人说话会换气，TTS 能量持续）
-                        // 这样 TTS 长句能量连续也保持计时器，只有真人说话中停顿才重置后仍能重计
-                        if (System.currentTimeMillis() - speechStart < startGuardMs) {
-                            speechStart = 0L
-                        }
+                        speechStart = 0L
                     }
                 }
             } catch (e: Throwable) {

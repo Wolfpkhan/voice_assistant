@@ -42,9 +42,9 @@ class VoiceAssistant(
         // —— 高级时间参数（从设置页读取）——
         val cooldownMs: Long = 600L,              // 播报后冷却（防回声）
         val endpointTrailingSilenceSec: Float = 1.2f,  // 说完判定延时
-        val bargeGuardMs: Long = 600L,           // 打断起播保护期（Kokoro 能量特征较强）
-        val bargeConfirmMs: Long = 400L,         // 打断确认时长（避免 TTS 能量被误判）
-        val bargeThreshold: Float = 0.7f,        // 打断 VAD 阈值（Kokoro 需更高）
+        val bargeGuardMs: Long = 300L,           // 打断起播保护期
+        val bargeConfirmMs: Long = 200L,         // 打断确认时长
+        val bargeThreshold: Float = 0.6f,        // 打断 VAD 阈值
         val micGain: Float = 1.0f,               // 麦克风增益（远距离收音）
     )
 
