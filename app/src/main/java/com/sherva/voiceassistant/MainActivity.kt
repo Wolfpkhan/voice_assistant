@@ -360,6 +360,9 @@ class MainActivity : AppCompatActivity() {
         // 文字模式：确保不在语音模式
         if (mode != Mode.TEXT) switchMode(Mode.TEXT)
         textInput.text?.clear()
+        // 发送后折叠键盘
+        val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.hideSoftInputFromWindow(textInput.windowToken, 0)
         // 若语音会话还在跑，先停
         if (assistant != null && assistant?.textMode == false) stopAssistant()
         // 文字模式下不调 startAssistant（那会开启语音侦听），直接建实例发送
