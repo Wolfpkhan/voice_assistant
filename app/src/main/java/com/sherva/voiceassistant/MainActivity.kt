@@ -256,7 +256,14 @@ class MainActivity : AppCompatActivity() {
         val bargeGuardMs = sp.getInt(getString(R.string.pref_barge_guard_ms), 300).toLong()
         val bargeConfirmMs = sp.getInt(getString(R.string.pref_barge_confirm_ms), 200).toLong()
         val bargeThreshold = sp.getInt(getString(R.string.pref_barge_threshold), 6) / 10.0f
-        val enableBargeIn = sp.getBoolean(getString(R.string.pref_enable_barge_in), false)  // 默认关闭
+        val enableBargeIn = run {
+            val spAec = getSharedPreferences("aec_probe", MODE_PRIVATE)
+            val aecAvailable = spAec.getBoolean("available", false)
+            // ★ AEC 可用才默认开启 bargeIn，否则关闭避免自打断
+            //    用户可在设置中手动覆盖
+            val userOverride = sp.getBoolean(getString(R.string.pref_enable_barge_in), false)
+            userOverride || aecAvailable
+        }
         // 麦克风增益 SeekBar 10..30 → 1.0..3.0
         val micGain = sp.getInt(getString(R.string.pref_mic_gain), 10) / 10.0f
         if (apiKey.isBlank()) toast("请先在「设置」里填写 API Key")

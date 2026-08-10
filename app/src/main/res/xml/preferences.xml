@@ -69,7 +69,7 @@
         <SwitchPreferenceCompat
             android:key="@string/pref_enable_barge_in"
             android:title="允许语音打断 TTS"
-            android:summary="开启后 TTS 播报时可说出“停/算了”中断。关闭则只能按停止按钮。"
+            android:summary="开启后 TTS 播报时可说出“停/算了”中断。App 启动会自动探测设备 AEC，如支持则默认开启。"
             android:defaultValue="false" />
         <!-- 冷却：正常播完后重新聆听的间隔，防回声。打断后会跳过此冷却。 -->
         <SeekBarPreference
