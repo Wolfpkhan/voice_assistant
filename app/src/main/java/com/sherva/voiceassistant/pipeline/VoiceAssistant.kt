@@ -10,6 +10,7 @@ import com.sherva.voiceassistant.llm.LlmClient
 import com.sherva.voiceassistant.tts.TtsEngine
 import com.sherva.voiceassistant.vad.BargeInDetector
 import kotlinx.coroutines.*
+import kotlin.coroutines.resume
 
 /**
  * 语音助手大脑（流式版）：StreamingASR → 云端 LLM(流式) → TTS(分句边收边播)。
@@ -264,6 +265,8 @@ class VoiceAssistant(
     private suspend fun speakAll(text: String) {
         if (text.isBlank()) return
         AppLog.i("VA", "TTS 整段播报：${text.length}字")
+        // ★ 打断续程 cont：barge-in 时直接 resume，不等 sherpa native 跑完
+        var speakCont: CancellableContinuation<Unit>? = null
         // ★ 打断支持：整个播报期间都开 Barge-in
         bargeIn.start(onInterrupt = {
             AppLog.i("VA", "BargeIn 触发回调，enableBargeIn=${config.enableBargeIn}")
@@ -273,9 +276,12 @@ class VoiceAssistant(
             interrupted = true
             tts.stop()
             llm.cancel()
+            // ★ 立即跳出 speakAll 等待，不等 sherpa native batch 跑完
+            speakCont?.takeIf { it.isActive }?.resume(Unit) { }
         })
         try {
             suspendCancellableCoroutine<Unit> { cont ->
+                speakCont = cont
                 tts.speak(
                     text = text,
                     sid = config.ttsSid,
