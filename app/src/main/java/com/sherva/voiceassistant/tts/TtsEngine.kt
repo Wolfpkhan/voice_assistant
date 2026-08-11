@@ -65,6 +65,10 @@ class TtsEngine(
                 val m = it.groupValues[2].toLong()
                 if (m == 0L) "${numToZh(h)}点" else "${numToZh(h)}点${numToZh(m)}分"
             }
+            // 2b. N点（如 20点 → 二十点，21点 → 二十一点）
+            r = Regex("([0-9]{1,2})点").replace(r) { "${numToZh(it.groupValues[1].toLong())}点" }
+            // 2c. N分（如 30分 → 三十分）
+            r = Regex("([0-9]{1,2})分").replace(r) { "${numToZh(it.groupValues[1].toLong())}分" }
             // 3. 小数 N.NN → N点逐位
             r = Regex("([0-9]+)\\.([0-9]+)").replace(r) {
                 val i = it.groupValues[1].toLong()
