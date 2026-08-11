@@ -79,6 +79,29 @@ class TtsEngine(
             r = Regex("([0-9]+)(?:°C|℃)").replace(r) { "${numToZh(it.groupValues[1].toLong())}摄氏度" }
             // 6. 百分比
             r = Regex("([0-9]+)%").replace(r) { "百分之${numToZh(it.groupValues[1].toLong())}" }
+            // 7. 金额（优先级最高，先处理）
+            //   ¥/￥/$N 或 N元 → N元（内部按数值读）
+            r = Regex("[¥￥\$]([0-9]+(?:\\.[0-9]+)?)").replace(r) {
+                val numStr = it.groupValues[1]
+                if ("." in numStr) {
+                    val parts = numStr.split(".")
+                    val zh = numToZh(parts[0].toLong()) + "点" +
+                        parts[1].map { c -> CN_DIGITS[c - '0'] }.joinToString("")
+                    zh + "元"
+                } else {
+                    numToZh(numStr.toLong()) + "元"
+                }
+            }
+            r = Regex("([0-9]+(?:\\.[0-9]+)?)元").replace(r) {
+                val numStr = it.groupValues[1]
+                if ("." in numStr) {
+                    val parts = numStr.split(".")
+                    numToZh(parts[0].toLong()) + "点" +
+                        parts[1].map { c -> CN_DIGITS[c - '0'] }.joinToString("") + "元"
+                } else {
+                    numToZh(numStr.toLong()) + "元"
+                }
+            }
             // 7. 温度 ° → 度
             r = Regex("([0-9]+)°").replace(r) { "${numToZh(it.groupValues[1].toLong())}度" }
             // 8. 剩余数字：按数值读
