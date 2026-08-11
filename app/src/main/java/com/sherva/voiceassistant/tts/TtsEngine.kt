@@ -15,6 +15,8 @@ import com.sherva.voiceassistant.ModelPaths
 import kotlinx.coroutines.*
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.TimeUnit
 
 /**
  * TTS 引擎：封装 Kokoro int8 multi-lang（中英双语，103 音色）。
@@ -133,6 +135,11 @@ class TtsEngine(
     @Volatile private var generation = 0
     private var speakJob: Job? = null
 
+    // ★ 生产者-消费者解耦：sherpa 生成线程全速跑，播放线程匀速消费
+    //   避免 callback 里 write BLOCKING 拖慢生成（RTF 从 ≈1 降到 ≈0.3）
+    private val audioQueue = ArrayBlockingQueue<FloatArray>(64)  // 64 chunk ≈ 数十秒缓冲
+    private var producerDone = false  // 生成是否完成（消费者用）
+
     /** 创建并启动 AudioTrack（持续 play，每次 speak 前 pause/flush/play 清空残留缓冲）。 */
     private fun ensureTrack(): AudioTrack {
         track?.let { return it }
@@ -161,18 +168,17 @@ class TtsEngine(
     fun isSpeaking() = speakJob?.isActive == true
 
     /**
-     * 播报整段文本（对齐 sherpa 官方：一次性喂 generateWithConfigAndCallback）。
+     * 播报整段文本（生产者-消费者双 pipeline）。
      *
-     * sherpa Kokoro 内部流程（源码确认）：
-     *   - ConvertTextToTokenIds 按 [\u4e00-\u9fff]+ 正则分中英文段
-     *   - 每段一个 batch（batch_size=1，maxNumSentences 对 Kokoro 忽略）
-     *   - 串行 Process 每个 batch（一次 Run），callback 返回进度
-     *   - callback 返回 0 → 停止后续 batch 生成（barge-in）
+     * sherpa Kokoro 内部按 token 分 batch（batch_size=1），每个 batch Process 一次。
+     * callback 在每个 batch 后触发，把音频入队（不阻塞生成线程）。
      *
-     * ★ 整段一次性喂比外层按句分优：
-     *   - 避免每句 generate 的启动开销（token 化、lexicon 查询、session 重新进入）
-     *   - sherpa 内部连续处理所有 token
-     *   - callback 频繁触发，barge-in 响应快
+     * ★ 并行原理：
+     *   - 生产者：sherpa 生成线程全速跑（RTF≈0.3），比播放快 2-3 倍
+     *   - 消费者：播放线程从队列取音频 write AudioTrack
+     *   - 有界队列背压：队列满时生产者阻塞（不 OOM）
+     *   - 首响延迟 = 第一个 batch 生成时间（~0.3s）
+     *   - barge-in：stop() 清空队列 + cancel 两个线程 + flush AudioTrack
      */
     fun speak(
         text: String,
@@ -190,19 +196,47 @@ class TtsEngine(
                 oldJob?.cancelAndJoin()
                 if (generation != gen) return@launch
                 stopped = false
+                producerDone = false
+                audioQueue.clear()
                 track?.runCatching { pause(); flush(); play() }
                 val normalized = digitsToChinese(text)
                 AppLog.i("TTS", "speak 启动：${normalized.length}字, gen=$gen")
                 val t = ensureTrack()
-                tts.generateWithConfigAndCallback(
-                    text = normalized,
-                    config = GenerationConfig(sid = sid, speed = speed, silenceScale = 0.05f),
-                    callback = { samples ->
-                        if (stopped || generation != gen) return@generateWithConfigAndCallback 0
-                        t.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
-                        return@generateWithConfigAndCallback 1
-                    },
-                )
+
+                // ★ 消费者协程：出队 → AudioTrack
+                val consumer = launch(Dispatchers.IO) {
+                    try {
+                        while (!stopped && generation == gen) {
+                            val samples = audioQueue.poll(100, TimeUnit.MILLISECONDS)
+                            if (samples != null) {
+                                t.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
+                            } else if (producerDone) {
+                                break  // 生成完成 + 队列空 → 退出
+                            }
+                        }
+                    } catch (e: Throwable) {
+                        AppLog.e("TTS", "消费者异常", e)
+                    }
+                }
+
+                // ★ 生产者：sherpa 生成 → 入队（当前协程，sherpa callback 在此线程调用）
+                try {
+                    tts.generateWithConfigAndCallback(
+                        text = normalized,
+                        config = GenerationConfig(sid = sid, speed = speed, silenceScale = 0.05f),
+                        callback = { samples ->
+                            if (stopped || generation != gen) return@generateWithConfigAndCallback 0
+                            // ★ 入队（队列满则阻塞，自然背压）
+                            audioQueue.put(samples)
+                            return@generateWithConfigAndCallback 1
+                        },
+                    )
+                } finally {
+                    producerDone = true  // 通知消费者：生成完成
+                }
+
+                // 等消费者播完队列剩余
+                consumer.join()
             } catch (e: Throwable) {
                 AppLog.e("TTS", "speak 失败", e)
             } finally {
@@ -215,9 +249,10 @@ class TtsEngine(
     fun stop() {
         stopped = true
         generation++
+        producerDone = true  // 让消费者不等待
+        audioQueue.clear()   // ★ 清空队列，barge-in 立即生效
         speakJob?.cancel()
         speakJob = null
-        // ★ 清空缓冲：用户打断后不应继续播几秒残留音频
         track?.runCatching { pause(); flush(); play() }
     }
 
