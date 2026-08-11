@@ -34,27 +34,17 @@ class SettingsActivity : AppCompatActivity() {
         private var previewing = false
 
         companion object {
-            /** Kokoro v1_1 的 103 个 speaker 名称映射（基于 sherpa PR #1942）。
-             * 0=af_maple, 1=af_sol, 2=bf_vale
-             * 3~57: zf_001~zf_055（中文女声）
-             * 58~102: zm_001~zm_045（中文男声） */
+            /** Kokoro v1_1 的 103 个 speaker 描述（基于 sherpa PR #1942）。
+             * 中文音色没有官方名称，只有内部编号 zf/zm。 */
             private fun speakerName(sid: Int): String {
-                val raw = when {
-                    sid == 0 -> "af_maple"
-                    sid == 1 -> "af_sol"
-                    sid == 2 -> "bf_vale"
-                    sid in 3..57 -> "zf_%03d".format(sid - 2)
-                    sid in 58..102 -> "zm_%03d".format(sid - 57)
-                    else -> "unknown"
+                return when {
+                    sid == 0 -> "美式女声 #1 (af_maple)"
+                    sid == 1 -> "美式女声 #2 (af_sol)"
+                    sid == 2 -> "英式女声 #1 (bf_vale)"
+                    sid in 3..57 -> "中文女声 #${sid - 2}"
+                    sid in 58..102 -> "中文男声 #${sid - 57}"
+                    else -> "未知"
                 }
-                val desc = when {
-                    sid in 0..1 -> "美式女声"
-                    sid == 2 -> "英式女声"
-                    sid in 3..57 -> "中文女声"
-                    sid in 58..102 -> "中文男声"
-                    else -> ""
-                }
-                return if (desc.isEmpty()) raw else "$raw ($desc)"
             }
         }
 
