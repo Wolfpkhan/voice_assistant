@@ -80,9 +80,11 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun playAudio(samples: FloatArray, sampleRate: Int) {
             audioTrack?.runCatching { stop(); release() }
-            val bufLength = AudioTrack.getMinBufferSize(
+            // ★ 缓冲区加大到最小值的 4 倍，避免首帧 underrun 产生哒哒声
+            val minBuf = AudioTrack.getMinBufferSize(
                 sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT
             )
+            val bufLength = (minBuf * 4).coerceAtLeast(samples.size)
             val track = AudioTrack(
                 AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
@@ -96,8 +98,14 @@ class SettingsActivity : AppCompatActivity() {
                 bufLength, AudioTrack.MODE_STREAM,
                 AudioManager.AUDIO_SESSION_ID_GENERATE
             )
+            // ★ 先写入部分数据再 play，避免启动瞬态噪声
+            val initialChunk = minOf(samples.size, bufLength / 2)
+            track.write(samples, 0, initialChunk, AudioTrack.WRITE_BLOCKING)
             track.play()
-            track.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
+            // 写入剩余数据
+            if (initialChunk < samples.size) {
+                track.write(samples, initialChunk, samples.size - initialChunk, AudioTrack.WRITE_BLOCKING)
+            }
             // 等播放完成
             Thread.sleep(200)
             track.stop()
