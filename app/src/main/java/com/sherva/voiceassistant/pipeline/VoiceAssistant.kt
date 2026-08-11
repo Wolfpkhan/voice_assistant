@@ -245,10 +245,14 @@ class VoiceAssistant(
                 active = false   // ★ 复位，允许下次文字输入
                 setState(State.IDLE)
             } else {
-                // 重新聆听前都冷却（正常播完防回声；打断后给用户准备时间），
-                // 确保 startListening 的开始音效在冷却后才响（不被打断音效覆盖）
-                AppLog.i("VA", "冷却 ${config.cooldownMs}ms 后重新聆听")
-                delay(config.cooldownMs)
+                // ★ 被打断时跳过冷却：用户已经开口说话，不应再等
+                //   只有正常播完才冷却（防尾音回声）
+                if (wasInterrupted) {
+                    AppLog.i("VA", "打断后立即重新聆听（跳过冷却）")
+                } else {
+                    AppLog.i("VA", "冷却 ${config.cooldownMs}ms 后重新聆听")
+                    delay(config.cooldownMs)
+                }
                 active = false   // 复位，准备下一轮
                 startListening()
             }
