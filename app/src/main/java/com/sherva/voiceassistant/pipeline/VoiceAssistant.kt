@@ -387,33 +387,27 @@ class VoiceAssistant(
         releaseWakeLock()
     }
 
-    // ---------- 分句工具 ----------
-    // ★ 中英双语句末标点（包含全角逗号/分号——LLM 经常用逗号断句而非句号）
-    private val STRONG_END = charArrayOf('。', '！', '？', '!', '?', '；', ';', '\n', '…', '，', ',')
-    /** TTS 不该念出的符号/markdown/emoji，合成前剔除（界面展示保留原文）。
-     *  ★ 全角+半角都过滤：LLM 经常混用全角括号、冒号、引号等。 */
-    private val TTS_STRIP = charArrayOf(
-        '*', '#', '`', '~', '_', '-', '—', '·', '•', '|', '/', '\\',
-        '[', ']', '【', '】', '《', '》', '<', '>',
-        '(', ')', '（', '）',
-        '"', '\u201C', '\u201D', '\'', '\u2018', '\u2019',  // 各种引号
-        ':', '：',  // 半+全角冒号（防被读出"冒号"二字）
-        '=', '+', '^',
-    )
-
-    /** 净化文本用于 TTS（去 markdown/符号/emoji，换行转逗号）。
-     * 不分句——整段一次性喂 sherpa Kokoro，让它内部按 token 分 batch。 */
+    // ---------- TTS 文本净化 ----------
+    /** 净化文本用于 TTS（去所有标点/符号/markdown/emoji）。
+     *
+     * ★ 白名单法（比黑名单更彻底）：
+     *   - 保留：字母（含中文，用 isLetter）、数字、空格
+     *   - 保留句末标点（。，、！？,.!?）—— Kokoro 需要这些做停顿
+     *   - 去掉：所有其他符号（箭头、括号、冒号、markdown、emoji 代理对等）
+     *   - 不再逐个枚举 TTS_STRIP 列表 */
     private fun cleanTextForTts(text: String): String {
-        val cleaned = StringBuilder()
+        val sb = StringBuilder(text.length)
         for (ch in text) {
-            if (ch in TTS_STRIP) continue   // 跳过 markdown 标记
-            if (Character.isSurrogate(ch)) continue   // 跳过 emoji（代理对）
-            if (ch == '\n') { cleaned.append('，'); continue }  // 换行→逗号
-            cleaned.append(ch)
+            if (Character.isSurrogate(ch)) continue   // 跳过 emoji
+            if (ch == '\n') { sb.append('，'); continue }
+            if (ch.isLetter() || ch.isDigit()) { sb.append(ch); continue }
+            if (ch == ' ' || ch == '\t') { sb.append(ch); continue }
+            if (ch in "。，、！？,.!?") { sb.append(ch); continue }
+            // 其他全去掉（括号、冒号、箭头、markdown 等一切标点符号）
         }
-        return cleaned.toString()
-            .replace(Regex("[ \t]+"), " ")  // 合并空格
-            .replace(Regex("[，。]{2,}"), "。")  // 合并连续逗号/句号
+        return sb.toString()
+            .replace(Regex("[ \t]+"), " ")
+            .replace(Regex("[，。]{2,}"), "。")
             .trim()
     }
 }
