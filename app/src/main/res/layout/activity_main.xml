@@ -46,6 +46,8 @@
             android:padding="0dp"
             app:icon="@drawable/ic_new_chat"
             app:iconSize="22dp"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
             app:iconTint="?android:attr/textColorSecondary" />
 
         <com.google.android.material.button.MaterialButton
@@ -58,6 +60,8 @@
             android:padding="0dp"
             app:icon="@drawable/ic_history"
             app:iconSize="22dp"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
             app:iconTint="?android:attr/textColorSecondary" />
 
         <com.google.android.material.button.MaterialButton
@@ -70,7 +74,9 @@
             android:padding="0dp"
             app:icon="@drawable/ic_settings"
             app:iconSize="22dp"
-            app:iconTint="?android:attr/textColorSecondary" />
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconTint="?android:attr:textColorSecondary" />
     </LinearLayout>
 
     <!-- ===== 实时识别提示（聆听时显示） ===== -->

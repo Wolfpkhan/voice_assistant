@@ -158,7 +158,9 @@ class MainActivity : AppCompatActivity() {
         stopAssistant()
         // 列表插入提示消息（类似微信聊天列表分隔）
         adapter.add(ChatMessage.create(ChatMessage.Role.NOTICE, "以下为新对话"))
-        scrollToEnd()
+        // ★ 双重滚动到底部，确保显示新对话提示胶囊
+        scrollToEnd(smooth = false)
+        messagesView.postDelayed({ scrollToEnd(smooth = false) }, 200)
         // 后台调 proxy /v1/new-session（旧会话存盘，agent 可 grep）
         lifecycleScope.launch {
             runCatching {
