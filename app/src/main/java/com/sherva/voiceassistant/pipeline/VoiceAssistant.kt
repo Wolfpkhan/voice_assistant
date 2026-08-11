@@ -145,6 +145,9 @@ class VoiceAssistant(
             AppLog.i("VA", "模型就绪，开始聆听")
             // 模型就绪开始聆听的提示音
             com.sherva.voiceassistant.audio.SoundEffects.startListen()
+            // ★ 等提示音播完再启动 ASR，避免提示音被麦克风录到干扰识别
+            //   （开始聆听时没有 AEC，提示音回声会被 ASR 当语音处理）
+            delay(300)
             asr.start(
                 onPartial = { partial -> listener.onPartialText(partial) },
                 onFinal = { final -> onFinalText(final) },
