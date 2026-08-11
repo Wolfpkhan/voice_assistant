@@ -178,6 +178,19 @@ class TtsEngine(
 
     fun isSpeaking() = speakJob?.isActive == true
 
+    /** ★ 仅生成不播放（用于音色预览）。 */
+    fun generateSync(text: String, sid: Int, speed: Float): Pair<FloatArray, Int>? {
+        if (text.isBlank()) return null
+        val normalized = digitsToChinese(text)
+        return runCatching {
+            val audio = tts.generateWithConfig(
+                normalized,
+                GenerationConfig(sid = sid, speed = speed, silenceScale = 0.2f)
+            )
+            Pair(audio.samples, audio.sampleRate)
+        }.onFailure { AppLog.e("TTS", "generateSync 失败", it) }.getOrNull()
+    }
+
     /**
      * 播报整段文本（生产者-消费者双 pipeline）。
      *

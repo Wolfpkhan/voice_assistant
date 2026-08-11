@@ -63,6 +63,13 @@
             android:summary="0~2 英文、3~57 中文女声（推荐）、58~102 中文男声"
             android:defaultValue="3"
             app:useSimpleSummaryProvider="true" />
+
+        <!-- ★ 音色预览：点一下用当前 sid 生成一段试听文本 -->
+        <Preference
+            android:key="@string/pref_voice_preview"
+            android:title="🎵 试听当前音色"
+            android:summary="点击用当前 sid 生成并播放一句示例"
+            android:widgetLayout="@layout/widget_loading" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="高级 · 对话节奏与打断">
