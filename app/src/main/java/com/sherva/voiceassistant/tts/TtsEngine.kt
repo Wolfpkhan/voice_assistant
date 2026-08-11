@@ -225,10 +225,12 @@ class TtsEngine(
                 callbackCount = 0
                 consumerWriteCount = 0
                 speakStartTime = System.currentTimeMillis()
-                track?.runCatching { pause(); flush(); play() }
+                // ★ 只 pause+flush 清空旧缓冲，不 play（让 ensureTrack 统一恢复）
+                //   play() 后立即写短音频会丢失开头 → 哒哒声
+                track?.runCatching { pause(); flush() }
                 val normalized = digitsToChinese(text)
                 AppLog.i("TTS", "speak 启动：${normalized.length}字, gen=$gen")
-                val t = ensureTrack()
+                val t = ensureTrack()  // 这里会检测 STOPPED 并 play()
 
                 // ★ 消费者协程：出队 → AudioTrack
                 val consumer = launch(Dispatchers.IO) {
