@@ -48,8 +48,8 @@ class SettingsActivity : AppCompatActivity() {
             val sp = PreferenceManager.getDefaultSharedPreferences(ctx)
             val sidStr = sp.getString(getString(R.string.pref_tts_sid), "3") ?: "3"
             val sid = sidStr.toIntOrNull() ?: 3
-            val speedStr = sp.getString(getString(R.string.pref_tts_speed), "1.0") ?: "1.0"
-            val speed = speedStr.toFloatOrNull() ?: 1.0f
+            // ★ pref_tts_speed 是 SeekBarPreference，存的是 Integer，不能用 getString
+            val speed = sp.getInt(getString(R.string.pref_tts_speed), 10) / 10.0f
 
             previewing = true
             showLoading(true)
