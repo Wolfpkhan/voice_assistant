@@ -98,58 +98,52 @@ class BargeInDetector(
             val guardEnd = System.currentTimeMillis() + startGuardMs
             val buf = ShortArray(512)
             var speechStart = 0L
-            // ★ GTCRN 输出能量基线校准：仅参考非零输出帧
+            // ★ GTCRN 输出能量基线校准
             var baselineRms = 0.005f
-            // ★ 连续帧确认：silero 检测到人声后还要连续 N 帧才算
-            var voiceConfirmCount = 0
-            val requiredConfirmFrames = 3  // 3帧 * 32ms = 96ms
-            var logCounter = 0  // 诊断日志计数
+            // ★ 纯能量检测：连续 N 帧超阈值就触发
+            //   AEC 已把 TTS 回声消干净（rms≈0），真人 rms≈0.02-0.08
+            //   不需要 silero VAD 复杂判断
+            var highEnergyCount = 0
+            val energyThreshold = 0.015f   // 真人说话 RMS 远大于此
+            val requiredFrames = 2        // 2帧 * 32ms = 64ms
+            var logCounter = 0
             try {
                 while (running) {
                     if (!armed && System.currentTimeMillis() >= guardEnd) {
                         armed = true
-                        speechStart = 0L
-                        AppLog.i("BargeIn", "保护期结束，开始检测打断")
+                        AppLog.i("BargeIn", "保护期结束，开始检测打断（纯能量模式）")
                     }
                     val n = record!!.read(buf, 0, buf.size)
                     if (n <= 0) continue
                     val raw = FloatArray(n) { buf[it] / 32768.0f }
-                    // ★ GTCRN 实时消回声：剩嘴人声 → 再喂 VAD
+                    // ★ GTCRN 实时消回声
                     val clean = denoiser.process(raw, 16000)
                     if (clean.isEmpty()) continue
-                    // ★ 计算 GTCRN 输出能量
+                    // ★ 计算能量
                     var sumSq = 0f
                     for (s in clean) sumSq += s * s
                     val rms = sqrt(sumSq / clean.size)
-                    // 更新能量基线（EWMA，仅考虑非零样本）
+                    // 更新基线
                     if (rms > 0.0005f) {
                         baselineRms = 0.95f * baselineRms + 0.05f * rms
                     }
-                    // ★ 诊断日志：每 30 帧（约1秒）打一次 RMS/基线/VAD 状态
                     logCounter++
-                    if (logCounter % 30 == 0) {
-                        AppLog.i("BargeIn", "诊断: rms=${String.format("%.4f", rms)} baseline=${String.format("%.4f", baselineRms)} ratio=${String.format("%.1f", rms / baselineRms)} armed=$armed")
+                    if (logCounter % 15 == 0) {
+                        AppLog.i("BargeIn", "诊断: rms=${String.format("%.4f", rms)} thr=$energyThreshold cnt=$highEnergyCount armed=$armed")
                     }
-                    // ★ 能量门：RMS 低于基线 2.0 倍认为是 TTS 漏音残余，不调 VAD
-                    //   （从 2.5 降到 2.0，避免真人声音被过滤）
-                    if (rms < baselineRms * 2.0f) continue
-                    vad.acceptWaveform(clean)
-                    // 排空（不关心段，只看 isSpeechDetected）
-                    while (!vad.empty()) vad.pop()
-
                     if (!armed) continue
-                    val speaking = vad.isSpeechDetected()
-                    if (speaking) {
-                        voiceConfirmCount++
-                        AppLog.i("BargeIn", "VAD人声 frame#$voiceConfirmCount rms=${String.format("%.4f", rms)}")
-                        if (voiceConfirmCount >= requiredConfirmFrames) {
-                            AppLog.i("BargeIn", "★ 检测到用户打断！（连续 ${voiceConfirmCount} 帧人声）")
+                    // ★ 纯能量检测：RMS 超阈值就计数
+                    if (rms > energyThreshold) {
+                        highEnergyCount++
+                        AppLog.i("BargeIn", "能量帧 #$highEnergyCount rms=${String.format("%.4f", rms)}")
+                        if (highEnergyCount >= requiredFrames) {
+                            AppLog.i("BargeIn", "★ 检测到用户打断！（能量 ${highEnergyCount}帧 > $energyThreshold）")
                             running = false
                             onInterrupt()
                             return@thread
                         }
                     } else {
-                        voiceConfirmCount = 0
+                        highEnergyCount = 0
                     }
                 }
             } catch (e: Throwable) {
