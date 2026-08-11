@@ -102,7 +102,8 @@ class BargeInDetector(
             var baselineRms = 0.005f
             // ★ 连续帧确认：silero 检测到人声后还要连续 N 帧才算
             var voiceConfirmCount = 0
-            val requiredConfirmFrames = 4  // 4帧 * 32ms = 128ms 连续人声确认
+            val requiredConfirmFrames = 3  // 3帧 * 32ms = 96ms
+            var logCounter = 0  // 诊断日志计数
             try {
                 while (running) {
                     if (!armed && System.currentTimeMillis() >= guardEnd) {
@@ -124,9 +125,14 @@ class BargeInDetector(
                     if (rms > 0.0005f) {
                         baselineRms = 0.95f * baselineRms + 0.05f * rms
                     }
-                    // ★ 能量门：RMS 低于基线 2.5 倍认为是 TTS 漏音残余，不调 VAD
-                    //   真人说话的能量远大于 TTS 漏音经 GTCRN 后的残余
-                    if (rms < baselineRms * 2.5f) continue
+                    // ★ 诊断日志：每 30 帧（约1秒）打一次 RMS/基线/VAD 状态
+                    logCounter++
+                    if (logCounter % 30 == 0) {
+                        AppLog.i("BargeIn", "诊断: rms=${String.format("%.4f", rms)} baseline=${String.format("%.4f", baselineRms)} ratio=${String.format("%.1f", rms / baselineRms)} armed=$armed")
+                    }
+                    // ★ 能量门：RMS 低于基线 2.0 倍认为是 TTS 漏音残余，不调 VAD
+                    //   （从 2.5 降到 2.0，避免真人声音被过滤）
+                    if (rms < baselineRms * 2.0f) continue
                     vad.acceptWaveform(clean)
                     // 排空（不关心段，只看 isSpeechDetected）
                     while (!vad.empty()) vad.pop()
@@ -135,6 +141,7 @@ class BargeInDetector(
                     val speaking = vad.isSpeechDetected()
                     if (speaking) {
                         voiceConfirmCount++
+                        AppLog.i("BargeIn", "VAD人声 frame#$voiceConfirmCount rms=${String.format("%.4f", rms)}")
                         if (voiceConfirmCount >= requiredConfirmFrames) {
                             AppLog.i("BargeIn", "★ 检测到用户打断！（连续 ${voiceConfirmCount} 帧人声）")
                             running = false
@@ -143,7 +150,6 @@ class BargeInDetector(
                         }
                     } else {
                         voiceConfirmCount = 0
-                        speechStart = 0L
                     }
                 }
             } catch (e: Throwable) {

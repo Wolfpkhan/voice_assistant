@@ -266,6 +266,7 @@ class VoiceAssistant(
         AppLog.i("VA", "TTS 整段播报：${text.length}字")
         // ★ 打断支持：整个播报期间都开 Barge-in
         bargeIn.start(onInterrupt = {
+            AppLog.i("VA", "BargeIn 触发回调，enableBargeIn=${config.enableBargeIn}")
             if (!config.enableBargeIn) return@start
             AppLog.i("VA", "打断触发 → 停 TTS，跳过剩余播报")
             com.sherva.voiceassistant.audio.SoundEffects.interrupt()
