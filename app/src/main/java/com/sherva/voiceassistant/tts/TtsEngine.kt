@@ -222,6 +222,8 @@ class TtsEngine(
                                 break  // 生成完成 + 队列空 → 退出
                             }
                         }
+                    } catch (e: CancellationException) {
+                        // cancel 是正常的，不打错误日志
                     } catch (e: Throwable) {
                         AppLog.e("TTS", "消费者异常", e)
                     }
@@ -241,8 +243,12 @@ class TtsEngine(
                                 val qSize = audioQueue.size
                                 AppLog.i("TTS", "进度: callback=$callbackCount consumer=$consumerWriteCount 队列=$qSize 耗时=${elapsed}s")
                             }
-                            // ★ 入队（队列满则阻塞，自然背压）
-                            audioQueue.put(samples)
+                            // ★ 入队（带超时，不永久阻塞）
+                            //   队列满时每 50ms 检查一次 stopped，让 barge-in 能生效
+                            //   之前用 put() 会永久阻塞 callback → sherpa 无法停止
+                            while (!audioQueue.offer(samples, 50, TimeUnit.MILLISECONDS)) {
+                                if (stopped || generation != gen) return@generateWithConfigAndCallback 0
+                            }
                             return@generateWithConfigAndCallback 1
                         },
                     )
