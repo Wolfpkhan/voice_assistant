@@ -147,10 +147,10 @@ class TtsEngine(
     /** 创建并启动 AudioTrack（持续 play，每次 speak 前 pause/flush/play 清空残留缓冲）。 */
     private fun ensureTrack(): AudioTrack {
         track?.let { existing ->
-            // ★ 如果 track 被 stop() pause 了，这里重新 play
+            // ★ 如果 track 不在 PLAYING 状态，重新 play
+            //   stop() 后或 pause() 后都走这里恢复
             if (existing.playState != AudioTrack.PLAYSTATE_PLAYING) {
                 existing.play()
-                AppLog.i("TTS", "AudioTrack 恢复 play（状态=${existing.playState}）")
             }
             return existing
         }
@@ -299,25 +299,26 @@ class TtsEngine(
     }
 
     /** ★ 等 AudioTrack 播完缓冲区剩余数据。
-     *   用 stop+PLAYSTATE_STOPPED 轮询 head position 达到写入位置。 */
+     *   playbackHeadPosition 在 flush 后会重置为 0 且可能延迟更新，
+     *   先等 50ms 让 AudioTrack 启动播放，再轮询 position 不再增长。 */
     private fun drainAudioTrack(t: AudioTrack) {
         try {
-            // 方法：轮询 playbackHeadPosition，直到它不再增长（缓冲区播完）
-            val sr = sampleRate
             val timeoutMs = 5000L  // 最多等 5 秒
             val startMs = System.currentTimeMillis()
+            // ★ flush 后 head position 可能短暂停在 0，先给 AudioTrack 启动时间
+            Thread.sleep(50)
             var lastPos = t.playbackHeadPosition
             var stableCount = 0
             while (System.currentTimeMillis() - startMs < timeoutMs) {
                 Thread.sleep(20)
                 val pos = t.playbackHeadPosition
-                if (pos == lastPos) {
-                    stableCount++
-                    // head position 连续 3 次(60ms)不变 = 播完了
-                    if (stableCount >= 3) break
-                } else {
+                if (pos > lastPos) {
                     stableCount = 0
                     lastPos = pos
+                } else {
+                    stableCount++
+                    // head position 连续 100ms(5次) 不变 = 播完了
+                    if (stableCount >= 5) break
                 }
             }
         } catch (_: Throwable) {}
