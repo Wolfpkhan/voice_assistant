@@ -437,7 +437,9 @@ class MainActivity : AppCompatActivity() {
             curAssistantId = -1L   // 新一轮，下一条助手消息会是新的
             adapter.add(ChatMessage.create(ChatMessage.Role.USER, text))
             ChatStore.save(text, isFromUser = true)   // 落库
-            scrollToEnd()
+            // ★ 双重滚动：立即 + 延迟（应对布局刷新延迟）
+            scrollToEnd(smooth = false)
+            messagesView.postDelayed({ scrollToEnd(smooth = false) }, 200)
         }
 
         override fun onAssistantDelta(delta: String) = runOnUiThread {
