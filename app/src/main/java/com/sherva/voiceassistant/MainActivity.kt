@@ -126,7 +126,10 @@ class MainActivity : AppCompatActivity() {
         // ★ 新对话：调 proxy /v1/new-session 开新 session（旧会话保留供 agent grep）
         newChatButton.setOnClickListener { startNewChat() }
         interruptButton.setOnClickListener {
-            assistant?.interruptOutput(); toast("已中断输出")
+            // ★ 同时中断 LLM 输出 + 停 TTS 播放（用户期望点'中断'就是全停）
+            assistant?.interruptOutput()
+            assistant?.stopPlayback()
+            toast("已中断")
         }
         muteButton.setOnClickListener {
             assistant?.stopPlayback(); toast("已停止播放")
