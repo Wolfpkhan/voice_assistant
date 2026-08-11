@@ -240,7 +240,7 @@ class TtsEngine(
                 try {
                     tts.generateWithConfigAndCallback(
                         text = normalized,
-                        config = GenerationConfig(sid = sid, speed = speed, silenceScale = 0.05f),
+                        config = GenerationConfig(sid = sid, speed = speed, silenceScale = 0.2f),
                         callback = { samples ->
                             if (stopped || generation != gen) return@generateWithConfigAndCallback 0
                             callbackCount++
