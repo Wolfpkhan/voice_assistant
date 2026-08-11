@@ -244,6 +244,12 @@ class TtsEngine(
                                 break  // 生成完成 + 队列空 → 退出
                             }
                         }
+                        // ★ 等 AudioTrack 真正播完缓冲区剩余数据
+                        //   write(BLOCKING) 只等写入缓冲区，不等播放
+                        //   不等的话后续 pause/flush 会冲掉未播音频 → 哒哒声/没声音
+                        if (!stopped && generation == gen) {
+                            drainAudioTrack(t)
+                        }
                     } catch (e: CancellationException) {
                         // cancel 是正常的，不打错误日志
                     } catch (e: Throwable) {
@@ -290,6 +296,31 @@ class TtsEngine(
                 onComplete?.invoke()
             }
         }
+    }
+
+    /** ★ 等 AudioTrack 播完缓冲区剩余数据。
+     *   用 stop+PLAYSTATE_STOPPED 轮询 head position 达到写入位置。 */
+    private fun drainAudioTrack(t: AudioTrack) {
+        try {
+            // 方法：轮询 playbackHeadPosition，直到它不再增长（缓冲区播完）
+            val sr = sampleRate
+            val timeoutMs = 5000L  // 最多等 5 秒
+            val startMs = System.currentTimeMillis()
+            var lastPos = t.playbackHeadPosition
+            var stableCount = 0
+            while (System.currentTimeMillis() - startMs < timeoutMs) {
+                Thread.sleep(20)
+                val pos = t.playbackHeadPosition
+                if (pos == lastPos) {
+                    stableCount++
+                    // head position 连续 3 次(60ms)不变 = 播完了
+                    if (stableCount >= 3) break
+                } else {
+                    stableCount = 0
+                    lastPos = pos
+                }
+            }
+        } catch (_: Throwable) {}
     }
 
     /** 立即停止当前播报（清空 AudioTrack 缓冲，避免残留继续播）。
