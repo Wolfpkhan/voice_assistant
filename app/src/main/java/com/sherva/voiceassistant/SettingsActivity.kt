@@ -33,6 +33,15 @@ class SettingsActivity : AppCompatActivity() {
         private var previewing = false
 
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+            // ★ 迁移：旧版 EditTextPreference 存 String，新版 SeekBarPreference 要 Integer
+            //   检测到 String 就转成 Int 重存，避免 ClassCastException
+            val sp = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val sidKey = getString(R.string.pref_tts_sid)
+            val old = sp.all[sidKey]
+            if (old is String) {
+                val sidInt = old.toIntOrNull() ?: 3
+                sp.edit().putInt(sidKey, sidInt).apply()
+            }
             setPreferencesFromResource(R.xml.preferences, rootKey)
 
             // ★ 音色预览
