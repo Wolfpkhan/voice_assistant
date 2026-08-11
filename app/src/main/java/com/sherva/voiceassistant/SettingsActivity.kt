@@ -11,6 +11,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
+import androidx.preference.SeekBarPreference
 import com.sherva.voiceassistant.tts.TtsEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -32,6 +33,31 @@ class SettingsActivity : AppCompatActivity() {
         private var audioTrack: AudioTrack? = null
         private var previewing = false
 
+        companion object {
+            /** Kokoro v1_1 的 103 个 speaker 名称映射（基于 sherpa PR #1942）。
+             * 0=af_maple, 1=af_sol, 2=bf_vale
+             * 3~57: zf_001~zf_055（中文女声）
+             * 58~102: zm_001~zm_045（中文男声） */
+            private fun speakerName(sid: Int): String {
+                val raw = when {
+                    sid == 0 -> "af_maple"
+                    sid == 1 -> "af_sol"
+                    sid == 2 -> "bf_vale"
+                    sid in 3..57 -> "zf_%03d".format(sid - 2)
+                    sid in 58..102 -> "zm_%03d".format(sid - 57)
+                    else -> "unknown"
+                }
+                val desc = when {
+                    sid in 0..1 -> "美式女声"
+                    sid == 2 -> "英式女声"
+                    sid in 3..57 -> "中文女声"
+                    sid in 58..102 -> "中文男声"
+                    else -> ""
+                }
+                return if (desc.isEmpty()) raw else "$raw ($desc)"
+            }
+        }
+
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             // ★ 迁移：旧版 EditTextPreference 存 String，新版 SeekBarPreference 要 Integer
             //   检测到 String 就转成 Int 重存，避免 ClassCastException
@@ -43,6 +69,19 @@ class SettingsActivity : AppCompatActivity() {
                 sp.edit().putInt(sidKey, sidInt).apply()
             }
             setPreferencesFromResource(R.xml.preferences, rootKey)
+
+            // ★ sid 滑块联动：实时显示当前音色名称
+            val sidPref = findPreference<SeekBarPreference>(getString(R.string.pref_tts_sid))
+            sidPref?.let { pref ->
+                val updateSidSummary = { value: Int ->
+                    pref.summary = "sid=$value ${speakerName(value)}"
+                }
+                updateSidSummary(pref.value ?: 3)
+                pref.setOnPreferenceChangeListener { _, newValue ->
+                    updateSidSummary((newValue as? Int) ?: 3)
+                    true
+                }
+            }
 
             // ★ 音色预览
             findPreference<Preference>(getString(R.string.pref_voice_preview))?.setOnPreferenceClickListener {
@@ -130,10 +169,11 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         private fun showLoading(show: Boolean) {
-            // 简单方案：改 summary 提示
+            val sp = PreferenceManager.getDefaultSharedPreferences(requireContext())
+            val sid = sp.getInt(getString(R.string.pref_tts_sid), 3)
             findPreference<Preference>(getString(R.string.pref_voice_preview))?.summary =
-                if (show) "正在生成...（首次需加载模型约3秒）"
-                else "点击用当前 sid 生成并播放一句示例"
+                if (show) "正在生成 ${speakerName(sid)}...（首次需加载模型约3秒）"
+                else "点击试听 sid=$sid ${speakerName(sid)}"
         }
 
         override fun onDestroy() {
