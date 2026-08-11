@@ -139,6 +139,10 @@ class TtsEngine(
     //   避免 callback 里 write BLOCKING 拖慢生成（RTF 从 ≈1 降到 ≈0.3）
     private val audioQueue = ArrayBlockingQueue<FloatArray>(64)  // 64 chunk ≈ 数十秒缓冲
     private var producerDone = false  // 生成是否完成（消费者用）
+    // ★ 进度统计（每次 speak 重置）
+    @Volatile private var callbackCount = 0
+    @Volatile private var consumerWriteCount = 0
+    @Volatile private var speakStartTime = 0L
 
     /** 创建并启动 AudioTrack（持续 play，每次 speak 前 pause/flush/play 清空残留缓冲）。 */
     private fun ensureTrack(): AudioTrack {
@@ -198,6 +202,9 @@ class TtsEngine(
                 stopped = false
                 producerDone = false
                 audioQueue.clear()
+                callbackCount = 0
+                consumerWriteCount = 0
+                speakStartTime = System.currentTimeMillis()
                 track?.runCatching { pause(); flush(); play() }
                 val normalized = digitsToChinese(text)
                 AppLog.i("TTS", "speak 启动：${normalized.length}字, gen=$gen")
@@ -210,6 +217,7 @@ class TtsEngine(
                             val samples = audioQueue.poll(100, TimeUnit.MILLISECONDS)
                             if (samples != null) {
                                 t.write(samples, 0, samples.size, AudioTrack.WRITE_BLOCKING)
+                                consumerWriteCount++
                             } else if (producerDone) {
                                 break  // 生成完成 + 队列空 → 退出
                             }
@@ -226,17 +234,28 @@ class TtsEngine(
                         config = GenerationConfig(sid = sid, speed = speed, silenceScale = 0.05f),
                         callback = { samples ->
                             if (stopped || generation != gen) return@generateWithConfigAndCallback 0
+                            callbackCount++
+                            // ★ 每 5 个 callback 打一次进度 log
+                            if (callbackCount % 5 == 1) {
+                                val elapsed = (System.currentTimeMillis() - speakStartTime) / 1000f
+                                val qSize = audioQueue.size
+                                AppLog.i("TTS", "进度: callback=$callbackCount consumer=$consumerWriteCount 队列=$qSize 耗时=${elapsed}s")
+                            }
                             // ★ 入队（队列满则阻塞，自然背压）
                             audioQueue.put(samples)
                             return@generateWithConfigAndCallback 1
                         },
                     )
+                    val genElapsed = (System.currentTimeMillis() - speakStartTime) / 1000f
+                    AppLog.i("TTS", "★ 生成完成: callback=$callbackCount, 耗时=${genElapsed}s")
                 } finally {
                     producerDone = true  // 通知消费者：生成完成
                 }
 
                 // 等消费者播完队列剩余
                 consumer.join()
+                val totalElapsed = (System.currentTimeMillis() - speakStartTime) / 1000f
+                AppLog.i("TTS", "★ 播放完成: 总耗时=${totalElapsed}s callback=$callbackCount consumer=$consumerWriteCount")
             } catch (e: Throwable) {
                 AppLog.e("TTS", "speak 失败", e)
             } finally {
