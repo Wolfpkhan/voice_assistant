@@ -89,11 +89,12 @@ class SettingsActivity : AppCompatActivity() {
 
         private fun playAudio(samples: FloatArray, sampleRate: Int) {
             audioTrack?.runCatching { stop(); release() }
-            // ★ 缓冲区加大到最小值的 4 倍，避免首帧 underrun 产生哒哒声
-            val minBuf = AudioTrack.getMinBufferSize(
+            // ★ AudioTrack buffer 只是流式缓冲（不需要容下全部音频）
+            //   bufferSizeInBytes 参数要字节数，不是 float 个数
+            //   用 getMinBufferSize 即可，太小会导致 underrun
+            val bufLength = AudioTrack.getMinBufferSize(
                 sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT
-            )
-            val bufLength = (minBuf * 4).coerceAtLeast(samples.size)
+            ).coerceAtLeast(4096)  // 最小 4KB 避免无效值
             val track = AudioTrack(
                 AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
@@ -107,13 +108,19 @@ class SettingsActivity : AppCompatActivity() {
                 bufLength, AudioTrack.MODE_STREAM,
                 AudioManager.AUDIO_SESSION_ID_GENERATE
             )
-            // ★ 先写入部分数据再 play，避免启动瞬态噪声
-            val initialChunk = minOf(samples.size, bufLength / 2)
+            // ★ 先写入一小块数据再 play，避免启动瞬态噪声
+            val initialChunk = minOf(samples.size, 2048)  // 写入 2048 个 float 作为启动缓冲
             track.write(samples, 0, initialChunk, AudioTrack.WRITE_BLOCKING)
             track.play()
-            // 写入剩余数据
+            // 流式写入剩余数据
             if (initialChunk < samples.size) {
-                track.write(samples, initialChunk, samples.size - initialChunk, AudioTrack.WRITE_BLOCKING)
+                var pos = initialChunk
+                val chunkSize = 4096
+                while (pos < samples.size) {
+                    val n = minOf(chunkSize, samples.size - pos)
+                    track.write(samples, pos, n, AudioTrack.WRITE_BLOCKING)
+                    pos += n
+                }
             }
             // 等播放完成
             Thread.sleep(200)
