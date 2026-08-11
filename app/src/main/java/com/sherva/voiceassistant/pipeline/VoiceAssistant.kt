@@ -410,6 +410,8 @@ class VoiceAssistant(
             if (ch.isLetter() || ch.isDigit()) { sb.append(ch); continue }
             if (ch == ' ' || ch == '\t') { sb.append(ch); continue }
             if (ch in "。，、！？,.!?") { sb.append(ch); continue }
+            // ★ 保留数字场景符号（供 digitsToChinese 正则匹配）
+            if (ch in ":.%°℃") { sb.append(ch); continue }
             // 其他全去掉（括号、冒号、箭头、markdown 等一切标点符号）
         }
         return sb.toString()

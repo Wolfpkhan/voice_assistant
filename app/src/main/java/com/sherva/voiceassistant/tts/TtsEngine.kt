@@ -41,20 +41,108 @@ class TtsEngine(
     private val numThreads: Int = 2,
 ) {
     companion object {
-        private const val DIGITS = "0123456789"
         private const val CN_DIGITS = "零一二三四五六七八九"
+
         /**
-         * 阿拉伯数字 → 中文数字（逐位替换）。
-         * Kokoro espeak 默认逐位读英文 ("773" → "seven seven three")，
-         * 中文场景下应读 "七七三"。
+         * 智能数字→中文读法（场景化）：
+         * - 年份（4位+年）：逐位读 "二零二四年"
+         * - 时间 HH:MM：N点M分
+         * - 小数 N.NN：N点逐位
+         * - 月份/日期/号：按数值读 "八月"/"十一日"
+         * - 百分比：百分之N
+         * - 温度：N摄氏度/N度
+         * - 一般数字：中文大数读法 "一百二十三"
          */
         fun digitsToChinese(text: String): String {
-            val sb = StringBuilder(text.length)
-            for (c in text) {
-                val idx = DIGITS.indexOf(c)
-                if (idx >= 0) sb.append(CN_DIGITS[idx]) else sb.append(c)
+            var r = text
+            // 1. 年份（4位+年）：逐位读
+            r = Regex("([0-9]{4})年").replace(r) {
+                it.groupValues[1].map { c -> CN_DIGITS[c - '0'] }.joinToString("") + "年"
             }
-            return sb.toString()
+            // 2. 时间 HH:MM → N点M分
+            r = Regex("([0-9]{1,2}):([0-9]{2})").replace(r) {
+                val h = it.groupValues[1].toLong()
+                val m = it.groupValues[2].toLong()
+                if (m == 0L) "${numToZh(h)}点" else "${numToZh(h)}点${numToZh(m)}分"
+            }
+            // 3. 小数 N.NN → N点逐位
+            r = Regex("([0-9]+)\\.([0-9]+)").replace(r) {
+                val i = it.groupValues[1].toLong()
+                val f = it.groupValues[2]
+                "${numToZh(i)}点${f.map { c -> CN_DIGITS[c - '0'] }.joinToString("")}"
+            }
+            // 4. 月份/日期/号：按数值读
+            r = Regex("([0-9]{1,2})月").replace(r) { "${numToZh(it.groupValues[1].toLong())}月" }
+            r = Regex("([0-9]{1,2})日").replace(r) { "${numToZh(it.groupValues[1].toLong())}日" }
+            r = Regex("([0-9]{1,2})号").replace(r) { "${numToZh(it.groupValues[1].toLong())}号" }
+            // 5. 温度 °C/℃ → 摄氏度（优先于单独 °）
+            r = Regex("([0-9]+)(?:°C|℃)").replace(r) { "${numToZh(it.groupValues[1].toLong())}摄氏度" }
+            // 6. 百分比
+            r = Regex("([0-9]+)%").replace(r) { "百分之${numToZh(it.groupValues[1].toLong())}" }
+            // 7. 温度 ° → 度
+            r = Regex("([0-9]+)°").replace(r) { "${numToZh(it.groupValues[1].toLong())}度" }
+            // 8. 剩余数字：按数值读
+            r = Regex("[0-9]+").replace(r) {
+                it.value.toLongOrNull()?.let(::numToZh) ?: it.value
+            }
+            return r
+        }
+
+        /** 整数→中文读法（按数值，如 123→一百二十三）。 */
+        private fun numToZh(n: Long): String {
+            if (n == 0L) return "零"
+            if (n < 0) return "负" + numToZh(-n)
+            val sb = StringBuilder()
+            if (n >= 100000000L) {
+                sb.append(numToZh(n / 100000000)).append("亿")
+                val rem = n % 100000000
+                if (rem > 0) {
+                    if (rem < 10000000) sb.append("零")
+                    sb.append(leadingYi(rem))
+                }
+                return sb.toString()
+            }
+            if (n >= 10000L) {
+                sb.append(numToZh(n / 10000)).append("万")
+                val rem = n % 10000
+                if (rem > 0) {
+                    if (rem < 1000) sb.append("零")
+                    sb.append(leadingYi(rem))
+                }
+                return sb.toString()
+            }
+            if (n >= 1000L) {
+                sb.append(CN_DIGITS[(n / 1000).toInt()]).append("千")
+                val rem = n % 1000
+                if (rem > 0) {
+                    if (rem < 100) sb.append("零")
+                    sb.append(leadingYi(rem))
+                }
+                return sb.toString()
+            }
+            if (n >= 100L) {
+                sb.append(CN_DIGITS[(n / 100).toInt()]).append("百")
+                val rem = n % 100
+                if (rem > 0) {
+                    if (rem < 10) sb.append("零")
+                    sb.append(leadingYi(rem))
+                }
+                return sb.toString()
+            }
+            if (n >= 10L) {
+                val tens = (n / 10).toInt()
+                val ones = (n % 10).toInt()
+                if (tens == 1) sb.append("十") else sb.append(CN_DIGITS[tens]).append("十")
+                if (ones > 0) sb.append(CN_DIGITS[ones])
+                return sb.toString()
+            }
+            return CN_DIGITS[n.toInt()].toString()
+        }
+
+        /** 跟在高位后面的读法（10-19 补 “一”，如 110→一百一十）。 */
+        private fun leadingYi(n: Long): String {
+            if (n in 10..19) return "一" + numToZh(n)
+            return numToZh(n)
         }
     }
 
