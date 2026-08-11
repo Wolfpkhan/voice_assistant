@@ -146,7 +146,14 @@ class TtsEngine(
 
     /** 创建并启动 AudioTrack（持续 play，每次 speak 前 pause/flush/play 清空残留缓冲）。 */
     private fun ensureTrack(): AudioTrack {
-        track?.let { return it }
+        track?.let { existing ->
+            // ★ 如果 track 被 stop() pause 了，这里重新 play
+            if (existing.playState != AudioTrack.PLAYSTATE_PLAYING) {
+                existing.play()
+                AppLog.i("TTS", "AudioTrack 恢复 play（状态=${existing.playState}）")
+            }
+            return existing
+        }
         val bufLength = AudioTrack.getMinBufferSize(
             sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_FLOAT
         )
@@ -270,7 +277,11 @@ class TtsEngine(
         }
     }
 
-    /** 立即停止当前播报（清空 AudioTrack 缓冲，避免残留继续播）。 */
+    /** 立即停止当前播报（清空 AudioTrack 缓冲，避免残留继续播）。
+     *
+     * ★ 只 pause+flush，不 play —— 让 AudioTrack 真正静音
+     *   play() 会让消费者协程继续写入并播放
+     *   下次 speak() 时 ensureTrack 会自动恢复 play */
     fun stop() {
         stopped = true
         generation++
@@ -278,7 +289,9 @@ class TtsEngine(
         audioQueue.clear()   // ★ 清空队列，barge-in 立即生效
         speakJob?.cancel()
         speakJob = null
-        track?.runCatching { pause(); flush(); play() }
+        // ★ 只 pause+flush，不 play —— 用户立即听到静音
+        track?.runCatching { pause(); flush() }
+        AppLog.i("TTS", "stop() 已执行：AudioTrack paused+flushed")
     }
 
     fun release() {
