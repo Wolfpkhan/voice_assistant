@@ -76,7 +76,7 @@
             app:iconSize="22dp"
             app:iconGravity="textStart"
             app:iconPadding="0dp"
-            app:iconTint="?android:attr:textColorSecondary" />
+            app:iconTint="?android:attr/textColorSecondary" />
     </LinearLayout>
 
     <!-- ===== 实时识别提示（聆听时显示） ===== -->
