@@ -295,6 +295,16 @@ class MainActivity : AppCompatActivity() {
         // 按钮高亮（品牌色）
         floatingBallButton.iconTint = android.content.res.ColorStateList.valueOf(0xFF10A37F.toInt())
         toast("悬浮球已开启")
+        // ★ 延迟接管：Service 创建实例后，Activity 也注册 listener
+        //   这样无论谁触发状态变化，App UI 和悬浮球都同步
+        floatingBallButton.postDelayed({
+            val shared = App.getAssistant(this)
+            if (shared != null && assistant !== shared) {
+                assistant = shared
+                shared.addListener(listener)
+                listener.onState(shared.state)
+            }
+        }, 500)
     }
 
     /** 关闭悬浮球后台服务 + 按钮复位。 */

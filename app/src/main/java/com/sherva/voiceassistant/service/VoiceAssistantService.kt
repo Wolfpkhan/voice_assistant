@@ -73,7 +73,7 @@ class VoiceAssistantService : Service() {
         return START_STICKY  // 被杀后自动重启
     }
 
-    /** 启动前台服务 + 语音助手 + 悬浮球。 */
+    /** 启动前台服务 + 悬浮球（不自动开始聆听，语音的开始/停止由用户操作触发）。 */
     private fun startVoice() {
         started = true
         startForegroundCompat()
@@ -81,7 +81,7 @@ class VoiceAssistantService : Service() {
         val existing = App.getAssistant(this)
         if (existing != null) {
             AppLog.i(TAG, "接管 App.sharedAssistant（状态=${existing.state}）")
-            existing.addListener(serviceListener)  // 多 listener 广播，Activity 也同时收到
+            existing.addListener(serviceListener)
             assistant = existing
         } else {
             AppLog.i(TAG, "App.sharedAssistant 为空，创建新实例")
@@ -91,10 +91,13 @@ class VoiceAssistantService : Service() {
             App.setAssistant(this, a)
             assistant = a
         }
-        assistant?.startConversation()
+        // ★ 不自动 startConversation：语音的开始/停止由用户操作触发
+        //   这样 App 和悬浮球状态永远一致，不会出现 Service 自动开聆听但 App UI 没更新
         // 悬浮球
         if (Settings.canDrawOverlays(this)) {
             ball = FloatingBallManager(this) { toggleVoice() }.also { it.show() }
+            // 立即同步悬浮球状态
+            ball?.setState(assistant?.state ?: VoiceAssistant.State.IDLE)
         } else {
             AppLog.w(TAG, "未获得悬浮窗权限，跳过悬浮球")
         }
