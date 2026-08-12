@@ -205,6 +205,8 @@ class MainActivity : AppCompatActivity() {
         // ★ 停止生成（文字/语音模式通用：停 LLM + 清除流式状态）
         stopGenButton.setOnClickListener {
             assistant?.interruptOutput()
+            // 立即隐藏按钮 + 反馈，避免用户重复点击
+            stopGenButton.visibility = android.view.View.GONE
             toast("已停止")
         }
         textInput.setOnEditorActionListener { _, actionId, event ->
@@ -546,6 +548,9 @@ class MainActivity : AppCompatActivity() {
         // 不调 setStartedUi(true)：语音按钮状态只由语音会话管理
         assistant?.textMode = true
         assistant?.sendText(text)
+        // ★ 立即显示「停止生成」按钮：让用户在 pi 端 processing 时也能 abort
+        //   按钮会在 LLM 响应完成（onAssistantComplete）或 cancel 后隐藏
+        stopGenButton.visibility = android.view.View.VISIBLE
         // 发送后滚动到底（立即一次 + 延迟一次应对键盘收起后的布局变化）
         scrollToEnd()
         messagesView.postDelayed({ scrollToEnd() }, 200)
@@ -572,7 +577,7 @@ class MainActivity : AppCompatActivity() {
             stateText.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
             // ★ 按钮 UI 跟随状态（无论是 App 内点击还是悬浮球触发，都会同步）
             setStartedUi(state != VoiceAssistant.State.IDLE)
-            // 停止生成按钮：思考中显示（文字/语音模式通用）
+            // 停止生成按钮：THINKING 时显示（SPEAKING/IDLE 隐藏）
             stopGenButton.visibility = if (state == VoiceAssistant.State.THINKING) android.view.View.VISIBLE else android.view.View.GONE
             if (state != VoiceAssistant.State.LISTENING) {
                 partialText.visibility = android.view.View.GONE
