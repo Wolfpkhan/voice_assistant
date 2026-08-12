@@ -462,15 +462,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        val serviceRunning = com.sherva.voiceassistant.service.VoiceAssistantService.instance != null
-        if (serviceRunning) {
-            // ★ Service 在跑：不移除 listener，让 Activity 继续接收文字输出
-            //   后台静默更新聊天列表，用户回来能看到完整对话
-            AppLog.i("Main", "onPause：Service 在运行，保留 listener 让后台输出继续更新")
+        // ★ 永远不移除 listener：LLM 文字流不中断，切后台也能继续更新聊天列表
+        //   只暂停 TTS 播放和 STT 录音（pause 方法已处理）
+        if (com.sherva.voiceassistant.service.VoiceAssistantService.instance != null) {
+            AppLog.i("Main", "onPause：Service 在运行，跳过 pause（让悬浮球继续管）")
         } else {
-            // 无 Service：正常切后台，退订 + 暂停
-            assistant?.removeListener(listener)
-            assistant?.pause()
+            assistant?.pause()  // 只停 TTS/STT，不中断 LLM 文字流
         }
         setStartedUi(false)
     }
