@@ -462,16 +462,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        // ★ Activity 退订：避免泄漏；Service 还会继续收到回调
-        assistant?.removeListener(listener)
-        // ★ Service 在前台运行时不要 pause，否则悬浮球模式会丢失语音
-        if (com.sherva.voiceassistant.service.VoiceAssistantService.instance != null) {
-            AppLog.i("Main", "onPause：Service 在运行，跳过 pause（让悬浮球继续听）")
+        val serviceRunning = com.sherva.voiceassistant.service.VoiceAssistantService.instance != null
+        if (serviceRunning) {
+            // ★ Service 在跑：不移除 listener，让 Activity 继续接收文字输出
+            //   后台静默更新聊天列表，用户回来能看到完整对话
+            AppLog.i("Main", "onPause：Service 在运行，保留 listener 让后台输出继续更新")
         } else {
-            // 切后台：暂停侦听与播放（省电、防后台录音）
+            // 无 Service：正常切后台，退订 + 暂停
+            assistant?.removeListener(listener)
             assistant?.pause()
         }
-        // UI 临时复位（避免切回时看到误导状态；resume 后会按真实 state 恢复）
         setStartedUi(false)
     }
 
