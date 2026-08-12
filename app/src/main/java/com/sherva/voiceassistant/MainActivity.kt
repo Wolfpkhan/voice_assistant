@@ -96,6 +96,12 @@ class MainActivity : AppCompatActivity() {
     private var assistant: VoiceAssistant? = null
     @Volatile private var curAssistantId = -1L   // 当前流式助手消息 id（-1=未开始）
 
+    /** ★ 流式输出节流：delta 累积到 buffer，每 100ms 刷一次 UI。 */
+    private val uiHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val pendingDelta = StringBuilder()
+    private var flushRunnable: Runnable? = null
+    private val FLUSH_INTERVAL_MS = 100L
+
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -590,13 +596,30 @@ class MainActivity : AppCompatActivity() {
 
         override fun onAssistantDelta(delta: String) = runOnUiThread {
             if (delta == "null" || delta.isBlank()) return@runOnUiThread
+            // ★ 节流：累积 delta，每 100ms 才刷一次 UI（Markdown 渲染很贵）
+            synchronized(pendingDelta) {
+                pendingDelta.append(delta)
+                if (flushRunnable == null) {
+                    flushRunnable = Runnable { flushDeltas() }
+                    uiHandler.postDelayed(flushRunnable!!, FLUSH_INTERVAL_MS)
+                }
+            }
+        }
+
+        /** 取出累积的 delta 追加到最后一条助手气泡。 */
+        private fun flushDeltas() {
+            val batch: String
+            synchronized(pendingDelta) {
+                if (pendingDelta.isEmpty()) { flushRunnable = null; return }
+                batch = pendingDelta.toString()
+                pendingDelta.clear()
+                flushRunnable = null
+            }
             val last = adapter.currentList.lastOrNull()
-            // ★ 追加条件：最后一条是助手消息，且是本轮创建的（id 匹配）
-            //   这样同一条流式回复始终追加同一气泡；新一轮（onUserText 已重置 id）则新建
             if (curAssistantId != -1L && last?.role == ChatMessage.Role.ASSISTANT && last.id == curAssistantId) {
-                adapter.updateLastAssistant(last.text + delta)
+                adapter.updateLastAssistant(last.text + batch)
             } else {
-                val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, delta)
+                val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, batch)
                 curAssistantId = msg.id
                 adapter.add(msg)
             }
@@ -604,8 +627,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onAssistantComplete(text: String) = runOnUiThread {
-            // ★ 以完整文本为准：无论增量是否走完，都用服务端完整回复覆盖/重建最后一条助手气泡。
-            //   避免 pi 的流式 delta 拼接不完整导致气泡内容缺失。
+            // ★ 先 flush 所有累积的 delta（确保流式片段不丢失）
+            flushDeltas()
+            // 以完整文本为准：覆盖或重建最后一条助手气泡，避免 delta 拼接不完整
             val final = text.trim()
             if (final.isEmpty()) return@runOnUiThread
             val last = adapter.currentList.lastOrNull()
