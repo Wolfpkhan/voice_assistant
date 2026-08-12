@@ -78,6 +78,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var settingsButton: MaterialButton
     private lateinit var historyButton: MaterialButton
     private lateinit var newChatButton: MaterialButton
+    private lateinit var floatingBallButton: MaterialButton
     private lateinit var interruptButton: MaterialButton
     private lateinit var muteButton: MaterialButton
     private lateinit var textInput: TextInputEditText
@@ -99,6 +100,24 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) startAssistant() else toast("需要录音权限才能使用语音助手")
+    }
+
+    // ★ 悬浮球：权限请求 launcher
+    private val overlayPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        if (android.provider.Settings.canDrawOverlays(this)) {
+            toast("悬浮窗权限已授予")
+            enableFloatingBall()
+        } else {
+            toast("未授悬浮窗权限，无法显示悬浮球")
+        }
+    }
+    private val notifPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted) toast("未授通知权限，后台服务可能被系统杀")
+        enableFloatingBall()  // 即使没权限也启动
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -125,6 +144,7 @@ class MainActivity : AppCompatActivity() {
             settingsButton = findViewById(R.id.settingsButton)
             historyButton = findViewById(R.id.historyButton)
             newChatButton = findViewById(R.id.newChatButton)
+            floatingBallButton = findViewById(R.id.floatingBallButton)
             interruptButton = findViewById(R.id.interruptButton)
             muteButton = findViewById(R.id.muteButton)
             textInput = findViewById(R.id.textInput)
@@ -161,6 +181,8 @@ class MainActivity : AppCompatActivity() {
         historyButton.setOnClickListener {
             startActivity(Intent(this, HistoryActivity::class.java))
         }
+        // ★ 悬浮球开关：顶部按钮，默认关闭
+        floatingBallButton.setOnClickListener { toggleFloatingBall() }
         // ★ 新对话：调 proxy /v1/new-session 开新 session（旧会话保留供 agent grep）
         newChatButton.setOnClickListener { startNewChat() }
         interruptButton.setOnClickListener {
@@ -231,6 +253,67 @@ class MainActivity : AppCompatActivity() {
             // 正在聆听/思考/播报 → 停止
             stopAssistant()
         }
+    }
+
+    /** ★ 悬浮球开关切换（顶部按钮）。 */
+    private fun toggleFloatingBall() {
+        val running = com.sherva.voiceassistant.service.VoiceAssistantService.instance != null
+        if (running) {
+            disableFloatingBall()
+        } else {
+            // 权限检查 → 悬浮窗 → 通知 → 启动
+            if (!android.provider.Settings.canDrawOverlays(this)) {
+                toast("需授权「显示在其他应用上层」才能显示悬浮球")
+                overlayPermissionLauncher.launch(
+                    android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                        data = android.net.Uri.parse("package:${packageName}")
+                    }
+                )
+                return
+            }
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                val granted = ContextCompat.checkSelfPermission(
+                    this, android.Manifest.permission.POST_NOTIFICATIONS
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                if (!granted) {
+                    notifPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    return
+                }
+            }
+            enableFloatingBall()
+        }
+    }
+
+    /** 启动悬浮球后台服务 + 按钮高亮。 */
+    private fun enableFloatingBall() {
+        val intent = android.content.Intent(this, com.sherva.voiceassistant.service.VoiceAssistantService::class.java)
+            .setAction(com.sherva.voiceassistant.service.VoiceAssistantService.ACTION_START)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
+            startForegroundService(intent)
+        else
+            startService(intent)
+        // 按钮高亮（品牌色）
+        floatingBallButton.iconTint = android.content.res.ColorStateList.valueOf(0xFF10A37F.toInt())
+        toast("悬浮球已开启")
+    }
+
+    /** 关闭悬浮球后台服务 + 按钮复位。 */
+    private fun disableFloatingBall() {
+        val intent = android.content.Intent(this, com.sherva.voiceassistant.service.VoiceAssistantService::class.java)
+            .setAction(com.sherva.voiceassistant.service.VoiceAssistantService.ACTION_STOP)
+        startService(intent)
+        // 按钮复位（灰色）
+        floatingBallButton.iconTint = android.content.res.ColorStateList.valueOf(0xFF8E8E93.toInt())
+        toast("悬浮球已关闭")
+    }
+
+    /** 同步悬浮球按钮状态（onResume 调用，确保图标高亮/灰色与实际服务状态一致）。 */
+    private fun syncFloatingBallButton() {
+        val running = com.sherva.voiceassistant.service.VoiceAssistantService.instance != null
+        floatingBallButton.iconTint = if (running)
+            android.content.res.ColorStateList.valueOf(0xFF10A37F.toInt())
+        else
+            android.content.res.ColorStateList.valueOf(0xFF8E8E93.toInt())
     }
 
     /** 切换语音/文字模式（互斥：切走时停掉对方的会话）。 */
@@ -334,6 +417,7 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (StoragePermission.granted()) AppLog.init(this)
         applyKeepScreenOn()  // 从设置页返回后重新应用
+        syncFloatingBallButton()  // 同步悬浮球按钮高亮
         // ★ 接管 App.sharedAssistant（如果 Service 正在运行的话就是它）
         val shared = App.getAssistant(this)
         if (shared != null && shared !== assistant) {

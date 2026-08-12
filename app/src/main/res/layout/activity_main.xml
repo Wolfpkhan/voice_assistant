@@ -77,6 +77,21 @@
             app:iconGravity="textStart"
             app:iconPadding="0dp"
             app:iconTint="?android:attr/textColorSecondary" />
+
+        <!-- ★ 悬浮球开关：开启后切后台仍保持侦听 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/floatingBallButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp"
+            app:icon="@drawable/ic_floating_ball"
+            app:iconSize="22dp"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp"
+            app:iconTint="?android:attr/textColorSecondary" />
     </LinearLayout>
 
     <!-- ===== 实时识别提示（聆听时显示） ===== -->
