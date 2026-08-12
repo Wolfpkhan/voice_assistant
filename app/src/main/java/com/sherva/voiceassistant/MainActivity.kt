@@ -632,6 +632,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onAssistantComplete(text: String) = runOnUiThread {
+            AppLog.i("Main", "onAssistantComplete: ${text.length} 字: \"${text.take(80)}\"")
             // ★ 先 flush 所有累积的 delta（确保流式片段不丢失）
             flushDeltas()
             // 以完整文本为准：覆盖或重建最后一条助手气泡，避免 delta 拼接不完整
@@ -640,10 +641,12 @@ class MainActivity : AppCompatActivity() {
             val last = adapter.currentList.lastOrNull()
             if (last?.role == ChatMessage.Role.ASSISTANT && last.id == curAssistantId) {
                 adapter.updateLastAssistant(final)   // 覆盖文本，id 不变
+                AppLog.i("Main", "覆盖最后一条助手气泡 (id=${curAssistantId})")
             } else {
                 val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, final)
                 curAssistantId = msg.id
                 adapter.add(msg)
+                AppLog.i("Main", "新增助手气泡 (id=${curAssistantId})")
             }
             ChatStore.save(final, isFromUser = false)   // 落库
             scrollToEnd()

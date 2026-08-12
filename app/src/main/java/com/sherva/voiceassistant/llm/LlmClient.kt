@@ -144,5 +144,20 @@ class LlmClient(
     fun cancel() {
         currentCall?.cancel()
         currentCall = null
+        // ★ 通知 pi-proxy 中断 pi 端正在运行的 agent run
+        //   避免 Agent is already processing 错误导致后续请求被拒绝
+        Thread {
+            try {
+                val abortUrl = baseUrl.trimEnd('/').removeSuffix("/v1") + "/v1/abort"
+                val req = Request.Builder()
+                    .url(abortUrl)
+                    .post("".toRequestBody("application/json".toMediaType()))
+                    .build()
+                client.newCall(req).execute().close()
+                Log.i(TAG, "已发送 abort 到 pi-proxy")
+            } catch (e: Throwable) {
+                Log.w(TAG, "abort pi-proxy 失败（可能是 pi-proxy 未运行）: ${e.message}")
+            }
+        }.apply { name = "llm-abort" }.start()
     }
 }
