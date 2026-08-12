@@ -1,6 +1,8 @@
 package com.sherva.voiceassistant.pipeline
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import com.sherva.voiceassistant.AppLog
@@ -28,12 +30,26 @@ import kotlin.coroutines.resume
 class VoiceAssistant(
     context: Context,
     val config: Config,
-    initialListener: Listener,
 ) {
     enum class State { IDLE, LISTENING, THINKING, SPEAKING }
 
-    /** 可替换的回调（Activity / Service 切换时会调用 setListener() 重新接上）。 */
-    @Volatile var listener: Listener = initialListener
+    /** 空 listener 默认实现，避免构造时必须传。 */
+    private val defaultListener = object : Listener {
+        override fun onState(state: State) {}
+        override fun onUserText(text: String) {}
+        override fun onAssistantDelta(delta: String) {}
+        override fun onAssistantComplete(text: String) {}
+        override fun onError(message: String) {}
+    }
+
+    /**
+     * ★ 多 listener 广播机制：
+     *  所有回调都会同步触发 `listeners` 列表里所有 listener。
+     *  Activity 与 Service 都调用 addListener 加入接收，避免互相挤兑。
+     */
+    private val listeners = mutableListOf<Listener>()
+    @Volatile var listener: Listener = defaultListener
+        private set
 
     data class Config(
         val continuous: Boolean = true,       // 连续对话：答完自动继续聆听
@@ -111,9 +127,38 @@ class VoiceAssistant(
     @Volatile var state: State = State.IDLE
         private set
 
+    @Synchronized
+    fun addListener(l: Listener) {
+        if (!listeners.contains(l)) listeners.add(l)
+        // 同时把“主 listener”指向最新加入者（兼容使用 listener.xxx 的旧代码）
+        listener = l
+        AppLog.i("VA", "addListener $l → 共 ${listeners.size} 个")
+    }
+
+    @Synchronized
+    fun removeListener(l: Listener) {
+        listeners.remove(l)
+        if (listener === l) {
+            listener = listeners.firstOrNull() ?: defaultListener
+        }
+        AppLog.i("VA", "removeListener $l → 剩 ${listeners.size} 个")
+    }
+
+    /** UI 线程广播给所有 listener。 */
+    private fun broadcast(action: (Listener) -> Unit) {
+        val snapshot = synchronized(this) { listeners.toList() }
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            snapshot.forEach(action)
+        } else {
+            android.os.Handler(Looper.getMainLooper()).post {
+                snapshot.forEach(action)
+            }
+        }
+    }
+
     private fun setState(s: State) {
         state = s
-        listener.onState(s)
+        broadcast { it.onState(s) }
     }
 
     /** 初始化对话历史（system prompt）。语音/文字模式用不同提示词。 */
@@ -152,7 +197,7 @@ class VoiceAssistant(
             //   （开始聆听时没有 AEC，提示音回声会被 ASR 当语音处理）
             delay(300)
             asr.start(
-                onPartial = { partial -> listener.onPartialText(partial) },
+                onPartial = { partial -> broadcast { it.onPartialText(partial) } },
                 onFinal = { final -> onFinalText(final) },
             )
         }
@@ -165,7 +210,7 @@ class VoiceAssistant(
         scope.launch {
             AppLog.i("VA", "收到 final: \"$text\"")
             asr.stop()
-            listener.onUserText(text)
+            broadcast { it.onUserText(text) }
             history += LlmClient.Message.user(text)
             handleLlmTurn()
         }
@@ -189,7 +234,7 @@ class VoiceAssistant(
             AppLog.i("VA", "文字输入: \"$t\"")
             // 若语音引擎已初始化（此前切过语音模式）则停掉聆听，避免冲突
             if (asrLazy.isInitialized()) asr.stop()
-            listener.onUserText(t)
+            broadcast { it.onUserText(t) }
             history += LlmClient.Message.user(t)
             handleLlmTurn()
         }
@@ -208,21 +253,21 @@ class VoiceAssistant(
             llm.chat(history,
                 onToken = { delta ->
                     reply.append(delta)
-                    listener.onAssistantDelta(delta)
+                    broadcast { it.onAssistantDelta(delta) }
                 },
                 onReasoning = {
-                    if (!reasoningSeen) { reasoningSeen = true; listener.onReasoningStart() }
+                    if (!reasoningSeen) { reasoningSeen = true; broadcast { it.onReasoningStart() } }
                 },
             ).collect { full ->
                 if (full.length > reply.length) reply.clear().append(full)
             }
         } catch (e: Throwable) {
-            listener.onError("LLM 调用失败: ${e.message}")
+            broadcast { it.onError("LLM 调用失败: ${e.message}") }
         }
         val fullReply = reply.toString().trim()
         AppLog.i("VA", "LLM 完成: reasoning=$reasoningSeen, 回复 ${fullReply.length} 字: \"${fullReply.take(50)}\"")
         if (fullReply.isNotEmpty()) {
-            listener.onAssistantComplete(fullReply)
+            broadcast { it.onAssistantComplete(fullReply) }
             history += LlmClient.Message.assistant(fullReply)
 
             if (textMode) {

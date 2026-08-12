@@ -81,12 +81,13 @@ class VoiceAssistantService : Service() {
         val existing = App.getAssistant(this)
         if (existing != null) {
             AppLog.i(TAG, "接管 App.sharedAssistant（状态=${existing.state}）")
-            existing.listener = serviceListener  // 切换 listener 让悬浮球状态跟随
+            existing.addListener(serviceListener)  // 多 listener 广播，Activity 也同时收到
             assistant = existing
         } else {
             AppLog.i(TAG, "App.sharedAssistant 为空，创建新实例")
             val config = com.sherva.voiceassistant.MainActivity.buildServiceConfig(this)
-            val a = VoiceAssistant(this, config, serviceListener)
+            val a = VoiceAssistant(this, config)
+            a.addListener(serviceListener)
             App.setAssistant(this, a)
             assistant = a
         }
@@ -113,10 +114,12 @@ class VoiceAssistantService : Service() {
 
     private fun stopVoice() {
         // ★ 不 release 全局实例：Activity 退出后只是 Service 独享，下一次 onResume 会重新接管
+        assistant?.removeListener(serviceListener)
         assistant?.stop()
         // 只清本地引用，释放悬浮球
         ball?.dismiss()
         ball = null
+        assistant = null
     }
 
     // ---------- 前台通知 ----------

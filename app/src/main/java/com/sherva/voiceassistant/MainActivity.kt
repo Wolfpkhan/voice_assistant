@@ -284,15 +284,16 @@ class MainActivity : AppCompatActivity() {
         if (cfg.llmApiKey.isBlank()) return
         // ★ 复用 App.sharedAssistant：不释放（悬浮球可能接管）
         assistant?.let { existing ->
-            // 已存在只换 listener + 启动
-            existing.listener = listener
+            // 已存在只订阅 + 启动（其他 listener 如 Service 仍保留）
+            existing.addListener(listener)
             existing.startConversation()
             AppLog.i("Main", "复用 existing.startConversation()")
             setStartedUi(true)
             return
         }
         // 没有再创建
-        val a = com.sherva.voiceassistant.pipeline.VoiceAssistant(this, cfg, listener)
+        val a = com.sherva.voiceassistant.pipeline.VoiceAssistant(this, cfg)
+        a.addListener(listener)
         App.setAssistant(this, a)
         assistant = a
         a.startConversation()
@@ -332,8 +333,13 @@ class MainActivity : AppCompatActivity() {
         val shared = App.getAssistant(this)
         if (shared != null && shared !== assistant) {
             assistant = shared
-            shared.listener = listener  // 重新接上回调，让 UI 跟随状态
             AppLog.i("Main", "onResume 接管 shared (state=${shared.state})")
+        }
+        // ★ 订阅回调：让 Activity 与 Service 同时收到状态变更（广播）
+        assistant?.addListener(listener)
+        // 按当前状态补发一次 onState（让 UI 立即对齐真实状态）
+        assistant?.let { a ->
+            listener.onState(a.state)
         }
         // 回前台：恢复语音侦听（若有活跃语音会话）
         assistant?.resume()
@@ -353,6 +359,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
+        // ★ Activity 退订：避免泄漏；Service 还会继续收到回调
+        assistant?.removeListener(listener)
         // ★ Service 在前台运行时不要 pause，否则悬浮球模式会丢失语音
         if (com.sherva.voiceassistant.service.VoiceAssistantService.instance != null) {
             AppLog.i("Main", "onPause：Service 在运行，跳过 pause（让悬浮球继续听）")
@@ -393,11 +401,11 @@ class MainActivity : AppCompatActivity() {
             val a = App.getAssistant(this) ?: run {
                 val cfg = buildConfig()
                 if (cfg.llmApiKey.isBlank()) return
-                val na = com.sherva.voiceassistant.pipeline.VoiceAssistant(this, cfg, listener)
+                val na = com.sherva.voiceassistant.pipeline.VoiceAssistant(this, cfg)
                 App.setAssistant(this, na)
                 na
             }
-            a.listener = listener
+            a.addListener(listener)
             assistant = a
         } catch (_: Exception) { return }
         // 不调 setStartedUi(true)：语音按钮状态只由语音会话管理
@@ -422,11 +430,11 @@ class MainActivity : AppCompatActivity() {
             val a = App.getAssistant(this) ?: run {
                 val cfg = buildConfig()
                 if (cfg.llmApiKey.isBlank()) return
-                val na = com.sherva.voiceassistant.pipeline.VoiceAssistant(this, cfg, listener)
+                val na = com.sherva.voiceassistant.pipeline.VoiceAssistant(this, cfg)
                 App.setAssistant(this, na)
                 na
             }
-            a.listener = listener
+            a.addListener(listener)
             assistant = a
         } catch (_: Exception) { return }
         // 不调 setStartedUi(true)：语音按钮状态只由语音会话管理
@@ -440,15 +448,8 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         // ★ 不释放：Service 可能还在使用这个 VoiceAssistant 实例
-        //   只把 listener 换成 noop 避免 Activity 回调泄露（但 Service 会重新接上）
-        val noopListener = object : com.sherva.voiceassistant.pipeline.VoiceAssistant.Listener {
-            override fun onState(state: com.sherva.voiceassistant.pipeline.VoiceAssistant.State) {}
-            override fun onUserText(text: String) {}
-            override fun onAssistantDelta(delta: String) {}
-            override fun onAssistantComplete(text: String) {}
-            override fun onError(message: String) {}
-        }
-        App.getAssistant(this)?.listener = noopListener
+        //   只取消订阅避免 Activity 回调泄露
+        App.getAssistant(this)?.removeListener(listener)
         assistant = null
     }
 
