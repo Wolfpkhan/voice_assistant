@@ -127,10 +127,11 @@ class FloatingBallManager(
 
     fun setState(state: VoiceAssistant.State) {
         val (bgColor, iconRes) = when (state) {
-            VoiceAssistant.State.IDLE -> 0xFF6E6E80.toInt() to R.drawable.ic_mic
+            VoiceAssistant.State.IDLE -> 0xFF6E6E6E.toInt() to R.drawable.ic_mic
             VoiceAssistant.State.LISTENING -> 0xFF10A37F.toInt() to R.drawable.ic_mic
             VoiceAssistant.State.THINKING -> 0xFFFF8C00.toInt() to R.drawable.ic_stop_gen
             VoiceAssistant.State.SPEAKING -> 0xFF0A84FF.toInt() to R.drawable.ic_mic
+            VoiceAssistant.State.WAKE_WORD -> 0xFFF59E0B.toInt() to R.drawable.ic_mic
         }
         view?.post {
             icon?.setImageResource(iconRes)

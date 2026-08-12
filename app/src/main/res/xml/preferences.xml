@@ -141,4 +141,24 @@
             app:showSeekBarValue="true" />
     </PreferenceCategory>
 
+    <!-- 唤醒词模式：语音模式下始终启用，省电 + 防误触 -->
+    <PreferenceCategory android:title="唤醒词模式">
+        <!-- 唤醒空闲秒数（ASR 启动后多久无语音进入 KWS） -->
+        <SeekBarPreference
+            android:key="@string/pref_wake_word_idle_sec"
+            android:title="唤醒空闲时间 (秒)"
+            android:summary="ASR 启动后多少秒无语音进入唤醒模式。越大越不容易误进"
+            android:defaultValue="5"
+            android:min="3"
+            android:max="20"
+            app:showSeekBarValue="true" />
+
+        <!-- 唤醒词 -->
+        <EditTextPreference
+            android:key="@string/pref_wake_word"
+            android:title="唤醒词"
+            android:summary="支持任意中文。修改后重启 App 生效。推荐 2~4 字"
+            android:defaultValue="嗨赛琳娜" />
+    </PreferenceCategory>
+
 </PreferenceScreen>

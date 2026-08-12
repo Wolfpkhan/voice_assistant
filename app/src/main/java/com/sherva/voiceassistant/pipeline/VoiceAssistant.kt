@@ -6,6 +6,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import com.sherva.voiceassistant.AppLog
+import com.sherva.voiceassistant.asr.KeywordSpotterEngine
 import com.sherva.voiceassistant.asr.StreamingAsrEngine
 import kotlinx.coroutines.delay
 import com.sherva.voiceassistant.llm.LlmClient
@@ -31,7 +32,7 @@ class VoiceAssistant(
     context: Context,
     val config: Config,
 ) {
-    enum class State { IDLE, LISTENING, THINKING, SPEAKING }
+    enum class State { IDLE, LISTENING, THINKING, SPEAKING, WAKE_WORD }
 
     /** 空 listener 默认实现，避免构造时必须传。 */
     private val defaultListener = object : Listener {
@@ -68,6 +69,10 @@ class VoiceAssistant(
         val bargeThreshold: Float = 0.6f,        // 打断 VAD 阈值
         val enableBargeIn: Boolean = false,     // 默认关闭（Kokoro 容易自打断，需手动开）
         val micGain: Float = 1.0f,               // 麦克风增益（远距离收音）
+        // —— 唤醒词参数（从设置页读取）——
+        val enableWakeWord: Boolean = true,           // 是否启用唤醒词模式（语音模式下始终启用）
+        val wakeWordIdleSec: Float = 5.0f,           // 进入唤醒模式的空闲时间（秒）：ASR 启动后 X 秒无有效语音 → KWS
+        val wakeWord: String = "嗨赛琳娜",           // 唤醒词（可配置）
     )
 
     interface Listener {
@@ -102,6 +107,10 @@ class VoiceAssistant(
         AppLog.i("VA", "初始化流式 ASR 引擎...")
         StreamingAsrEngine(appContext, endpointTrailingSilenceSec = config.endpointTrailingSilenceSec, micGain = config.micGain)
     }
+    private val kwsLazy: Lazy<KeywordSpotterEngine> = lazy {
+        AppLog.i("VA", "初始化唤醒词检测引擎...")
+        KeywordSpotterEngine(appContext)
+    }
     private val ttsLazy: Lazy<TtsEngine> = lazy { AppLog.i("VA", "初始化 TTS 引擎..."); TtsEngine(appContext) }
     private val bargeInLazy: Lazy<BargeInDetector> = lazy {
         AppLog.i("VA", "初始化打断检测器...")
@@ -109,6 +118,7 @@ class VoiceAssistant(
             startGuardMs = config.bargeGuardMs, minSpeechMs = config.bargeConfirmMs)
     }
     private val asr: StreamingAsrEngine get() = asrLazy.value
+    private val kws: KeywordSpotterEngine get() = kwsLazy.value
     private val tts: TtsEngine get() = ttsLazy.value
     private val bargeIn: BargeInDetector get() = bargeInLazy.value
     private val llm = LlmClient(
@@ -201,9 +211,80 @@ class VoiceAssistant(
             //   （开始聆听时没有 AEC，提示音回声会被 ASR 当语音处理）
             delay(300)
             asr.start(
-                onPartial = { partial -> broadcast { it.onPartialText(partial) } },
+                onPartial = { partial ->
+                    lastPartialAt = System.currentTimeMillis()  // 唤醒监控：收到 partial 即重置
+                    broadcast { it.onPartialText(partial) }
+                },
                 onFinal = { final -> onFinalText(final) },
             )
+            // ★ 启动唤醒模式监控：wakeWordIdleSec 秒内无 partial → 进入 WAKE_WORD
+            if (config.enableWakeWord) {
+                startWakeWordWatchdog()
+            }
+        }
+    }
+
+    /** ★ 唤醒监控：ASR 启动后 wakeWordIdleSec 秒内无 partial 文本 → 进入 WAKE_WORD 模式。
+     *  KWS 命中后立即重启 ASR（继续监听有效语音）。 */
+    @Volatile private var lastPartialAt: Long = 0L
+    @Volatile private var inWakeWord: Boolean = false
+    private var wakeWordJob: Job? = null
+
+    private fun startWakeWordWatchdog() {
+        wakeWordJob?.cancel()
+        lastPartialAt = System.currentTimeMillis()
+        wakeWordJob = scope.launch {
+            while (isActive && state == State.LISTENING && !inWakeWord) {
+                delay(500)
+                val idleMs = System.currentTimeMillis() - lastPartialAt
+                val thresholdMs = (config.wakeWordIdleSec * 1000).toLong()
+                if (idleMs >= thresholdMs && !textMode) {
+                    AppLog.i("VA", "${config.wakeWordIdleSec}s 无有效语音，进入 WAKE_WORD 模式")
+                    enterWakeWordMode()
+                    break
+                }
+            }
+        }
+    }
+
+    /** 进入 WAKE_WORD：停 ASR，启动 KWS。 */
+    private fun enterWakeWordMode() {
+        if (inWakeWord) return
+        inWakeWord = true
+        try { asr.stop() } catch (_: Throwable) {}
+        setState(State.WAKE_WORD)
+        AppLog.i("VA", "进入唤醒模式: 等待唤醒词 \"${config.wakeWord}\"")
+        try {
+            kws.start { keyword ->
+                AppLog.i("VA", "唤醒词命中: $keyword")
+                inWakeWord = false
+                exitWakeWordMode()
+            }
+        } catch (e: Throwable) {
+            AppLog.e("VA", "KWS 启动失败", e)
+            inWakeWord = false
+            setState(State.IDLE)
+        }
+    }
+
+    /** 唤醒命中：停 KWS，重启 ASR 继续监听。 */
+    private fun exitWakeWordMode() {
+        try { kws.stop() } catch (_: Throwable) {}
+        // 回到 LISTENING：重启 ASR
+        if (state != State.IDLE) {
+            AppLog.i("VA", "唤醒后重启 ASR")
+            scope.launch {
+                setState(State.LISTENING)
+                active = false
+                asr.start(
+                    onPartial = { partial ->
+                        lastPartialAt = System.currentTimeMillis()
+                        broadcast { it.onPartialText(partial) }
+                    },
+                    onFinal = { final -> onFinalText(final) },
+                )
+                if (config.enableWakeWord) startWakeWordWatchdog()
+            }
         }
     }
 
@@ -374,6 +455,9 @@ class VoiceAssistant(
         interrupted = true
         if (bargeInLazy.isInitialized()) bargeIn.stop()
         if (asrLazy.isInitialized()) asr.stop()
+        if (kwsLazy.isInitialized()) kws.stop()
+        wakeWordJob?.cancel()
+        inWakeWord = false
         if (ttsLazy.isInitialized()) tts.stop()
         // 注意：不取消 LLM（让进行中的请求自然完成或超时），不释放 wakeLock（保持可恢复）
         // 注意：不重置 state！保留 THINKING/SPEAKING 以便回前台后显示，
@@ -402,6 +486,11 @@ class VoiceAssistant(
             AppLog.i("VA", "回前台，进度继续 ($state)")
             return
         }
+        // ★ WAKE_WORD 状态回前台：保持唤醒模式（KWS 继续跑）
+        if (state == State.WAKE_WORD) {
+            AppLog.i("VA", "回前台，继续唤醒模式（KWS 监听中）")
+            return
+        }
         // ★ 只有 LISTENING（pause 后台停顿）才恢复；IDLE 保持待机
         if (state == State.LISTENING) {
             AppLog.i("VA", "回前台，从后台停顿恢复聆听")
@@ -419,9 +508,12 @@ class VoiceAssistant(
         active = false
         starting = false  // ★ 重置，允许重新开始
         interrupted = true
+        wakeWordJob?.cancel()
+        inWakeWord = false
         // 只停已初始化的引擎（避免 lazy 触发加载）
         if (bargeInLazy.isInitialized()) bargeIn.stop()
         if (asrLazy.isInitialized()) asr.stop()
+        if (kwsLazy.isInitialized()) kws.stop()
         llm.cancel()
         if (ttsLazy.isInitialized()) tts.stop()
         releaseWakeLock()
@@ -447,6 +539,7 @@ class VoiceAssistant(
         stop()
         scope.cancel()
         if (asrLazy.isInitialized()) runCatching { asr.release() }
+        if (kwsLazy.isInitialized()) runCatching { kws.release() }
         if (ttsLazy.isInitialized()) runCatching { tts.release() }
         if (bargeInLazy.isInitialized()) runCatching { bargeIn.release() }
         releaseWakeLock()

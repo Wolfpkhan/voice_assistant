@@ -59,6 +59,8 @@ class MainActivity : AppCompatActivity() {
                 sp.getBoolean(ctx.getString(R.string.pref_enable_barge_in), false) || aecAvailable
             }
             val micGain = sp.getInt(ctx.getString(R.string.pref_mic_gain), 10) / 10.0f
+            val wakeWordIdleSec = sp.getInt(ctx.getString(R.string.pref_wake_word_idle_sec), 5).toFloat()
+            val wakeWord = sp.getString(ctx.getString(R.string.pref_wake_word), "嗨赛琳娜") ?: "嗨赛琳娜"
             return VoiceAssistant.Config(
                 continuous = true, ttsSpeed = speed, ttsSid = ttsSid,
                 llmBaseUrl = baseUrl, llmApiKey = apiKey, llmModel = model,
@@ -67,6 +69,9 @@ class MainActivity : AppCompatActivity() {
                 bargeGuardMs = bargeGuardMs, bargeConfirmMs = bargeConfirmMs, bargeThreshold = bargeThreshold,
                 enableBargeIn = enableBargeIn,
                 micGain = micGain,
+                enableWakeWord = true,
+                wakeWordIdleSec = wakeWordIdleSec,
+                wakeWord = wakeWord,
             )
         }
     }
@@ -572,6 +577,7 @@ class MainActivity : AppCompatActivity() {
                 VoiceAssistant.State.LISTENING -> R.string.state_listening to 0xFF10A37F.toInt()
                 VoiceAssistant.State.THINKING -> R.string.state_thinking to 0xFF5B8DEF.toInt()
                 VoiceAssistant.State.SPEAKING -> R.string.state_speaking to 0xFFA855F7.toInt()
+                VoiceAssistant.State.WAKE_WORD -> R.string.state_wake_word to 0xFFF59E0B.toInt()
             }
             stateText.text = getString(label)
             stateText.backgroundTintList = android.content.res.ColorStateList.valueOf(color)

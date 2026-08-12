@@ -9,6 +9,7 @@
     <string name="state_recognizing">识别中…</string>
     <string name="state_thinking">思考中…</string>
     <string name="state_speaking">回答中…</string>
+    <string name="state_wake_word">唤醒待机</string>
 
     <!-- 按钮 -->
     <string name="btn_start">开始对话</string>
@@ -47,6 +48,8 @@
     <string name="pref_barge_threshold">barge_threshold</string>
     <string name="pref_enable_barge_in">enable_barge_in</string>
     <string name="pref_mic_gain">mic_gain</string>
+    <string name="pref_wake_word_idle_sec">wake_word_idle_sec</string>
+    <string name="pref_wake_word">wake_word</string>
     <string name="pref_keep_screen_on">keep_screen_on</string>
     <string name="pref_floating_ball">floating_ball</string>
 

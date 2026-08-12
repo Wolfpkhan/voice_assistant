@@ -43,6 +43,17 @@ object ModelPaths {
     const val TTS_LEXICON = "$TTS_DIR/lexicon-zh.txt,$TTS_DIR/lexicon-us-en.txt"
     const val TTS_DATA_DIR = "$TTS_DIR/espeak-ng-data"
 
+    // ---------- KWS：sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20 (int8)
+    // 唤醒词检测，比 ASR 轻量（1-3% CPU vs 5-15% CPU）。
+    // 长时间无有效语音时切换到 KWS 模式省电 + 防误触。
+    private const val KWS_DIR = "$ROOT/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20"
+    const val KWS_ENCODER = "$KWS_DIR/encoder-epoch-13-avg-2-chunk-16-left-64.int8.onnx"
+    const val KWS_DECODER = "$KWS_DIR/decoder-epoch-13-avg-2-chunk-16-left-64.onnx"
+    const val KWS_JOINER = "$KWS_DIR/joiner-epoch-13-avg-2-chunk-16-left-64.int8.onnx"
+    const val KWS_TOKENS = "$KWS_DIR/tokens.txt"
+    // 关键词文件（每行一条，格式：拼音 tokens @中文标签）
+    const val KEYWORDS_FILE = "keywords/wake_words.txt"
+
     /**
      * 运行时下载场景：把 assets 模型释放到 filesDir，返回绝对路径。
      * 当前骨架采用 assets 直读（各引擎接受 AssetManager），此方法留作瘦身 APK 时使用。

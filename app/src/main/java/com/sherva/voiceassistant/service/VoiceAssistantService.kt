@@ -187,6 +187,7 @@ class VoiceAssistantService : Service() {
             VoiceAssistant.State.LISTENING -> "正在聆听..."
             VoiceAssistant.State.THINKING -> "正在思考..."
             VoiceAssistant.State.SPEAKING -> "正在播报..."
+            VoiceAssistant.State.WAKE_WORD -> "唤醒待机..."
         })
     }
 
