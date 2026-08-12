@@ -386,7 +386,9 @@ class VoiceAssistant(
         }
     }
 
-    /** ★ 回到前台恢复：重新开始聆听（仅语音模式且之前在聆听时）。 */
+    /** ★ 回到前台恢复：仅当之前在 LISTENING（被 pause 后台停顿）才恢复聆听。
+     *   IDLE = 待机状态，不自动唤醒（等用户手动点“开始对话”）。
+     *   THINKING/SPEAKING = 保留进度，不打断。 */
     fun resume() {
         if (textMode) return  // 文字模式无需恢复聆听
         // 仅当之前是语音会话（引擎已初始化）才考虑恢复
@@ -394,14 +396,17 @@ class VoiceAssistant(
         // 如果正在 THINKING/SPEAKING，仅停 TTS 让用户回到前台后从对应进度继续
         if (state == State.THINKING || state == State.SPEAKING) {
             AppLog.i("VA", "回前台，进度继续 ($state)")
-            // 状态保持，不重启聆听（避免打断 LLM 流式输出的 TTS）
             return
         }
-        // LISTENING 或 IDLE：重新开始聆听
-        AppLog.i("VA", "回前台，恢复聆听")
-        active = false
-        interrupted = false
-        scope.launch { startListening() }
+        // ★ 只有 LISTENING（pause 后台停顿）才恢复；IDLE 保持待机
+        if (state == State.LISTENING) {
+            AppLog.i("VA", "回前台，从后台停顿恢复聆听")
+            active = false
+            interrupted = false
+            scope.launch { startListening() }
+        } else {
+            AppLog.i("VA", "回前台，当前 $state，不自动唤醒")
+        }
     }
 
     fun stop() {

@@ -341,8 +341,12 @@ class MainActivity : AppCompatActivity() {
         assistant?.let { a ->
             listener.onState(a.state)
         }
-        // 回前台：恢复语音侦听（若有活跃语音会话）
-        assistant?.resume()
+        // 回前台：仅当没有 Service 在运行时才恢复语音侦听（避免和 Service 冲突）
+        if (com.sherva.voiceassistant.service.VoiceAssistantService.instance == null) {
+            assistant?.resume()
+        } else {
+            AppLog.i("Main", "onResume：Service 在运行，跳过 resume（让悬浮球继续管）")
+        }
         // 按当前状态刷新 UI（避免状态丢失）: 文字模式不需要 startButton
         assistant?.let { a ->
             if (a.state == com.sherva.voiceassistant.pipeline.VoiceAssistant.State.IDLE) {
