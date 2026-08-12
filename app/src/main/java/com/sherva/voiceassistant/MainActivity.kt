@@ -282,16 +282,27 @@ class MainActivity : AppCompatActivity() {
     private fun startAssistant() {
         val cfg = buildConfig()
         if (cfg.llmApiKey.isBlank()) return
-        assistant?.release()
-        // ★ 不清空列表：保留已加载的历史对话，新对话继续追加
+        // ★ 复用 App.sharedAssistant：不释放（悬浮球可能接管）
+        assistant?.let { existing ->
+            // 已存在只换 listener + 启动
+            existing.listener = listener
+            existing.startConversation()
+            AppLog.i("Main", "复用 existing.startConversation()")
+            setStartedUi(true)
+            return
+        }
+        // 没有再创建
+        val a = com.sherva.voiceassistant.pipeline.VoiceAssistant(this, cfg, listener)
+        App.setAssistant(this, a)
+        assistant = a
+        a.startConversation()
         curAssistantId = -1L
-        assistant = VoiceAssistant(this, cfg, listener).also { it.startConversation() }
         setStartedUi(true)
     }
 
     private fun stopAssistant() {
         assistant?.stop()
-        assistant = null
+        // 不释放也不清 null，共享实例供 Service 接管
         setStartedUi(false)
     }
 
@@ -317,6 +328,13 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         if (StoragePermission.granted()) AppLog.init(this)
         applyKeepScreenOn()  // 从设置页返回后重新应用
+        // ★ 接管 App.sharedAssistant（如果 Service 正在运行的话就是它）
+        val shared = App.getAssistant(this)
+        if (shared != null && shared !== assistant) {
+            assistant = shared
+            shared.listener = listener  // 重新接上回调，让 UI 跟随状态
+            AppLog.i("Main", "onResume 接管 shared (state=${shared.state})")
+        }
         // 回前台：恢复语音侦听（若有活跃语音会话）
         assistant?.resume()
         // 按当前状态刷新 UI（避免状态丢失）: 文字模式不需要 startButton
@@ -335,8 +353,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        // 切后台：暂停侦听与播放（省电、防后台录音）
-        assistant?.pause()
+        // ★ Service 在前台运行时不要 pause，否则悬浮球模式会丢失语音
+        if (com.sherva.voiceassistant.service.VoiceAssistantService.instance != null) {
+            AppLog.i("Main", "onPause：Service 在运行，跳过 pause（让悬浮球继续听）")
+        } else {
+            // 切后台：暂停侦听与播放（省电、防后台录音）
+            assistant?.pause()
+        }
         // UI 临时复位（避免切回时看到误导状态；resume 后会按真实 state 恢复）
         setStartedUi(false)
     }
@@ -365,12 +388,19 @@ class MainActivity : AppCompatActivity() {
         intent.removeExtra(EXTRA_TEXT_PROMPT)
         // 文字模式发送：不开启语音侦听，不播报 TTS
         switchMode(Mode.TEXT)
-        if (assistant == null) {
-            val cfg = buildConfig()
-            if (cfg.llmApiKey.isBlank()) return
-            assistant = VoiceAssistant(this, cfg, listener)
-            // 不调 setStartedUi(true)：语音按钮状态只由语音会话管理
-        }
+        try {
+            // 从 App 单例拿，如果不存在就新建并存入单例
+            val a = App.getAssistant(this) ?: run {
+                val cfg = buildConfig()
+                if (cfg.llmApiKey.isBlank()) return
+                val na = com.sherva.voiceassistant.pipeline.VoiceAssistant(this, cfg, listener)
+                App.setAssistant(this, na)
+                na
+            }
+            a.listener = listener
+            assistant = a
+        } catch (_: Exception) { return }
+        // 不调 setStartedUi(true)：语音按钮状态只由语音会话管理
         assistant?.textMode = true
         assistant?.sendText(prompt)
     }
@@ -387,13 +417,19 @@ class MainActivity : AppCompatActivity() {
         imm.hideSoftInputFromWindow(textInput.windowToken, 0)
         // 若语音会话还在跑，先停
         if (assistant != null && assistant?.textMode == false) stopAssistant()
-        // 文字模式下不调 startAssistant（那会开启语音侦听），直接建实例发送
-        if (assistant == null) {
-            val cfg = buildConfig()
-            if (cfg.llmApiKey.isBlank()) return
-            assistant = VoiceAssistant(this, cfg, listener)
-            // 不调 setStartedUi(true)：语音按钮状态只由语音会话管理
-        }
+        // 文字模式下不调 startAssistant（那会开启语音侦听），直接复用共享实例发送
+        try {
+            val a = App.getAssistant(this) ?: run {
+                val cfg = buildConfig()
+                if (cfg.llmApiKey.isBlank()) return
+                val na = com.sherva.voiceassistant.pipeline.VoiceAssistant(this, cfg, listener)
+                App.setAssistant(this, na)
+                na
+            }
+            a.listener = listener
+            assistant = a
+        } catch (_: Exception) { return }
+        // 不调 setStartedUi(true)：语音按钮状态只由语音会话管理
         assistant?.textMode = true
         assistant?.sendText(text)
         // 发送后滚动到底（立即一次 + 延迟一次应对键盘收起后的布局变化）
@@ -403,7 +439,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        assistant?.release()
+        // ★ 不释放：Service 可能还在使用这个 VoiceAssistant 实例
+        //   只把 listener 换成 noop 避免 Activity 回调泄露（但 Service 会重新接上）
+        val noopListener = object : com.sherva.voiceassistant.pipeline.VoiceAssistant.Listener {
+            override fun onState(state: com.sherva.voiceassistant.pipeline.VoiceAssistant.State) {}
+            override fun onUserText(text: String) {}
+            override fun onAssistantDelta(delta: String) {}
+            override fun onAssistantComplete(text: String) {}
+            override fun onError(message: String) {}
+        }
+        App.getAssistant(this)?.listener = noopListener
         assistant = null
     }
 

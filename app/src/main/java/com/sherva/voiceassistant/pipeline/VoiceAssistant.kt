@@ -28,9 +28,12 @@ import kotlin.coroutines.resume
 class VoiceAssistant(
     context: Context,
     val config: Config,
-    private val listener: Listener,
+    initialListener: Listener,
 ) {
     enum class State { IDLE, LISTENING, THINKING, SPEAKING }
+
+    /** 可替换的回调（Activity / Service 切换时会调用 setListener() 重新接上）。 */
+    @Volatile var listener: Listener = initialListener
 
     data class Config(
         val continuous: Boolean = true,       // 连续对话：答完自动继续聆听

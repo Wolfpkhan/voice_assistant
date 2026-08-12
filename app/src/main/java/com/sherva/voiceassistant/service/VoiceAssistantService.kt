@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import androidx.core.app.NotificationCompat
+import com.sherva.voiceassistant.App
 import com.sherva.voiceassistant.AppLog
 import com.sherva.voiceassistant.MainActivity
 import com.sherva.voiceassistant.R
@@ -76,11 +77,20 @@ class VoiceAssistantService : Service() {
     private fun startVoice() {
         started = true
         startForegroundCompat()
-        // 创建 VoiceAssistant（配置从 SharedPreferences 读，和 MainActivity.buildConfig 一样）
-        val config = com.sherva.voiceassistant.MainActivity.buildServiceConfig(this)
-        assistant = VoiceAssistant(this, config, serviceListener).also {
-            it.startConversation()
+        // ★ 接管 App.sharedAssistant（避免与 Activity 双实例）
+        val existing = App.getAssistant(this)
+        if (existing != null) {
+            AppLog.i(TAG, "接管 App.sharedAssistant（状态=${existing.state}）")
+            existing.listener = serviceListener  // 切换 listener 让悬浮球状态跟随
+            assistant = existing
+        } else {
+            AppLog.i(TAG, "App.sharedAssistant 为空，创建新实例")
+            val config = com.sherva.voiceassistant.MainActivity.buildServiceConfig(this)
+            val a = VoiceAssistant(this, config, serviceListener)
+            App.setAssistant(this, a)
+            assistant = a
         }
+        assistant?.startConversation()
         // 悬浮球
         if (Settings.canDrawOverlays(this)) {
             ball = FloatingBallManager(this) { toggleVoice() }.also { it.show() }
@@ -102,9 +112,9 @@ class VoiceAssistantService : Service() {
     }
 
     private fun stopVoice() {
+        // ★ 不 release 全局实例：Activity 退出后只是 Service 独享，下一次 onResume 会重新接管
         assistant?.stop()
-        assistant?.release()
-        assistant = null
+        // 只清本地引用，释放悬浮球
         ball?.dismiss()
         ball = null
     }
