@@ -1,5 +1,6 @@
 package com.sherva.voiceassistant
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
@@ -12,6 +13,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
+import android.os.Build
+import android.provider.Settings
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.preference.SeekBarPreference
 import com.sherva.voiceassistant.service.VoiceAssistantService
 import com.sherva.voiceassistant.tts.TtsEngine
@@ -34,6 +39,48 @@ class SettingsActivity : AppCompatActivity() {
         private var ttsEngine: TtsEngine? = null
         private var audioTrack: AudioTrack? = null
         private var previewing = false
+
+        /** 通知权限 launcher (Android 13+)，用户授权后启动服务 */
+        private val notifPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) {
+                Toast.makeText(requireContext(), "通知权限已授予", Toast.LENGTH_SHORT).show()
+                proceedStart()
+            } else {
+                Toast.makeText(requireContext(), "未授通知权限，服务可能被系统杀", Toast.LENGTH_LONG).show()
+                proceedStart()  // 即使没权限也启动
+            }
+        }
+
+        /** 悬浮窗权限 launcher，用户在设置页授权后返回这里 */
+        private val overlaySettingsLauncher = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+        ) {
+            if (Settings.canDrawOverlays(requireContext())) {
+                Toast.makeText(requireContext(), "悬浮窗权限已授予", Toast.LENGTH_SHORT).show()
+                proceedStart()
+            } else {
+                Toast.makeText(requireContext(), "未授悬浮窗权限，只能后台保活", Toast.LENGTH_LONG).show()
+                proceedStart()
+            }
+        }
+
+        private fun proceedStart() {
+            val intent = Intent(requireContext(), VoiceAssistantService::class.java)
+                .setAction(VoiceAssistantService.ACTION_START)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                requireContext().startForegroundService(intent)
+            } else {
+                requireContext().startService(intent)
+            }
+        }
+
+        private fun stopBallService() {
+            val intent = Intent(requireContext(), VoiceAssistantService::class.java)
+                .setAction(VoiceAssistantService.ACTION_STOP)
+            requireContext().startService(intent)
+        }
 
         companion object {
             /** Kokoro v1_1 的 103 个 speaker 描述（基于 sherpa PR #1942）。
@@ -65,14 +112,31 @@ class SettingsActivity : AppCompatActivity() {
             // ★ 悬浮球开关：开启时启动后台服务，关闭时停止
             findPreference<Preference>(getString(R.string.pref_floating_ball))?.setOnPreferenceChangeListener { _, newValue ->
                 val on = newValue as? Boolean ?: false
-                val intent = Intent(requireContext(), VoiceAssistantService::class.java).apply {
-                    action = if (on) VoiceAssistantService.ACTION_START
-                             else VoiceAssistantService.ACTION_STOP
-                }
-                if (on && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                    requireContext().startForegroundService(intent)
+                if (on) {
+                    // ★ 权限引导：悬浮窗 → 通知 → 启动服务
+                    if (!Settings.canDrawOverlays(requireContext())) {
+                        AppLog.i("Settings", "悬浮窗权限未授予，引导去设置")
+                        Toast.makeText(requireContext(), "需授权「显示在其他应用上层」才能显示悬浮球", Toast.LENGTH_LONG).show()
+                        overlaySettingsLauncher.launch(
+                            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
+                                data = android.net.Uri.parse("package:${requireContext().packageName}")
+                            }
+                        )
+                        return@setOnPreferenceChangeListener false  // 开关不切，等授权后重新检查
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        val granted = androidx.core.content.ContextCompat.checkSelfPermission(
+                            requireContext(), Manifest.permission.POST_NOTIFICATIONS
+                        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        if (!granted) {
+                            AppLog.i("Settings", "请求通知权限")
+                            notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            return@setOnPreferenceChangeListener false
+                        }
+                    }
+                    proceedStart()
                 } else {
-                    requireContext().startService(intent)
+                    stopBallService()
                 }
                 true
             }
