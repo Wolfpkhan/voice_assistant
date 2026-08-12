@@ -473,6 +473,8 @@ class MainActivity : AppCompatActivity() {
             }
             stateText.text = getString(label)
             stateText.backgroundTintList = android.content.res.ColorStateList.valueOf(color)
+            // ★ 按钮 UI 跟随状态（无论是 App 内点击还是悬浮球触发，都会同步）
+            setStartedUi(state != VoiceAssistant.State.IDLE)
             // 停止生成按钮：思考中显示（文字/语音模式通用）
             stopGenButton.visibility = if (state == VoiceAssistant.State.THINKING) android.view.View.VISIBLE else android.view.View.GONE
             if (state != VoiceAssistant.State.LISTENING) {
