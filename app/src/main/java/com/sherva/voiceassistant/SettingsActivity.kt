@@ -1,6 +1,7 @@
 package com.sherva.voiceassistant
 
 import android.content.Context
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
@@ -12,6 +13,7 @@ import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
 import androidx.preference.SeekBarPreference
+import com.sherva.voiceassistant.service.VoiceAssistantService
 import com.sherva.voiceassistant.tts.TtsEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -59,6 +61,21 @@ class SettingsActivity : AppCompatActivity() {
                 sp.edit().putInt(sidKey, sidInt).apply()
             }
             setPreferencesFromResource(R.xml.preferences, rootKey)
+
+            // ★ 悬浮球开关：开启时启动后台服务，关闭时停止
+            findPreference<Preference>(getString(R.string.pref_floating_ball))?.setOnPreferenceChangeListener { _, newValue ->
+                val on = newValue as? Boolean ?: false
+                val intent = Intent(requireContext(), VoiceAssistantService::class.java).apply {
+                    action = if (on) VoiceAssistantService.ACTION_START
+                             else VoiceAssistantService.ACTION_STOP
+                }
+                if (on && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    requireContext().startForegroundService(intent)
+                } else {
+                    requireContext().startService(intent)
+                }
+                true
+            }
 
             // ★ sid 滑块联动：实时显示当前音色名称
             val sidPref = findPreference<SeekBarPreference>(getString(R.string.pref_tts_sid))

@@ -1,6 +1,7 @@
 package com.sherva.voiceassistant
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
@@ -31,6 +32,43 @@ class MainActivity : AppCompatActivity() {
     companion object {
         /** 从历史/外部跳入时携带的文本，直接作为消息发送。 */
         const val EXTRA_TEXT_PROMPT = "extra_text_prompt"
+
+        /** ★ 供 Service 复用配置（悬浮球模式下 Service 需要同样的 Config）。 */
+        @JvmStatic
+        fun buildServiceConfig(ctx: Context): VoiceAssistant.Config {
+            val sp: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(ctx)
+            val cur = sp.getString(ctx.getString(R.string.pref_llm_baseurl), "") ?: ""
+            if (cur.contains("8989")) {
+                sp.edit().putString(ctx.getString(R.string.pref_llm_baseurl), "http://127.0.0.1:8988/v1").apply()
+            }
+            val baseUrl = sp.getString(ctx.getString(R.string.pref_llm_baseurl), ctx.getString(R.string.default_baseurl))!!
+            val apiKey = sp.getString(ctx.getString(R.string.pref_llm_apikey), ctx.getString(R.string.default_apikey))!!
+            val model = sp.getString(ctx.getString(R.string.pref_llm_model), ctx.getString(R.string.default_model))!!
+            val system = sp.getString(ctx.getString(R.string.pref_llm_system), ctx.getString(R.string.default_system))!!
+            val systemText = sp.getString(ctx.getString(R.string.pref_llm_system_text), ctx.getString(R.string.default_system_text))!!
+            val speed = sp.getInt(ctx.getString(R.string.pref_tts_speed), 10) / 10.0f
+            val ttsSid = sp.getInt(ctx.getString(R.string.pref_tts_sid), 3)
+            val cooldownMs = sp.getInt(ctx.getString(R.string.pref_cooldown_ms), 600).toLong()
+            val endpointSilence = sp.getInt(ctx.getString(R.string.pref_endpoint_silence), 12) / 10.0f
+            val bargeGuardMs = sp.getInt(ctx.getString(R.string.pref_barge_guard_ms), 300).toLong()
+            val bargeConfirmMs = sp.getInt(ctx.getString(R.string.pref_barge_confirm_ms), 200).toLong()
+            val bargeThreshold = sp.getInt(ctx.getString(R.string.pref_barge_threshold), 6) / 10.0f
+            val enableBargeIn = run {
+                val spAec = ctx.getSharedPreferences("aec_probe", Context.MODE_PRIVATE)
+                val aecAvailable = spAec.getBoolean("available", false)
+                sp.getBoolean(ctx.getString(R.string.pref_enable_barge_in), false) || aecAvailable
+            }
+            val micGain = sp.getInt(ctx.getString(R.string.pref_mic_gain), 10) / 10.0f
+            return VoiceAssistant.Config(
+                continuous = true, ttsSpeed = speed, ttsSid = ttsSid,
+                llmBaseUrl = baseUrl, llmApiKey = apiKey, llmModel = model,
+                systemPrompt = system, systemPromptText = systemText,
+                cooldownMs = cooldownMs, endpointTrailingSilenceSec = endpointSilence,
+                bargeGuardMs = bargeGuardMs, bargeConfirmMs = bargeConfirmMs, bargeThreshold = bargeThreshold,
+                enableBargeIn = enableBargeIn,
+                micGain = micGain,
+            )
+        }
     }
 
     private lateinit var stateText: TextView
@@ -239,49 +277,7 @@ class MainActivity : AppCompatActivity() {
         ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
                 PackageManager.PERMISSION_GRANTED
 
-    private fun buildConfig(): VoiceAssistant.Config {
-        val sp: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
-        // 强制走 pi-proxy
-        val cur = sp.getString(getString(R.string.pref_llm_baseurl), "") ?: ""
-        if (cur.contains("8989")) {
-            sp.edit().putString(getString(R.string.pref_llm_baseurl), "http://127.0.0.1:8988/v1").apply()
-            AppLog.w("Main", "baseUrl 含 8989，已纠正为 8988(pi-proxy)")
-        }
-        val baseUrl = sp.getString(getString(R.string.pref_llm_baseurl), getString(R.string.default_baseurl))!!
-        val apiKey = sp.getString(getString(R.string.pref_llm_apikey), getString(R.string.default_apikey))!!
-        val model = sp.getString(getString(R.string.pref_llm_model), getString(R.string.default_model))!!
-        AppLog.i("Main", "★ baseUrl=$baseUrl, model=$model")
-        val system = sp.getString(getString(R.string.pref_llm_system), getString(R.string.default_system))!!
-        val systemText = sp.getString(getString(R.string.pref_llm_system_text), getString(R.string.default_system_text))!!
-        val speed = sp.getInt(getString(R.string.pref_tts_speed), 10) / 10.0f
-        // ★ EditTextPreference 存的是 String，不能 getInt
-        val ttsSid = sp.getInt(getString(R.string.pref_tts_sid), 3)
-        val cooldownMs = sp.getInt(getString(R.string.pref_cooldown_ms), 600).toLong()
-        val endpointSilence = sp.getInt(getString(R.string.pref_endpoint_silence), 12) / 10.0f
-        val bargeGuardMs = sp.getInt(getString(R.string.pref_barge_guard_ms), 300).toLong()
-        val bargeConfirmMs = sp.getInt(getString(R.string.pref_barge_confirm_ms), 200).toLong()
-        val bargeThreshold = sp.getInt(getString(R.string.pref_barge_threshold), 6) / 10.0f
-        val enableBargeIn = run {
-            val spAec = getSharedPreferences("aec_probe", MODE_PRIVATE)
-            val aecAvailable = spAec.getBoolean("available", false)
-            // ★ AEC 可用才默认开启 bargeIn，否则关闭避免自打断
-            //    用户可在设置中手动覆盖
-            val userOverride = sp.getBoolean(getString(R.string.pref_enable_barge_in), false)
-            userOverride || aecAvailable
-        }
-        // 麦克风增益 SeekBar 10..30 → 1.0..3.0
-        val micGain = sp.getInt(getString(R.string.pref_mic_gain), 10) / 10.0f
-        if (apiKey.isBlank()) toast("请先在「设置」里填写 API Key")
-        return VoiceAssistant.Config(
-            continuous = true, ttsSpeed = speed, ttsSid = ttsSid,
-            llmBaseUrl = baseUrl, llmApiKey = apiKey, llmModel = model,
-            systemPrompt = system, systemPromptText = systemText,
-            cooldownMs = cooldownMs, endpointTrailingSilenceSec = endpointSilence,
-            bargeGuardMs = bargeGuardMs, bargeConfirmMs = bargeConfirmMs, bargeThreshold = bargeThreshold,
-            enableBargeIn = enableBargeIn,
-            micGain = micGain,
-        )
-    }
+    private fun buildConfig(): VoiceAssistant.Config = buildServiceConfig(this)
 
     private fun startAssistant() {
         val cfg = buildConfig()

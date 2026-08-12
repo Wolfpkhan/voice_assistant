@@ -10,6 +10,15 @@
     <!-- 保持唤醒：长对话时屏幕常亮，避免 TTS/录音中断 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
+    <!-- ★ 前台服务：后台保活语音管线 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 14+ 麦克风前台服务类型 -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- 悬浮窗 -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- 通知：前台服务必须 -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- ★ 所有文件访问权限：用于把诊断日志写到 Download（用户可见、便于排查闪退）
          Android 11+ (API 30+) 需用户在系统设置里手动授予 -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
@@ -47,6 +56,12 @@
             android:name=".HistoryActivity"
             android:exported="false"
             android:label="@string/history_title" />
+
+        <!-- ★ 后台语音服务：开启悬浮球模式后启动，前台保活 -->
+        <service
+            android:name=".service.VoiceAssistantService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
     </application>
 

@@ -141,4 +141,12 @@
             app:showSeekBarValue="true" />
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="后台运行">
+        <SwitchPreferenceCompat
+            android:key="@string/pref_floating_ball"
+            android:title="悬浮球后台模式"
+            android:summary="开启后程序切后台仍保持侦听和回复，通过悬浮球可随时开始/停止语音模式。需要前台服务和悬浮窗权限。"
+            android:defaultValue="false" />
+    </PreferenceCategory>
+
 </PreferenceScreen>

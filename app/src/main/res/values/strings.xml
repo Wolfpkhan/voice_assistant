@@ -48,6 +48,7 @@
     <string name="pref_enable_barge_in">enable_barge_in</string>
     <string name="pref_mic_gain">mic_gain</string>
     <string name="pref_keep_screen_on">keep_screen_on</string>
+    <string name="pref_floating_ball">floating_ball</string>
 
     <!-- 默认值：pi-proxy（包装 pi agent 为 OpenAI 兼容 API，带工具能力）
          备选 llm-wire 直连: http://127.0.0.1:8989/v1 -->
