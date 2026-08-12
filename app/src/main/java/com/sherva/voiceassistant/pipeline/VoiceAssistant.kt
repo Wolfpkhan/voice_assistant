@@ -120,6 +120,8 @@ class VoiceAssistant(
     private var convJob: Job? = null
     @Volatile private var active = false   // 是否处于一轮对话中（防重入）
     @Volatile private var interrupted = false  // 本轮是否被用户打断（打断后跳过剩余 TTS）
+    /** ★ 启动中标志：startConversation 到 LISTENING 状态之间防止重复触发。 */
+    @Volatile private var starting = false
     /** 文字模式标志：文字模式发送后不自动重新聆听（保持静默等下一轮输入）。 */
     @Volatile var textMode = false
     private var historyInitialized = false
@@ -175,7 +177,8 @@ class VoiceAssistant(
 
     /** 启动对话循环（语音模式：开始聆听）。 */
     fun startConversation() {
-        if (state != State.IDLE) return
+        if (state != State.IDLE || starting) return  // ★ starting 防止异步加载期间重复触发
+        starting = true
         ensureHistory()
         acquireWakeLock()
         scope.launch { startListening() }
@@ -189,6 +192,7 @@ class VoiceAssistant(
                 asr   // 触发 lazy 加载
             }
             setState(State.LISTENING)
+            starting = false  // ★ 已进入 LISTENING，允许下次重启
             active = false
             AppLog.i("VA", "模型就绪，开始聆听")
             // 模型就绪开始聆听的提示音
@@ -413,6 +417,7 @@ class VoiceAssistant(
         convJob?.cancel()
         convJob = null
         active = false
+        starting = false  // ★ 重置，允许重新开始
         interrupted = true
         // 只停已初始化的引擎（避免 lazy 触发加载）
         if (bargeInLazy.isInitialized()) bargeIn.stop()
