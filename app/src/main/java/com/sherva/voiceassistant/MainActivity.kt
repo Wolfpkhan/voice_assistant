@@ -216,15 +216,20 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toggleConversation() {
-        // 当前是文字模式的 assistant（无语音会话）→ 释放并新建语音会话
-        if (assistant != null && assistant?.textMode == true) {
-            assistant?.release()
-            assistant = null
+        val a = assistant ?: run {
+            // 无实例 → 建语音会话
             ensurePermissionAndStart()
-        } else if (assistant != null) {
-            stopAssistant()
+            return
+        }
+        // ★ 用 state 判断是否在活跃语音会话（不能用 assistant==null，共享单例后永不为 null）
+        val s = a.state
+        if (s == com.sherva.voiceassistant.pipeline.VoiceAssistant.State.IDLE) {
+            // 待机 → 切回语音模式（清除 textMode）+ 开始
+            if (a.textMode) a.textMode = false
+            ensurePermissionAndStart()
         } else {
-            ensurePermissionAndStart()
+            // 正在聆听/思考/播报 → 停止
+            stopAssistant()
         }
     }
 
