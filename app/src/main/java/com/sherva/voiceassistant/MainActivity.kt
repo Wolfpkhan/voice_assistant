@@ -135,21 +135,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 把 Uri 转成可读的文件路径：
-     *  - 先试 [DocumentsContract.Document.COLUMN_DISPLAY_NAME] 拿到文件名（不走 SAF）
-     *  - 走 ContentResolver query 直接拿 _data 字段（FilePathHelper 返回），对 MediaStore/file:// 都有效
-     *  - 若只拿到文件名，从最近 [android.provider.MediaStore.Files] 查绝对路径
-     * 返回 null 表示失败（打 toast）。
+     * 把 Uri 转成可读的文件路径（偏好全路径，如 /sdcard/Download/xxx.mp3）：
+     *  1. file:// scheme → 直接 path
+     *  2. ContentResolver 查 _data/_DATA/data 列（Android ≤10  MediaStore可用）
+     *  3. DocumentsContract.getDocumentId 解析 primary:Download/xxx / msd:12345 / raw:...
+     *  4. MediaStore.Files 查 _id 拿完整 _data
+     *  5. 仅拿到文件名 → /sdcard/Download 等常见路径猜
+     * 返回 null 表示完全失败（打 toast）。
      */
     private fun getPathFromUri(uri: android.net.Uri): String? {
         val cr = contentResolver
-        // 1. file:// scheme 直接返回
+        // 1. file:// scheme
         if ("file".equals(uri.scheme, ignoreCase = true)) {
-            return uri.path
+            val p = uri.path
+            if (!p.isNullOrEmpty() && java.io.File(p).exists()) return p
+            return p
         }
-        // 2. 走 ContentProvider 查 _data / DATA 字段
+
+        // 2. ContentResolver 查 _data / DATA 字段
         runCatching {
-            cr.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME, "_data", "_DATA", "data"), null, null, null)?.use { c ->
+            cr.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME, "_data", "_DATA", "data", "_id"), null, null, null)?.use { c ->
                 if (c.moveToFirst()) {
                     val nameIdx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
                     val pathIdx = listOf("_data", "_DATA", "data").firstNotNullOfOrNull { idx ->
@@ -157,20 +162,83 @@ class MainActivity : AppCompatActivity() {
                         if (i >= 0 && !c.isNull(i)) c.getString(i) else null
                     }
                     if (!pathIdx.isNullOrEmpty()) return pathIdx
-                    if (nameIdx >= 0) {
-                        // 只拿到文件名 - 在 /sdcard/Download/ 常见路径查
-                        val name = c.getString(nameIdx)
-                        listOf("/sdcard/Download/", "/sdcard/Documents/", "/storage/emulated/0/Download/", "/storage/emulated/0/Documents/").forEach { dir ->
-                            val candidate = "$dir$name"
+                    val displayName = if (nameIdx >= 0) c.getString(nameIdx) else null
+
+                    // 3. DocumentsContract.getDocumentId 解析 primary:Download/xxx / tree...
+                    if (android.provider.DocumentsContract.isDocumentUri(this, uri)) {
+                        val docId = android.provider.DocumentsContract.getDocumentId(uri)
+                        // primary:Download/xxx.mp3 → /storage/emulated/0/Download/xxx.mp3
+                        if (docId.startsWith("primary:")) {
+                            val rel = docId.removePrefix("primary:").trimStart('/')
+                            val full = "/storage/emulated/0/$rel"
+                            if (java.io.File(full).exists()) return full
+                            // 不同设备 /sdcard 是 symlink，两者都试
+                            val alt = "/sdcard/$rel"
+                            if (java.io.File(alt).exists()) return alt
+                            return full  // 即使不存在也返，调用方自己看
+                        }
+                        // raw:/storage/... 直接用
+                        if (docId.startsWith("raw:")) {
+                            return docId.removePrefix("raw:")
+                        }
+                        // msd:12345 / msf:12345 → MediaStore.Images/Media 查 _id
+                        if (docId.startsWith("msd:") || docId.startsWith("msf:")) {
+                            val mediaId = docId.substringAfter(":").toLongOrNull()
+                            if (mediaId != null) {
+                                val mediaPath = queryMediaStorePath(uri.authority ?: "media", mediaId)
+                                if (!mediaPath.isNullOrEmpty()) return mediaPath
+                            }
+                        }
+                    }
+
+                    // 4. MediaStore.Files 查 _id 拿 _data
+                    val idIdx = c.getColumnIndex("_id")
+                    if (idIdx >= 0 && uri.authority != null) {
+                        val id = c.getLong(idIdx)
+                        val mediaPath = queryMediaStorePath(uri.authority!!, id)
+                        if (!mediaPath.isNullOrEmpty()) return mediaPath
+                    }
+
+                    // 5. 只拿到文件名，在常见路径拼
+                    if (!displayName.isNullOrEmpty()) {
+                        listOf("/sdcard/Download/", "/sdcard/Documents/", "/storage/emulated/0/Download/", "/storage/emulated/0/Documents/", "/sdcard/Music/", "/sdcard/Movies/").forEach { dir ->
+                            val candidate = "$dir$displayName"
                             if (java.io.File(candidate).exists()) return candidate
                         }
-                        return name
+                        return "/sdcard/Download/$displayName"
                     }
                 }
             }
         }
-        // 3. 退到 toString() 不理想但不会 null
-        return uri.lastPathSegment
+        return null
+    }
+
+    /**
+     * MediaStore.Images / Media / Files 表里查 _id 对应 _data。
+     * authority 通常是 "media"（外采 provider 也可能同名）。
+     */
+    private fun queryMediaStorePath(authority: String, id: Long): String? {
+        val projection = arrayOf(android.provider.MediaStore.MediaColumns.DATA, "_data")
+        val selection = "_id=?"
+        val args = arrayOf(id.toString())
+        listOf(android.provider.MediaStore.Files.getContentUri("external"), android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI).forEach { base ->
+            runCatching {
+                contentResolver.query(base, projection, selection, args, null)?.use { c ->
+                    if (c.moveToFirst()) {
+                        val dataIdx = c.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
+                        if (dataIdx >= 0 && !c.isNull(dataIdx)) {
+                            val p = c.getString(dataIdx)
+                            if (!p.isNullOrEmpty()) return p
+                        }
+                        val dataIdx2 = c.getColumnIndex("_data")
+                        if (dataIdx2 >= 0 && !c.isNull(dataIdx2)) {
+                            return c.getString(dataIdx2)
+                        }
+                    }
+                }
+            }
+        }
+        return null
     }
 
     private val notifPermissionLauncher = registerForActivityResult(
