@@ -6,6 +6,7 @@ import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
 import androidx.annotation.RequiresPermission
 import com.k2fsa.sherpa.onnx.EndpointConfig
 import com.k2fsa.sherpa.onnx.EndpointRule
@@ -17,6 +18,7 @@ import com.k2fsa.sherpa.onnx.OnlineStream
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
 import com.sherva.voiceassistant.AppLog
 import com.sherva.voiceassistant.ModelPaths
+import com.sherva.voiceassistant.audio.AecManager
 import com.sherva.voiceassistant.audio.SpeechEnhancer
 import kotlin.concurrent.thread
 
@@ -73,6 +75,7 @@ class StreamingAsrEngine(
     }
     // ★ GTCRN 降噪器已禁用（参 denoiser_* 注释）：BargeIn 取消后不需要防回声，增加 ONNX session 复杂度。
     //   KWS 从未使用降噪器，ASR 现在也直接用原始 PCM（与 KWS 一致）。
+    private var aec: AcousticEchoCanceler? = null  // 系统硬件 AEC（消除扬声器播放声音进入麦克风）
 
     private var record: AudioRecord? = null
     private var stream: OnlineStream? = null
@@ -100,6 +103,8 @@ class StreamingAsrEngine(
             sampleRate, channelConfig, audioFormat, bufBytes
         )
         check(record?.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord 初始化失败" }
+        // ★ 硬件 AEC：消除 TTS / 音乐播放时的扬声器回声，避免 ASR 把音乐当成语音
+        aec = AecManager.enable(record!!)
         stream = recognizer.createStream()
         record!!.startRecording()
         running = true
@@ -157,6 +162,8 @@ class StreamingAsrEngine(
         record = null
         runCatching { stream?.release() }
         stream = null
+        AecManager.disable(aec)
+        aec = null
     }
 
     fun release() {

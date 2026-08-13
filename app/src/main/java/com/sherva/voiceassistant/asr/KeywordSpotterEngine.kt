@@ -6,6 +6,7 @@ import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
 import androidx.annotation.RequiresPermission
 import com.k2fsa.sherpa.onnx.FeatureConfig
 import com.k2fsa.sherpa.onnx.KeywordSpotter
@@ -15,6 +16,7 @@ import com.k2fsa.sherpa.onnx.OnlineStream
 import com.k2fsa.sherpa.onnx.OnlineTransducerModelConfig
 import com.sherva.voiceassistant.AppLog
 import com.sherva.voiceassistant.ModelPaths
+import com.sherva.voiceassistant.audio.AecManager
 import com.sherva.voiceassistant.audio.SpeechEnhancer
 import kotlin.concurrent.thread
 
@@ -80,7 +82,7 @@ class KeywordSpotterEngine(
         }
     }
     private val appContext: Context = context.applicationContext
-    // denoiser 已禁用（参 StreamingAsrEngine 同名注释）
+    private var aec: AcousticEchoCanceler? = null  // 系统硬件 AEC（聆听听筒扬声器声音用）
 
     /** 当前活跃 stream（每次 start() 重建）。 */
     private var stream: OnlineStream? = null
@@ -104,10 +106,12 @@ class KeywordSpotterEngine(
 
         @Suppress("MissingPermission")
         record = AudioRecord(
-            MediaRecorder.AudioSource.MIC,  // 用普通 MIC，与 sherpa-onnx KWS demo 一致
+            MediaRecorder.AudioSource.VOICE_RECOGNITION,
             sampleRate, channelConfig, audioFormat, bufBytes
         )
         check(record?.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord 初始化失败" }
+        // ★ 硬件 AEC：消除 TTS / 音乐播放时的扬声器回声，避免误唤醒
+        aec = AecManager.enable(record!!)
         AppLog.i("KWS", "AudioRecord 实际采样率=${record!!.sampleRate} Hz, 请求=$sampleRate Hz")
         // ★ 关键：用 actual sample rate 喂入 acceptWaveform（Android 可能不同）
         val actualSampleRate = record!!.sampleRate
@@ -165,6 +169,8 @@ class KeywordSpotterEngine(
         record = null
         runCatching { stream?.release() }
         stream = null
+        AecManager.disable(aec)
+        aec = null
     }
 
     fun release() {
