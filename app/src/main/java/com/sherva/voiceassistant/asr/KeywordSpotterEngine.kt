@@ -38,11 +38,13 @@ import kotlin.concurrent.thread
 class KeywordSpotterEngine(
     context: Context,
     private val keywordsFile: String = ModelPaths.KEYWORDS_FILE,
-    private val numThreads: Int = 2,
-    private val threshold: Float = 0.25f,
+    private val numThreads: Int = 1,
+    /** 阈值：越低越灵敏（0.05 非常灵敏，0.1 较灵敏，0.25 默认偏高，0.5 几乎不命中）。 */
+    private val threshold: Float = 0.0f,
 ) {
     private val spotter: KeywordSpotter = run {
-        AppLog.i("KWS", "构造 KeywordSpotter: model=${ModelPaths.KWS_ENCODER}, threshold=$threshold")
+        AppLog.i("KWS", "构造 KeywordSpotter: encoder=${ModelPaths.KWS_ENCODER}, threshold=$threshold")
+        AppLog.i("KWS", "keywordsFile=$keywordsFile (绝对路径将传入)")
         KeywordSpotter(
             assetManager = context.assets,
             config = KeywordSpotterConfig(
@@ -54,18 +56,30 @@ class KeywordSpotterEngine(
                         joiner = ModelPaths.KWS_JOINER,
                     ),
                     tokens = ModelPaths.KWS_TOKENS,
-                    numThreads = numThreads,
+                    numThreads = 1,   // KWS 建议单线程（与 ASR 多线程不同）
                     provider = "cpu",
-                    modelType = "zipformer",
+                    modelType = "zipformer2",  // sherpa-onnx KWS 模型用 zipformer2（与 ASR streaming-zipformer 不同）
                 ),
                 keywordsFile = keywordsFile,
                 keywordsThreshold = threshold,
-                keywordsScore = 1.0f,
-                numTrailingBlanks = 1,
+                keywordsScore = 3.0f,  // ★ 大幅 boost 关键词路径（默认 1.0）
+                numTrailingBlanks = 0,  // ★ 0: 词后任意帧可触发; 默认 1 需要 2 帧静音
                 maxActivePaths = 4,
             )
-        ).also { AppLog.i("KWS", "KeywordSpotter 构造成功") }
+        ).also {
+            AppLog.i("KWS", "KeywordSpotter 构造成功")
+            // ★ 立即创建测试 stream，验证关键词被正确编码
+            //   如果 OOV，stream.ptr 会返回 0
+            val testStream = it.createStream("")
+            if (testStream.ptr == 0L) {
+                AppLog.e("KWS", "⚠ 关键词编码失败！检查 tokens.txt 是否包含关键词中所有 token")
+            } else {
+                AppLog.i("KWS", "测试 stream 创建成功（关键词编码 OK）")
+                testStream.release()
+            }
+        }
     }
+    private val appContext: Context = context.applicationContext
     private val denoiser = SpeechEnhancer(context)
 
     /** 当前活跃 stream（每次 start() 重建）。 */
@@ -91,10 +105,13 @@ class KeywordSpotterEngine(
 
         @Suppress("MissingPermission")
         record = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            MediaRecorder.AudioSource.MIC,  // 用普通 MIC，与 sherpa-onnx KWS demo 一致
             sampleRate, channelConfig, audioFormat, bufBytes
         )
         check(record?.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord 初始化失败" }
+        AppLog.i("KWS", "AudioRecord 实际采样率=${record!!.sampleRate} Hz, 请求=$sampleRate Hz")
+        // ★ 关键：用 actual sample rate 喂入 acceptWaveform（Android 可能不同）
+        val actualSampleRate = record!!.sampleRate
         // createStream 接受 keyword 作为标识符；传空串使用默认（首条关键词）
         stream = spotter.createStream("")
         record!!.startRecording()
@@ -104,35 +121,35 @@ class KeywordSpotterEngine(
         workThread = thread(true, name = "kws-spotter") {
             val intervalSamples = (0.1 * sampleRate).toInt()   // 100ms
             val buf = ShortArray(intervalSamples)
+            var totalFrames = 0
             try {
                 while (running) {
                     val n = record!!.read(buf, 0, buf.size)
                     if (n <= 0) continue
+                    // 直接用原始 PCM（不走 GTCRN 降噪，避免过度处理破坏 KWS 输入特征）
                     val raw = FloatArray(n) { buf[it] / 32768.0f }
-                    // GTCRN 降噪（与 ASR 同一管线，避免 TTS 回声污染唤醒）
-                    val clean = denoiser.process(raw, sampleRate)
-                    if (clean.isEmpty()) continue
                     val st = stream ?: break
-                    st.acceptWaveform(clean, sampleRate)
+                    st.acceptWaveform(raw, actualSampleRate)
+                    totalFrames++
+                    var decodeCount = 0
                     while (spotter.isReady(st)) {
                         spotter.decode(st)
+                        decodeCount++
                         val result = spotter.getResult(st)
                         val keyword = result.keyword
                         if (keyword.isNotBlank()) {
-                            AppLog.i("KWS", "唤醒词命中: \"$keyword\"")
-                            spotter.reset(st)   // 立即重置 stream，准备下一次检测
-                            // 在主线程上回调
+                            AppLog.i("KWS", "唤醒词命中: \"$keyword\" (tokens=${result.tokens.size})")
+                            spotter.reset(st)
                             android.os.Handler(android.os.Looper.getMainLooper()).post {
                                 onHit(keyword)
                             }
-                            // 命中后不停 KWS，让循环继续；用户说完唤醒词后会自然停
                         }
                     }
                 }
             } catch (e: Throwable) {
                 AppLog.e("KWS", "唤醒线程异常", e)
             } finally {
-                AppLog.i("KWS", "唤醒线程结束")
+                AppLog.i("KWS", "唤醒线程结束 (总帧=$totalFrames)")
             }
         }
     }

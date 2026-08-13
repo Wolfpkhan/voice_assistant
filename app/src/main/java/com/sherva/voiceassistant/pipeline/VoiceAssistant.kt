@@ -72,7 +72,7 @@ class VoiceAssistant(
         // —— 唤醒词参数（从设置页读取）——
         val enableWakeWord: Boolean = true,           // 是否启用唤醒词模式（语音模式下始终启用）
         val wakeWordIdleSec: Float = 5.0f,           // 进入唤醒模式的空闲时间（秒）：ASR 启动后 X 秒无有效语音 → KWS
-        val wakeWord: String = "嗨赛琳娜",           // 唤醒词（可配置）
+        val wakeWord: String = "小薇",           // 唤醒词（可配置，推荐 2~4 字短词，KWS 小模型对长词识别率低）
     )
 
     interface Listener {
@@ -228,6 +228,7 @@ class VoiceAssistant(
      *  KWS 命中后立即重启 ASR（继续监听有效语音）。 */
     @Volatile private var lastPartialAt: Long = 0L
     @Volatile private var inWakeWord: Boolean = false
+
     private var wakeWordJob: Job? = null
 
     private fun startWakeWordWatchdog() {
@@ -254,6 +255,7 @@ class VoiceAssistant(
         try { asr.stop() } catch (_: Throwable) {}
         setState(State.WAKE_WORD)
         AppLog.i("VA", "进入唤醒模式: 等待唤醒词 \"${config.wakeWord}\"")
+        com.sherva.voiceassistant.audio.SoundEffects.wakeWord()
         try {
             kws.start { keyword ->
                 AppLog.i("VA", "唤醒词命中: $keyword")
@@ -273,6 +275,7 @@ class VoiceAssistant(
         // 回到 LISTENING：重启 ASR
         if (state != State.IDLE) {
             AppLog.i("VA", "唤醒后重启 ASR")
+            com.sherva.voiceassistant.audio.SoundEffects.wakeHit()
             scope.launch {
                 setState(State.LISTENING)
                 active = false

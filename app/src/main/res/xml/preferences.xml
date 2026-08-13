@@ -158,7 +158,7 @@
             android:key="@string/pref_wake_word"
             android:title="唤醒词"
             android:summary="支持任意中文。修改后重启 App 生效。推荐 2~4 字"
-            android:defaultValue="嗨赛琳娜" />
+            android:defaultValue="小薇" />
     </PreferenceCategory>
 
 </PreferenceScreen>

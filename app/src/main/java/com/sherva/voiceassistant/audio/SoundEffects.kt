@@ -10,6 +10,8 @@ import com.sherva.voiceassistant.R
  *
  * - [startListen]：模型就绪开始聆听时的提示音
  * - [interrupt]：用户打断 TTS 时的确认音
+ * - [wakeWord]：进入唤醒词待机模式的特别提示音（柔和下降双音）
+ * - [wakeHit]：唤醒词命中、重新进入聆听的提示音（上升双音）
  */
 object SoundEffects {
 
@@ -17,6 +19,8 @@ object SoundEffects {
     private var startId = 0
     private var interruptId = 0
     private var sentId = 0
+    private var wakeWordId = 0
+    private var wakeHitId = 0
     @Volatile private var ready = false
 
     /** 初始化（MainActivity onCreate 调用一次）。 */
@@ -33,6 +37,8 @@ object SoundEffects {
         startId = p.load(context, R.raw.sfx_start_listen, 1)
         interruptId = p.load(context, R.raw.sfx_interrupt, 1)
         sentId = p.load(context, R.raw.sfx_sent, 1)
+        wakeWordId = p.load(context, R.raw.sfx_wake_word, 1)
+        wakeHitId = p.load(context, R.raw.sfx_wake_hit, 1)
         p.setOnLoadCompleteListener { _, _, _ -> ready = true }
         pool = p
     }
@@ -54,6 +60,28 @@ object SoundEffects {
 
     /** STT 已发送给 pi 服务（开始思考）提示音。 */
     fun sent() = play(sentId)
+
+    /** 进入唤醒词待机模式特别提示音（柔和下降双音）。 */
+    fun wakeWord() {
+        if (!ready) {
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                play(wakeWordId)
+            }, 200)
+        } else {
+            play(wakeWordId)
+        }
+    }
+
+    /** 唤醒词命中、重新进入聆听模式提示音（上升双音）。 */
+    fun wakeHit() {
+        if (!ready) {
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                play(wakeHitId)
+            }, 200)
+        } else {
+            play(wakeHitId)
+        }
+    }
 
     private fun play(id: Int) {
         if (id == 0) return

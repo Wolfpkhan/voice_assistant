@@ -345,6 +345,10 @@ class MainActivity : AppCompatActivity() {
         mode = newMode
         // 切走时若语音在跑，立即停止
         if (newMode == Mode.TEXT && assistant != null && assistant?.textMode == false) stopAssistant()
+        // ★ 切到文字模式：自动关闭悬浮球
+        if (newMode == Mode.TEXT && com.sherva.voiceassistant.service.VoiceAssistantService.instance != null) {
+            disableFloatingBall()
+        }
         applyMode()
         // 切到语音模式：若当前无语音会话，按钮复位为“开始对话”
         if (newMode == Mode.VOICE && (assistant == null || assistant?.textMode == true)) {
