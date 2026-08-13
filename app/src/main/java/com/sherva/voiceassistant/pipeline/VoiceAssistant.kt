@@ -413,7 +413,7 @@ class VoiceAssistant(
             interrupted = true
             tts.stop()
             llm.cancel()
-            try { kws.stop() } catch (_: Throwable) {}
+            // 只 resume 让 speakAll 返回，stop() 交给下面 finally 统一处理（避免并发 stop 导致 race）
             speakCont?.takeIf { it.isActive }?.resume(Unit) { }
         }
         try {

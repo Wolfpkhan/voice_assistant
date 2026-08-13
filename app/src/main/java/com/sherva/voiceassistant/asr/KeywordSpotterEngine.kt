@@ -157,9 +157,11 @@ class KeywordSpotterEngine(
     /** 停止 KWS 监听与录音。 */
     fun stop() {
         running = false
-        workThread?.join(300)
-        workThread = null
+        // ★ 关键顺序：先 stop record 让阻塞中的 read() 立刻返回，再 join worker 退出，最后再 release
+        //   否则 join 超时后 record.release() 会导致 worker 线程在 spotter.decode() 中被掐断 → native crash
         try { record?.stop() } catch (_: Throwable) {}
+        workThread?.join(1000)   // 延长到 1s，覆盖 ONNX 推理最坏耗时
+        workThread = null
         record?.release()
         record = null
         runCatching { stream?.release() }

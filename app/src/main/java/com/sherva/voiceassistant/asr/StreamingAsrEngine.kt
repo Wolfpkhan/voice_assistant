@@ -149,10 +149,13 @@ class StreamingAsrEngine(
 
     /** 停止识别与录音。 */
     fun stop() {
+        if (!running && workThread == null) return   // 已停止，避免重入
         running = false
-        workThread?.join(300)
-        workThread = null
+        // ★ 关键顺序：先 stop record 让 read() 立刻返回，再 join worker，最后 release
+        //   否则 join 超时后 record.release() 会掐断正在 recognizer.decode() 中的 worker → native crash
         try { record?.stop() } catch (_: Throwable) {}
+        workThread?.join(1000)   // 延长到 1s，覆盖 ONNX 推理最坏耗时
+        workThread = null
         record?.release()
         record = null
         runCatching { stream?.release() }
