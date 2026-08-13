@@ -122,9 +122,13 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
         if (uris.isNullOrEmpty()) return@registerForActivityResult
-        val paths = uris.mapNotNull { uri -> getPathFromUri(uri) }
+        val paths = uris.mapNotNull { uri ->
+            val p = getPathFromUri(uri)
+            AppLog.i("AttachPicker", "uri=$uri -> path=$p")
+            p
+        }
         if (paths.isEmpty()) {
-            toast("未能获取文件路径")
+            toast("未能获取文件路径，请查看 logcat (tag=AttachPicker)")
             return@registerForActivityResult
         }
         // ★ 多个路径以换行符拼接（不入换行符的为首则不加；已有文本后追加换行）
@@ -167,35 +171,36 @@ class MainActivity : AppCompatActivity() {
                     // 3. DocumentsContract.getDocumentId 解析 primary:Download/xxx / tree...
                     if (android.provider.DocumentsContract.isDocumentUri(this, uri)) {
                         val docId = android.provider.DocumentsContract.getDocumentId(uri)
+                        AppLog.i("AttachPicker", "docId=$docId")
                         // primary:Download/xxx.mp3 → /storage/emulated/0/Download/xxx.mp3
                         if (docId.startsWith("primary:")) {
                             val rel = docId.removePrefix("primary:").trimStart('/')
                             val full = "/storage/emulated/0/$rel"
                             if (java.io.File(full).exists()) return full
-                            // 不同设备 /sdcard 是 symlink，两者都试
                             val alt = "/sdcard/$rel"
                             if (java.io.File(alt).exists()) return alt
-                            return full  // 即使不存在也返，调用方自己看
+                            return full
                         }
                         // raw:/storage/... 直接用
                         if (docId.startsWith("raw:")) {
                             return docId.removePrefix("raw:")
                         }
-                        // msd:12345 / msf:12345 → MediaStore.Images/Media 查 _id
-                        if (docId.startsWith("msd:") || docId.startsWith("msf:")) {
-                            val mediaId = docId.substringAfter(":").toLongOrNull()
-                            if (mediaId != null) {
-                                val mediaPath = queryMediaStorePath(uri.authority ?: "media", mediaId)
+                        // ★ image:xxx / video:xxx / audio:xxx / msd:xxx / msf:xxx → MediaStore 查 _data
+                        val colonIdx = docId.indexOf(':')
+                        if (colonIdx > 0) {
+                            val type = docId.substring(0, colonIdx)
+                            val id = docId.substring(colonIdx + 1).toLongOrNull()
+                            if (id != null) {
+                                val mediaPath = queryMediaStorePathByType(type, id)
                                 if (!mediaPath.isNullOrEmpty()) return mediaPath
                             }
                         }
                     }
 
-                    // 4. MediaStore.Files 查 _id 拿 _data
-                    val idIdx = c.getColumnIndex("_id")
-                    if (idIdx >= 0 && uri.authority != null) {
-                        val id = c.getLong(idIdx)
-                        val mediaPath = queryMediaStorePath(uri.authority!!, id)
+                    // 4. ★ Uri 本身就是 MediaStore Uri（com.android.providers.media.documents 不走 DocumentsContract 的意外场景）
+                    val directMediaId = uri.lastPathSegment?.toLongOrNull()
+                    if (directMediaId != null && uri.authority != null) {
+                        val mediaPath = queryMediaStorePath(uri.authority!!, directMediaId)
                         if (!mediaPath.isNullOrEmpty()) return mediaPath
                     }
 
@@ -239,6 +244,46 @@ class MainActivity : AppCompatActivity() {
             }
         }
         return null
+    }
+
+    /**
+     * 根据 docId 前缀 (image/video/audio/msd/msf) 查对应 MediaStore 表的 _data。
+     * vivo Android 16 选了微信图片后 docId="image:1000169075"，此函数拿真实路径。
+     */
+    private fun queryMediaStorePathByType(type: String, id: Long): String? {
+        val base: android.net.Uri = when (type.lowercase()) {
+            "image" -> android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            "video" -> android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            "audio" -> android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+            "msd", "msf", "document" -> android.provider.MediaStore.Files.getContentUri("external")
+            else -> return null
+        }
+        val projection = arrayOf(android.provider.MediaStore.MediaColumns.DATA, "_data")
+        val selection = "_id=?"
+        val args = arrayOf(id.toString())
+        AppLog.i("AttachPicker", "queryMediaStorePathByType type=$type id=$id base=$base")
+        return runCatching {
+            contentResolver.query(base, projection, selection, args, null)?.use { c ->
+                if (c.moveToFirst()) {
+                    val dataIdx = c.getColumnIndex(android.provider.MediaStore.MediaColumns.DATA)
+                    if (dataIdx >= 0 && !c.isNull(dataIdx)) {
+                        val p = c.getString(dataIdx)
+                        AppLog.i("AttachPicker", "got DATA=$p")
+                        return@use p
+                    }
+                    val dataIdx2 = c.getColumnIndex("_data")
+                    if (dataIdx2 >= 0 && !c.isNull(dataIdx2)) {
+                        val p = c.getString(dataIdx2)
+                        AppLog.i("AttachPicker", "got _data=$p")
+                        return@use p
+                    }
+                    AppLog.w("AttachPicker", "row found but no _data column (c.count=${c.columnCount})")
+                } else {
+                    AppLog.w("AttachPicker", "no row for $type id=$id")
+                }
+                null
+            }
+        }.onFailure { AppLog.e("AttachPicker", "queryMediaStorePathByType failed", it) }.getOrNull()
     }
 
     private val notifPermissionLauncher = registerForActivityResult(
