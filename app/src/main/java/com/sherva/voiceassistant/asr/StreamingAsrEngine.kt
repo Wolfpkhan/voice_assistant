@@ -86,6 +86,14 @@ class StreamingAsrEngine(
     private var stream: OnlineStream? = null
     @Volatile private var running = false
     private var workThread: Thread? = null
+    /** ★ 撤销当前 STT 内容的请求标志：worker 线程检测到后 reset stream + 清空 partial。 */
+    @Volatile private var pendingReset = false
+
+    /** 撤销当前累积的 partial 文本并重新聆听（不重启 ASR）。 */
+    fun resetStream() {
+        pendingReset = true
+        AppLog.i("SASR", "请求撤销当前识别内容")
+    }
 
     /**
      * 启动流式识别（含录音）。
@@ -139,6 +147,14 @@ class StreamingAsrEngine(
                     }
                     // 直接喂原始 PCM 给 ASR（与 KWS 一致，禁用 GTCRN 降噪避免 ONNX session 状态问题）
                     val st = stream ?: break
+                    // ★ 撤销当前识别：reset stream 清除上下文 + 通知 UI 清空 partial
+                    if (pendingReset) {
+                        pendingReset = false
+                        runCatching { recognizer.reset(st) }
+                        onPartial("")
+                        AppLog.i("SASR", "已撤销当前识别内容")
+                        continue
+                    }
                     st.acceptWaveform(raw, sampleRate)
                     while (recognizer.isReady(st)) recognizer.decode(st)
 

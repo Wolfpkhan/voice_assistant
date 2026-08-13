@@ -79,6 +79,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var newChatButton: MaterialButton
     private lateinit var floatingBallButton: MaterialButton
     private lateinit var interruptButton: MaterialButton
+    private lateinit var undoButton: MaterialButton
     private lateinit var muteButton: MaterialButton
     private lateinit var textInput: TextInputEditText
     private lateinit var sendButton: android.widget.ImageButton
@@ -321,6 +322,7 @@ class MainActivity : AppCompatActivity() {
             newChatButton = findViewById(R.id.newChatButton)
             floatingBallButton = findViewById(R.id.floatingBallButton)
             interruptButton = findViewById(R.id.interruptButton)
+            undoButton = findViewById(R.id.undoButton)
             muteButton = findViewById(R.id.muteButton)
             textInput = findViewById(R.id.textInput)
             sendButton = findViewById(R.id.sendButton)
@@ -366,6 +368,13 @@ class MainActivity : AppCompatActivity() {
             assistant?.interruptOutput()
             assistant?.stopPlayback()
             toast("已中断")
+        }
+        // ★ 撤销当前 STT 内容并重新聆听（仅 LISTENING 状态可用）
+        undoButton.setOnClickListener {
+            assistant?.discardAndRelisten()
+            partialText.text = ""
+            partialText.visibility = android.view.View.GONE
+            toast("已撤销，重新聆听")
         }
         muteButton.setOnClickListener {
             assistant?.stopPlayback(); toast("已停止播放")
@@ -762,6 +771,8 @@ class MainActivity : AppCompatActivity() {
             setStartedUi(state != VoiceAssistant.State.IDLE)
             // 停止生成按钮：THINKING 时显示（SPEAKING/IDLE 隐藏）
             stopGenButton.visibility = if (state == VoiceAssistant.State.THINKING) android.view.View.VISIBLE else android.view.View.GONE
+            // ★ 撤销按钮：仅 LISTENING 状态可用（可清除当前 partial 重新聆听）
+            undoButton.isEnabled = (state == VoiceAssistant.State.LISTENING)
             if (state != VoiceAssistant.State.LISTENING) {
                 partialText.visibility = android.view.View.GONE
             }

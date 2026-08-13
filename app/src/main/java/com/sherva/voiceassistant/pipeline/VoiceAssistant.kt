@@ -194,6 +194,13 @@ class VoiceAssistant(
         scope.launch { startListening() }
     }
 
+    /** ★ 撤销当前 STT 识别内容并重新聆听（仅在 LISTENING 状态有效）。 */
+    fun discardAndRelisten() {
+        if (state != State.LISTENING) return
+        asr.resetStream()  // worker 线程会 reset stream + 清空 partial
+        AppLog.i("VA", "撤销当前识别内容，重新聆听")
+    }
+
     private fun startListening() {
         // ★ 先确保 ASR 模型已就绪（首次 lazy 加载耗时 ~3s），再进入聆听态+音效
         AppLog.i("VA", "准备聆听（加载 ASR 模型）")

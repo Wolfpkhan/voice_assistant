@@ -189,6 +189,20 @@
             app:iconSize="22dp"
             app:iconTint="?android:attr/textColorSecondary" />
 
+        <!-- ★ 撤销当前 STT 内容并重新聆听（仅 LISTENING 状态可用） -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/undoButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
+            android:padding="0dp"
+            android:enabled="false"
+            app:icon="@drawable/ic_undo"
+            app:iconSize="22dp"
+            app:iconTint="?android:attr/textColorSecondary" />
+
         <View
             android:layout_width="0dp"
             android:layout_height="0dp"
