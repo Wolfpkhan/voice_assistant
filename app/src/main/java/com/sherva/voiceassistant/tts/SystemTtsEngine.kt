@@ -19,15 +19,15 @@ import java.util.concurrent.atomic.AtomicLong
  * - 音色取决于设备厂商引擎（华为/讯飞较好，原生 Google 一般）
  * - 无音色切换（sid 参数忽略）
  * - 中英混合可能跳读
- *
- * 语速映射：speed 1.0 = 系统 TTS 1.0（正常）。
  */
 class SystemTtsEngine(context: Context) : TtsProvider {
 
     private var tts: TextToSpeech? = null
     @Volatile private var ready = false
     @Volatile private var pendingComplete: (() -> Unit)? = null
-    private val utteranceCounter = AtomicLong(0)
+    @Volatile private var pendingText: String? = null
+    @Volatile private var pendingSpeed: Float = 1.0f
+    private val utteranceCounter = AtomicLong()
 
     init {
         AppLog.i("SysTTS", "初始化系统 TTS...")
@@ -35,10 +35,8 @@ class SystemTtsEngine(context: Context) : TtsProvider {
             if (status == TextToSpeech.SUCCESS) {
                 val tts = this.tts
                 if (tts != null) {
-                    // 设中文优先，引擎会自动 fallback 英文
                     val res = tts.setLanguage(Locale.SIMPLIFIED_CHINESE)
                     AppLog.i("SysTTS", "系统 TTS 就绪, 语言设置结果=$res, engine=${tts.defaultEngine}")
-                    // 监听播放进度
                     tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                         override fun onStart(id: String?) {}
                         override fun onDone(id: String?) {
@@ -55,6 +53,16 @@ class SystemTtsEngine(context: Context) : TtsProvider {
                         }
                     })
                     ready = true
+                    // ★ 如果初始化前已有 pending 播报，现在执行
+                    val text = pendingText
+                    val speed = pendingSpeed
+                    val cb = pendingComplete
+                    pendingText = null
+                    pendingComplete = null
+                    if (text != null && text.isNotBlank()) {
+                        AppLog.i("SysTTS", "引擎就绪后补播: ${text.length}字")
+                        doSpeak(text, speed, cb)
+                    }
                 }
             } else {
                 AppLog.e("SysTTS", "系统 TTS 初始化失败: status=$status")
@@ -65,13 +73,19 @@ class SystemTtsEngine(context: Context) : TtsProvider {
     override fun speak(text: String, sid: Int, speed: Float, onComplete: (() -> Unit)?) {
         if (text.isBlank()) { onComplete?.invoke(); return }
         if (!ready) {
-            AppLog.w("SysTTS", "系统 TTS 未就绪，跳过")
-            onComplete?.invoke()
+            // ★ 引擎未就绪：存 pending，等 init 回调执行
+            AppLog.i("SysTTS", "系统 TTS 未就绪，等待初始化完成后补播")
+            pendingText = text
+            pendingSpeed = speed
+            pendingComplete = onComplete
             return
         }
+        doSpeak(text, speed, onComplete)
+    }
+
+    private fun doSpeak(text: String, speed: Float, onComplete: (() -> Unit)?) {
         pendingComplete = onComplete
-        // 语速映射：Kokoro speed 1.0 = 正常；系统 TTS 1.0 = 正常，范围 0~4（0.5慢~2.0快）
-        val rate = (speed * 1.0f).coerceIn(0.1f, 4.0f)
+        val rate = speed.coerceIn(0.1f, 4.0f)
         tts?.setSpeechRate(rate)
         val id = "utt_${utteranceCounter.incrementAndGet()}"
         AppLog.i("SysTTS", "播报: ${text.length}字, rate=$rate")
@@ -82,6 +96,7 @@ class SystemTtsEngine(context: Context) : TtsProvider {
         tts?.stop()
         val cb = pendingComplete
         pendingComplete = null
+        pendingText = null
         cb?.invoke()
         AppLog.i("SysTTS", "stop()")
     }
