@@ -88,5 +88,6 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
     fun clearAll() = submitList(emptyList())
 
     /** 一次性替换整个列表（避免 clearAll+逐个 add 的异步竞态叠加）。 */
-    fun submitAll(list: List<ChatMessage>) = submitList(list)
+    fun submitAll(list: List<ChatMessage>, onCommit: Runnable? = null) =
+        submitList(list, onCommit)
 }

@@ -90,6 +90,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var voiceBar: android.view.View
     private lateinit var textBar: android.view.View
 
+    // ★ 历史分页：启动只加载最近 PAGE_SIZE 条，滚到顶时加载更早的
+    private var loadingMore = false   // 防止重复触发
+    private var hasMoreHistory = false // 数据库里是否还有更早的消息未加载
+
     private enum class Mode { VOICE, TEXT }
     private var mode = Mode.VOICE   // 默认语音模式
 
@@ -336,6 +340,16 @@ class MainActivity : AppCompatActivity() {
                 stackFromEnd = true
             }
             messagesView.adapter = adapter
+            // ★ 滚到顶时加载更早的历史（分页）
+            messagesView.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+                override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                    val lm = rv.layoutManager as? LinearLayoutManager ?: return
+                    // dy<0 = 向上滑；到顶（第一个可见 item 是 0）时触发
+                    if (dy < 0 && lm.findFirstVisibleItemPosition() <= 2) {
+                        loadMoreHistory()
+                    }
+                }
+            })
             AppLog.i("Main", "View 绑定完成")
         } catch (t: Throwable) {
             AppLog.e("Main", "View 绑定失败", t); throw t
@@ -671,12 +685,14 @@ class MainActivity : AppCompatActivity() {
         setStartedUi(false)
     }
 
-    /** 从数据库加载全部历史到列表（一次性构建，正序）。仅在没有活跃对话时刷新。 */
+    /** 从数据库加载最近一页历史到列表。仅在没有活跃对话时刷新。 */
     private fun loadHistoryFromDb() {
         // 对话进行中不刷新（避免清掉正在流式显示的内容）
         if (assistant != null) return
         lifecycleScope.launch {
-            val history = ChatStore.loadAll()
+            val history = ChatStore.loadLatest()   // ★ 只加载最近 PAGE_SIZE 条
+            val total = ChatStore.count()
+            hasMoreHistory = total > history.size   // 数据库还有更早的消息
             // ★ 一次性构建整个列表再提交，避免 clearAll+逐个 add 的异步 DiffUtil 竞态叠加
             val msgs = history.map { m ->
                 ChatMessage.create(
@@ -686,6 +702,44 @@ class MainActivity : AppCompatActivity() {
             }
             adapter.submitAll(msgs)
             scrollToEnd(smooth = false)
+        }
+    }
+
+    /** ★ 滚到顶时加载更早的历史（分页）。 */
+    private fun loadMoreHistory() {
+        if (loadingMore || !hasMoreHistory || assistant != null) return
+        loadingMore = true
+        // 记住当前滚动位置（加载后跳回原位）
+        val lm = messagesView.layoutManager as? LinearLayoutManager ?: return
+        val firstVisiblePos = lm.findFirstVisibleItemPosition()
+        // 当前列表顶部相对数据库的位置 = 总量 - 当前列表大小
+        //   数据库倒序查询时 offset = 已加载条数 = adapter.itemCount
+        val offset = adapter.itemCount
+        lifecycleScope.launch {
+            val older = ChatStore.loadMore(offset)  // 返回正序（更早的在前面）
+            if (older.isEmpty()) {
+                hasMoreHistory = false
+                loadingMore = false
+                return@launch
+            }
+            val olderMsgs = older.map { m ->
+                ChatMessage.create(
+                    if (m.isFromUser) ChatMessage.Role.USER else ChatMessage.Role.ASSISTANT,
+                    m.content,
+                )
+            }
+            val merged = olderMsgs + adapter.currentList  // 旧的在前面
+            adapter.submitAll(merged) {
+                // ★ submitList 完成回调：跳回原位置（加上新加载的条数）
+                val newPos = firstVisiblePos + olderMsgs.size
+                messagesView.post {
+                    (messagesView.layoutManager as? LinearLayoutManager)
+                        ?.scrollToPositionWithOffset(newPos, 0)
+                    loadingMore = false
+                }
+            }
+            // 如果本次加载不足一页，说明已到底
+            if (older.size < ChatStore.PAGE_SIZE) hasMoreHistory = false
         }
     }
 
