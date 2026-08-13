@@ -671,6 +671,84 @@ class MainActivity : AppCompatActivity() {
         loadHistoryFromDb()
         // 从历史页跳来：处理待发送文本
         handlePromptExtra()
+        // ★ 接收其他 App 分享的文本/文件
+        handleShareIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        // ★ 分享 Intent：App 已在运行时从其他 App 分享进来走这里（singleTop）
+        handleShareIntent(intent)
+        handlePromptExtra()
+    }
+
+    /** ★ 处理 ACTION_SEND / ACTION_SEND_MULTIPLE：把分享的文本/文件路径填入文字模式输入框。
+     *  不直接发送，用户可编辑后点发送（参考 hermes_chat_android）。 */
+    private fun handleShareIntent(intent: Intent?) {
+        if (intent == null) return
+        val action = intent.action ?: return
+        if (action != android.content.Intent.ACTION_SEND &&
+            action != android.content.Intent.ACTION_SEND_MULTIPLE) return
+
+        // 切到文字模式（分享默认走文字模式）
+        if (mode != Mode.TEXT) switchMode(Mode.TEXT)
+
+        // ★ 解析分享内容为文本/路径列表
+        val parts = mutableListOf<String>()
+        when (action) {
+            android.content.Intent.ACTION_SEND -> {
+                // 1. 纯文本
+                val text = intent.getStringExtra(android.content.Intent.EXTRA_TEXT)
+                if (!text.isNullOrBlank()) {
+                    parts.add(text.trim())
+                }
+                // 2. 文件 URI（EXTRA_STREAM 或 ClipData）
+                val streamUri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM)
+                }
+                if (streamUri != null) {
+                    val p = getPathFromUri(streamUri) ?: streamUri.toString()
+                    if (parts.isEmpty() || parts.last() != p) parts.add(p)
+                } else if (parts.isEmpty()) {
+                    intent.clipData?.getItemAt(0)?.uri?.let { uri ->
+                        parts.add(getPathFromUri(uri) ?: uri.toString())
+                    }
+                }
+            }
+            android.content.Intent.ACTION_SEND_MULTIPLE -> {
+                val uris = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableArrayListExtra(android.content.Intent.EXTRA_STREAM, android.net.Uri::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableArrayListExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM)
+                }
+                uris?.forEach { uri ->
+                    parts.add(getPathFromUri(uri) ?: uri.toString())
+                }
+            }
+        }
+        // ★ 清空 Intent（防止 Activity 重建时重复触发）
+        intent.action = null
+        intent.removeCategory(android.content.Intent.CATEGORY_DEFAULT)
+        setIntent(null)
+        if (parts.isEmpty()) {
+            AppLog.i("Main", "分享 Intent：未解析到内容")
+            return
+        }
+        // ★ 填入输入框（多个用换行分隔，与文件选择按钮一致）
+        AppLog.i("Main", "分享 Intent：填入 ${parts.size} 项")
+        val cur = textInput.text?.toString().orEmpty()
+        val separator = if (cur.isEmpty() || cur.endsWith("\n")) "" else "\n"
+        textInput.setText(cur + separator + parts.joinToString("\n"))
+        textInput.setSelection(textInput.text?.length ?: 0)
+        // 聚焦输入框、弹键盘
+        textInput.requestFocus()
+        val imm = getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.showSoftInput(textInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
     }
 
     override fun onPause() {
@@ -693,6 +771,7 @@ class MainActivity : AppCompatActivity() {
             val history = ChatStore.loadLatest()   // ★ 只加载最近 PAGE_SIZE 条
             val total = ChatStore.count()
             hasMoreHistory = total > history.size   // 数据库还有更早的消息
+            AppLog.i("Main", "历史加载：已加载 ${history.size} 条，数据库共 $total 条，分页加载=${hasMoreHistory}")
             // ★ 一次性构建整个列表再提交，避免 clearAll+逐个 add 的异步 DiffUtil 竞态叠加
             val msgs = history.map { m ->
                 ChatMessage.create(
@@ -717,6 +796,7 @@ class MainActivity : AppCompatActivity() {
         val offset = adapter.itemCount
         lifecycleScope.launch {
             val older = ChatStore.loadMore(offset)  // 返回正序（更早的在前面）
+            AppLog.i("Main", "分页加载：offset=$offset，查到 ${older.size} 条，hasMore=${older.size >= ChatStore.PAGE_SIZE}")
             if (older.isEmpty()) {
                 hasMoreHistory = false
                 loadingMore = false
