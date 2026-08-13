@@ -732,9 +732,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
         // ★ 清空 Intent（防止 Activity 重建时重复触发）
+        //   只改 action，不能 setIntent(null)，否则后续 onResume 里 getIntent() 返回 null
+        //   导致 handlePromptExtra 读 getStringExtra → NPE 崩溃
         intent.action = null
         intent.removeCategory(android.content.Intent.CATEGORY_DEFAULT)
-        setIntent(null)
         if (parts.isEmpty()) {
             AppLog.i("Main", "分享 Intent：未解析到内容")
             return
@@ -825,6 +826,7 @@ class MainActivity : AppCompatActivity() {
 
     /** 处理 EXTRA_TEXT_PROMPT（从历史页点击消息继续提问）。 */
     private fun handlePromptExtra() {
+        val intent = intent ?: return   // ★ 防御：intent 被 setIntent(null) 后不会 NPE
         val prompt = intent.getStringExtra(EXTRA_TEXT_PROMPT) ?: return
         intent.removeExtra(EXTRA_TEXT_PROMPT)
         // 文字模式发送：不开启语音侦听，不播报 TTS
