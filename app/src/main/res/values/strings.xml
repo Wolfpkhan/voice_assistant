@@ -21,6 +21,7 @@
     <!-- 文字输入 -->
     <string name="input_hint">输入消息…</string>
     <string name="action_send">发送</string>
+    <string name="action_attach">附件</string>
 
     <!-- 历史/备份菜单 -->
     <string name="history_title">聊天记录</string>

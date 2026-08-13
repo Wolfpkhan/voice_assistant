@@ -224,6 +224,18 @@
         android:paddingHorizontal="12dp"
         android:paddingBottom="8dp">
 
+        <!-- 附件按钮：打开系统文件选择器，选中路径以换行拼接填入输入框 -->
+        <ImageButton
+            android:id="@+id/attachButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="8dp"
+            android:padding="0dp"
+            android:scaleType="centerInside"
+            android:background="@drawable/bg_circle_brand"
+            android:src="@drawable/ic_attach"
+            android:contentDescription="@string/action_attach" />
+
         <com.google.android.material.textfield.TextInputLayout
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="0dp"

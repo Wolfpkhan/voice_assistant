@@ -81,6 +81,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var textInput: TextInputEditText
     private lateinit var sendButton: android.widget.ImageButton
     private lateinit var stopGenButton: android.widget.ImageButton
+    private lateinit var attachButton: android.widget.ImageButton
     private lateinit var voiceModeButton: MaterialButton
     private lateinit var textModeButton: MaterialButton
     private lateinit var voiceBar: android.view.View
@@ -116,6 +117,62 @@ class MainActivity : AppCompatActivity() {
             toast("未授悬浮窗权限，无法显示悬浮球")
         }
     }
+    // ★ 附件选择 launcher：OpenMultipleDocuments 拿到多个 Uri，需用 ContentResolver 取真实路径
+    private val pickFilesLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        if (uris.isNullOrEmpty()) return@registerForActivityResult
+        val paths = uris.mapNotNull { uri -> getPathFromUri(uri) }
+        if (paths.isEmpty()) {
+            toast("未能获取文件路径")
+            return@registerForActivityResult
+        }
+        // ★ 多个路径以换行符拼接（不入换行符的为首则不加；已有文本后追加换行）
+        val cur = textInput.text?.toString().orEmpty()
+        val separator = if (cur.isEmpty() || cur.endsWith("\n")) "" else "\n"
+        textInput.setText(cur + separator + paths.joinToString("\n"))
+        textInput.setSelection(textInput.text?.length ?: 0)
+    }
+
+    /**
+     * 把 Uri 转成可读的文件路径：
+     *  - 先试 [DocumentsContract.Document.COLUMN_DISPLAY_NAME] 拿到文件名（不走 SAF）
+     *  - 走 ContentResolver query 直接拿 _data 字段（FilePathHelper 返回），对 MediaStore/file:// 都有效
+     *  - 若只拿到文件名，从最近 [android.provider.MediaStore.Files] 查绝对路径
+     * 返回 null 表示失败（打 toast）。
+     */
+    private fun getPathFromUri(uri: android.net.Uri): String? {
+        val cr = contentResolver
+        // 1. file:// scheme 直接返回
+        if ("file".equals(uri.scheme, ignoreCase = true)) {
+            return uri.path
+        }
+        // 2. 走 ContentProvider 查 _data / DATA 字段
+        runCatching {
+            cr.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME, "_data", "_DATA", "data"), null, null, null)?.use { c ->
+                if (c.moveToFirst()) {
+                    val nameIdx = c.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                    val pathIdx = listOf("_data", "_DATA", "data").firstNotNullOfOrNull { idx ->
+                        val i = c.getColumnIndex(idx)
+                        if (i >= 0 && !c.isNull(i)) c.getString(i) else null
+                    }
+                    if (!pathIdx.isNullOrEmpty()) return pathIdx
+                    if (nameIdx >= 0) {
+                        // 只拿到文件名 - 在 /sdcard/Download/ 常见路径查
+                        val name = c.getString(nameIdx)
+                        listOf("/sdcard/Download/", "/sdcard/Documents/", "/storage/emulated/0/Download/", "/storage/emulated/0/Documents/").forEach { dir ->
+                            val candidate = "$dir$name"
+                            if (java.io.File(candidate).exists()) return candidate
+                        }
+                        return name
+                    }
+                }
+            }
+        }
+        // 3. 退到 toString() 不理想但不会 null
+        return uri.lastPathSegment
+    }
+
     private val notifPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -153,6 +210,7 @@ class MainActivity : AppCompatActivity() {
             textInput = findViewById(R.id.textInput)
             sendButton = findViewById(R.id.sendButton)
             stopGenButton = findViewById(R.id.stopGenButton)
+            attachButton = findViewById(R.id.attachButton)
             voiceModeButton = findViewById(R.id.voiceModeButton)
             textModeButton = findViewById(R.id.textModeButton)
             voiceBar = findViewById(R.id.voiceBar)
@@ -199,6 +257,14 @@ class MainActivity : AppCompatActivity() {
         }
         // 文字输入发送
         sendButton.setOnClickListener { sendTextFromInput() }
+        attachButton.setOnClickListener {
+            // ★ 弹出系统文件选择器（多选），仅接受常规文件路径
+            try {
+                pickFilesLauncher.launch(arrayOf("*/*"))
+            } catch (e: android.content.ActivityNotFoundException) {
+                toast("未找到可用的文件选择器")
+            }
+        }
         // ★ 停止生成（文字/语音模式通用：停 LLM + 清除流式状态）
         stopGenButton.setOnClickListener {
             assistant?.interruptOutput()
