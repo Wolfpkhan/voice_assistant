@@ -71,7 +71,8 @@ class StreamingAsrEngine(
             )
         ).also { AppLog.i("SASR", "OnlineRecognizer 构造成功") }
     }
-    private val denoiser = SpeechEnhancer(context)
+    // ★ GTCRN 降噪器已禁用（参 denoiser_* 注释）：BargeIn 取消后不需要防回声，增加 ONNX session 复杂度。
+    //   KWS 从未使用降噪器，ASR 现在也直接用原始 PCM（与 KWS 一致）。
 
     private var record: AudioRecord? = null
     private var stream: OnlineStream? = null
@@ -88,8 +89,6 @@ class StreamingAsrEngine(
     fun start(onPartial: (String) -> Unit, onFinal: (String) -> Unit) {
         if (running) return
         val sampleRate = 16000
-        // 每次重新聆听前重置降噪器状态，清除上一轮（含打断）的残留回声缓冲
-        denoiser.reset()
         val channelConfig = AudioFormat.CHANNEL_IN_MONO
         val audioFormat = AudioFormat.ENCODING_PCM_16BIT
         val bufBytes = AudioRecord.getMinBufferSize(sampleRate, channelConfig, audioFormat)
@@ -120,11 +119,9 @@ class StreamingAsrEngine(
                         if (raw[i] > 1f) raw[i] = 1f
                         else if (raw[i] < -1f) raw[i] = -1f
                     }
-                    // ★ GTCRN 实时降噪后再喂 ASR（提精度 + 消 TTS 回声污染）
-                    val clean = denoiser.process(raw, sampleRate)
-                    if (clean.isEmpty()) continue
+                    // 直接喂原始 PCM 给 ASR（与 KWS 一致，禁用 GTCRN 降噪避免 ONNX session 状态问题）
                     val st = stream ?: break
-                    st.acceptWaveform(clean, sampleRate)
+                    st.acceptWaveform(raw, sampleRate)
                     while (recognizer.isReady(st)) recognizer.decode(st)
 
                     val text = recognizer.getResult(st).text
@@ -165,6 +162,5 @@ class StreamingAsrEngine(
     fun release() {
         stop()
         recognizer.release()
-        denoiser.release()
     }
 }

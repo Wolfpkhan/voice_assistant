@@ -80,7 +80,7 @@ class KeywordSpotterEngine(
         }
     }
     private val appContext: Context = context.applicationContext
-    private val denoiser = SpeechEnhancer(context)
+    // denoiser 已禁用（参 StreamingAsrEngine 同名注释）
 
     /** 当前活跃 stream（每次 start() 重建）。 */
     private var stream: OnlineStream? = null
@@ -96,7 +96,6 @@ class KeywordSpotterEngine(
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun start(onHit: (keyword: String) -> Unit) {
         if (running) return
-        denoiser.reset()   // 清上一轮的残留缓冲
         val sampleRate = 16000
         val channelConfig = AudioFormat.CHANNEL_IN_MONO
         val audioFormat = AudioFormat.ENCODING_PCM_16BIT
@@ -166,12 +165,10 @@ class KeywordSpotterEngine(
         record = null
         runCatching { stream?.release() }
         stream = null
-        runCatching { denoiser.flush() }   // 冲刷降噪缓冲
     }
 
     fun release() {
         stop()
         spotter.release()
-        denoiser.release()
     }
 }
