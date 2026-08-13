@@ -69,6 +69,9 @@ class VoiceAssistant(
         val enableWakeWord: Boolean = true,           // 是否启用唤醒词模式（语音模式下始终启用）
         val wakeWordIdleSec: Float = 5.0f,           // 进入唤醒模式的空闲时间（秒）：ASR 启动后 X 秒无有效语音 → KWS
         val wakeWord: String = "小薇",           // 唤醒词（可配置，推荐 2~4 字短词，KWS 小模型对长词识别率低）
+        /** ★ 全局回声消除（实验性）：true 时 ASR/KWS 用 VOICE_COMMUNICATION + MODE_IN_COMMUNICATION，
+         *     系统级 AEC 可消除任意 App 播放的回声。但可能切听筒、影响音质。 */
+        val globalAec: Boolean = false,
     )
 
     interface Listener {
@@ -101,11 +104,11 @@ class VoiceAssistant(
     //   文字模式只用 LLM，不触发 asr/tts/kws 加载，发送不卡顿。
     private val asrLazy: Lazy<StreamingAsrEngine> = lazy {
         AppLog.i("VA", "初始化流式 ASR 引擎...")
-        StreamingAsrEngine(appContext, endpointTrailingSilenceSec = config.endpointTrailingSilenceSec, micGain = config.micGain)
+        StreamingAsrEngine(appContext, endpointTrailingSilenceSec = config.endpointTrailingSilenceSec, micGain = config.micGain, globalAec = config.globalAec)
     }
     private val kwsLazy: Lazy<KeywordSpotterEngine> = lazy {
         AppLog.i("VA", "初始化唤醒词检测引擎...")
-        KeywordSpotterEngine(appContext)
+        KeywordSpotterEngine(appContext, globalAec = config.globalAec)
     }
     private val ttsLazy: Lazy<TtsProvider> = lazy {
         AppLog.i("VA", "初始化 TTS 引擎: ${config.ttsEngine}")

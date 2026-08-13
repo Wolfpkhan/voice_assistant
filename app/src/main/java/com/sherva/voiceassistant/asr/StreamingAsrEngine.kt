@@ -46,7 +46,12 @@ class StreamingAsrEngine(
     endpointTrailingSilenceSec: Float = 1.2f,
     /** ★ 麦克风软件增益（1.0=原始，>1 放大让远距离也能识别）。 */
     private val micGain: Float = 1.0f,
+    /** ★ 全局回声消除：true 时用 VOICE_COMMUNICATION + MODE_IN_COMMUNICATION，
+     *     系统级 AEC 能消除任意 App 播放的声音（但可能切听筒、影响音质）。
+     *     false 时用 VOICE_RECOGNITION + AcousticEchoCanceler（仅消除本进程回声）。 */
+    private val globalAec: Boolean = false,
 ) {
+    private val appContext: Context = context.applicationContext
     private val recognizer = run {
         AppLog.i("SASR", "构造 OnlineRecognizer: encoder=${ModelPaths.STREAM_ENCODER}")
         OnlineRecognizer(
@@ -98,11 +103,19 @@ class StreamingAsrEngine(
             .coerceAtLeast(1600 * 2 * 4)
 
         @Suppress("MissingPermission")
+        val source = if (globalAec) MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                     else MediaRecorder.AudioSource.VOICE_RECOGNITION
         record = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            source,
             sampleRate, channelConfig, audioFormat, bufBytes
         )
         check(record?.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord 初始化失败" }
+        // ★ 全局回声消除：切 MODE_IN_COMMUNICATION 启用系统级 AEC（消除任意 App 回声）
+        if (globalAec) {
+            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            am.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+            AppLog.i("SASR", "全局 AEC：已切 MODE_IN_COMMUNICATION")
+        }
         // ★ 硬件 AEC：消除 TTS / 音乐播放时的扬声器回声，避免 ASR 把音乐当成语音
         aec = AecManager.enable(record!!)
         stream = recognizer.createStream()
@@ -164,6 +177,12 @@ class StreamingAsrEngine(
         stream = null
         AecManager.disable(aec)
         aec = null
+        // ★ 全局回声消除：切回 MODE_NORMAL
+        if (globalAec) {
+            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            am.mode = android.media.AudioManager.MODE_NORMAL
+            AppLog.i("SASR", "全局 AEC：已切回 MODE_NORMAL")
+        }
     }
 
     fun release() {

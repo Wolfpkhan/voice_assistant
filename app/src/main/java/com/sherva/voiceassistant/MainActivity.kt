@@ -54,6 +54,7 @@ class MainActivity : AppCompatActivity() {
             val micGain = sp.getInt(ctx.getString(R.string.pref_mic_gain), 10) / 10.0f
             val wakeWordIdleSec = sp.getInt(ctx.getString(R.string.pref_wake_word_idle_sec), 5).toFloat()
             val wakeWord = sp.getString(ctx.getString(R.string.pref_wake_word), "嗨赛琳娜") ?: "嗨赛琳娜"
+            val globalAec = sp.getBoolean(ctx.getString(R.string.pref_global_aec), false)
             return VoiceAssistant.Config(
                 continuous = true, ttsSpeed = speed, ttsSid = ttsSid,
                 ttsEngine = ttsEngine,
@@ -64,6 +65,7 @@ class MainActivity : AppCompatActivity() {
                 enableWakeWord = true,
                 wakeWordIdleSec = wakeWordIdleSec,
                 wakeWord = wakeWord,
+                globalAec = globalAec,
             )
         }
     }

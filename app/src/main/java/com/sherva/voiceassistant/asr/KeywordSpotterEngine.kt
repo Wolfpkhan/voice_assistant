@@ -43,6 +43,9 @@ class KeywordSpotterEngine(
     private val numThreads: Int = 1,
     /** 阈值：越低越灵敏（0.05 非常灵敏，0.1 较灵敏，0.25 默认偏高，0.5 几乎不命中）。 */
     private val threshold: Float = 0.0f,
+    /** ★ 全局回声消除：true 时用 VOICE_COMMUNICATION + MODE_IN_COMMUNICATION。
+     *     见 [StreamingAsrEngine.globalAec]。 */
+    private val globalAec: Boolean = false,
 ) {
     private val spotter: KeywordSpotter = run {
         AppLog.i("KWS", "构造 KeywordSpotter: encoder=${ModelPaths.KWS_ENCODER}, threshold=$threshold")
@@ -105,11 +108,19 @@ class KeywordSpotterEngine(
             .coerceAtLeast(1600 * 2 * 4)
 
         @Suppress("MissingPermission")
+        val source = if (globalAec) MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                     else MediaRecorder.AudioSource.VOICE_RECOGNITION
         record = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
+            source,
             sampleRate, channelConfig, audioFormat, bufBytes
         )
         check(record?.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord 初始化失败" }
+        // ★ 全局回声消除：切 MODE_IN_COMMUNICATION 启用系统级 AEC
+        if (globalAec) {
+            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            am.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+            AppLog.i("KWS", "全局 AEC：已切 MODE_IN_COMMUNICATION")
+        }
         // ★ 硬件 AEC：消除 TTS / 音乐播放时的扬声器回声，避免误唤醒
         aec = AecManager.enable(record!!)
         AppLog.i("KWS", "AudioRecord 实际采样率=${record!!.sampleRate} Hz, 请求=$sampleRate Hz")
@@ -171,6 +182,12 @@ class KeywordSpotterEngine(
         stream = null
         AecManager.disable(aec)
         aec = null
+        // ★ 全局回声消除：切回 MODE_NORMAL
+        if (globalAec) {
+            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            am.mode = android.media.AudioManager.MODE_NORMAL
+            AppLog.i("KWS", "全局 AEC：已切回 MODE_NORMAL")
+        }
     }
 
     fun release() {

@@ -134,4 +134,13 @@
             android:defaultValue="小薇" />
     </PreferenceCategory>
 
+    <!-- 全局回声消除（实验性）：VOICE_COMMUNICATION + MODE_IN_COMMUNICATION，系统级 AEC -->
+    <PreferenceCategory android:title="音频（实验性）">
+        <SwitchPreferenceCompat
+            android:key="@string/pref_global_aec"
+            android:title="全局回声消除"
+            android:summary="开启后可消除任意 App（音乐/视频）播放的回声。但可能切听筒、影响音质。默认关闭，仅本 App TTS 回声被消除"
+            android:defaultValue="false" />
+    </PreferenceCategory>
+
 </PreferenceScreen>
