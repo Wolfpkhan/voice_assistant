@@ -51,14 +51,6 @@ class MainActivity : AppCompatActivity() {
             val ttsEngine = sp.getString(ctx.getString(R.string.pref_tts_engine), "kokoro") ?: "kokoro"
             val cooldownMs = sp.getInt(ctx.getString(R.string.pref_cooldown_ms), 600).toLong()
             val endpointSilence = sp.getInt(ctx.getString(R.string.pref_endpoint_silence), 12) / 10.0f
-            val bargeGuardMs = sp.getInt(ctx.getString(R.string.pref_barge_guard_ms), 300).toLong()
-            val bargeConfirmMs = sp.getInt(ctx.getString(R.string.pref_barge_confirm_ms), 200).toLong()
-            val bargeThreshold = sp.getInt(ctx.getString(R.string.pref_barge_threshold), 6) / 10.0f
-            val enableBargeIn = run {
-                val spAec = ctx.getSharedPreferences("aec_probe", Context.MODE_PRIVATE)
-                val aecAvailable = spAec.getBoolean("available", false)
-                sp.getBoolean(ctx.getString(R.string.pref_enable_barge_in), false) || aecAvailable
-            }
             val micGain = sp.getInt(ctx.getString(R.string.pref_mic_gain), 10) / 10.0f
             val wakeWordIdleSec = sp.getInt(ctx.getString(R.string.pref_wake_word_idle_sec), 5).toFloat()
             val wakeWord = sp.getString(ctx.getString(R.string.pref_wake_word), "嗨赛琳娜") ?: "嗨赛琳娜"
@@ -68,8 +60,6 @@ class MainActivity : AppCompatActivity() {
                 llmBaseUrl = baseUrl, llmApiKey = apiKey, llmModel = model,
                 systemPrompt = system, systemPromptText = systemText,
                 cooldownMs = cooldownMs, endpointTrailingSilenceSec = endpointSilence,
-                bargeGuardMs = bargeGuardMs, bargeConfirmMs = bargeConfirmMs, bargeThreshold = bargeThreshold,
-                enableBargeIn = enableBargeIn,
                 micGain = micGain,
                 enableWakeWord = true,
                 wakeWordIdleSec = wakeWordIdleSec,

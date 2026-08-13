@@ -11,7 +11,6 @@ import com.sherva.voiceassistant.asr.StreamingAsrEngine
 import kotlinx.coroutines.delay
 import com.sherva.voiceassistant.llm.LlmClient
 import com.sherva.voiceassistant.tts.TtsProvider
-import com.sherva.voiceassistant.vad.BargeInDetector
 import kotlinx.coroutines.*
 import kotlin.coroutines.resume
 
@@ -65,10 +64,6 @@ class VoiceAssistant(
         // —— 高级时间参数（从设置页读取）——
         val cooldownMs: Long = 600L,              // 播报后冷却（防回声）
         val endpointTrailingSilenceSec: Float = 1.2f,  // 说完判定延时
-        val bargeGuardMs: Long = 300L,           // 打断起播保护期
-        val bargeConfirmMs: Long = 200L,         // 打断确认时长
-        val bargeThreshold: Float = 0.6f,        // 打断 VAD 阈值
-        val enableBargeIn: Boolean = false,     // 默认关闭（Kokoro 容易自打断，需手动开）
         val micGain: Float = 1.0f,               // 麦克风增益（远距离收音）
         // —— 唤醒词参数（从设置页读取）——
         val enableWakeWord: Boolean = true,           // 是否启用唤醒词模式（语音模式下始终启用）
@@ -103,7 +98,7 @@ class VoiceAssistant(
     }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     // ★ 引擎 lazy 加载：首次使用才初始化（加载模型），避免构造阻塞 UI。
-    //   文字模式只用 LLM，不触发 asr/tts/bargeIn 加载，发送不卡顿。
+    //   文字模式只用 LLM，不触发 asr/tts/kws 加载，发送不卡顿。
     private val asrLazy: Lazy<StreamingAsrEngine> = lazy {
         AppLog.i("VA", "初始化流式 ASR 引擎...")
         StreamingAsrEngine(appContext, endpointTrailingSilenceSec = config.endpointTrailingSilenceSec, micGain = config.micGain)
@@ -120,15 +115,9 @@ class VoiceAssistant(
             com.sherva.voiceassistant.tts.TtsEngine(appContext)
         }
     }
-    private val bargeInLazy: Lazy<BargeInDetector> = lazy {
-        AppLog.i("VA", "初始化打断检测器...")
-        BargeInDetector(appContext, threshold = config.bargeThreshold,
-            startGuardMs = config.bargeGuardMs, minSpeechMs = config.bargeConfirmMs)
-    }
     private val asr: StreamingAsrEngine get() = asrLazy.value
     private val kws: KeywordSpotterEngine get() = kwsLazy.value
     private val tts: TtsProvider get() = ttsLazy.value
-    private val bargeIn: BargeInDetector get() = bargeInLazy.value
     private val llm = LlmClient(
         baseUrl = config.llmBaseUrl,
         apiKey = config.llmApiKey,
@@ -410,22 +399,23 @@ class VoiceAssistant(
     }
 
     /**
-     * TTS 播报（统一 BargeIn 打断支持）。
+     * TTS 播报（唤醒词打断：说“小薇”可中断 TTS）。
+     * 复用 KWS 监听，不依赖 AEC，跨设备一致。
      */
     private suspend fun speakAll(text: String) {
         if (text.isBlank()) return
         AppLog.i("VA", "TTS 播报：${text.length}字 (引擎=${config.ttsEngine})")
         var speakCont: CancellableContinuation<Unit>? = null
-        bargeIn.start(onInterrupt = {
-            AppLog.i("VA", "BargeIn 触发回调，enableBargeIn=${config.enableBargeIn}")
-            if (!config.enableBargeIn) return@start
-            AppLog.i("VA", "打断触发 → 停 TTS，跳过剩余播报")
+        // ★ 唤醒词打断：TTS 播报期间开 KWS 监听
+        kws.start { keyword ->
+            AppLog.i("VA", "TTS 播报中唤醒词命中: $keyword → 打断")
             com.sherva.voiceassistant.audio.SoundEffects.interrupt()
             interrupted = true
             tts.stop()
             llm.cancel()
+            try { kws.stop() } catch (_: Throwable) {}
             speakCont?.takeIf { it.isActive }?.resume(Unit) { }
-        })
+        }
         try {
             suspendCancellableCoroutine<Unit> { cont ->
                 speakCont = cont
@@ -438,7 +428,7 @@ class VoiceAssistant(
                 cont.invokeOnCancellation { tts.stop() }
             }
         } finally {
-            bargeIn.stop()
+            try { kws.stop() } catch (_: Throwable) {}
         }
     }
 
@@ -456,11 +446,10 @@ class VoiceAssistant(
         }
     }
 
-    /** ★ 切后台暂停：停侦听+TTS+BargeIn（保留会话状态，不释放引擎）。 */
+    /** ★ 切后台暂停：停侦听+TTS+KWS（保留会话状态，不释放引擎）。 */
     fun pause() {
         AppLog.i("VA", "切后台，暂停侦听与播放")
         interrupted = true
-        if (bargeInLazy.isInitialized()) bargeIn.stop()
         if (asrLazy.isInitialized()) asr.stop()
         if (kwsLazy.isInitialized()) kws.stop()
         wakeWordJob?.cancel()
@@ -518,7 +507,6 @@ class VoiceAssistant(
         wakeWordJob?.cancel()
         inWakeWord = false
         // 只停已初始化的引擎（避免 lazy 触发加载）
-        if (bargeInLazy.isInitialized()) bargeIn.stop()
         if (asrLazy.isInitialized()) asr.stop()
         if (kwsLazy.isInitialized()) kws.stop()
         llm.cancel()
@@ -538,7 +526,6 @@ class VoiceAssistant(
     fun stopPlayback() {
         AppLog.i("VA", "手动终止 TTS 播放")
         interrupted = true
-        if (bargeInLazy.isInitialized()) bargeIn.stop()
         if (ttsLazy.isInitialized()) tts.stop()
     }
 
@@ -548,7 +535,6 @@ class VoiceAssistant(
         if (asrLazy.isInitialized()) runCatching { asr.release() }
         if (kwsLazy.isInitialized()) runCatching { kws.release() }
         if (ttsLazy.isInitialized()) runCatching { tts.release() }
-        if (bargeInLazy.isInitialized()) runCatching { bargeIn.release() }
         releaseWakeLock()
     }
 

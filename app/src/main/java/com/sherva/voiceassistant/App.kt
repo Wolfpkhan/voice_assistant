@@ -17,13 +17,6 @@ class App : Application() {
         super.onCreate()
         AppLog.init(this)
         AppLog.i("App", "Application.onCreate 完成")
-        // ★ 启动时探测设备是否真支持 AEC（后台 IO，不阻塞）
-        Thread {
-            val result = com.sherva.voiceassistant.audio.AecProbe.probeAec(this)
-            AppLog.i("App", "AEC 探测结果: available=${result.available}, reason=${result.reason}")
-            val sp = getSharedPreferences("aec_probe", MODE_PRIVATE)
-            sp.edit().putBoolean("available", result.available).putString("reason", result.reason).apply()
-        }.apply { name = "aec-probe" }.start()
     }
 
     companion object {

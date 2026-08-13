@@ -82,12 +82,7 @@
             android:widgetLayout="@layout/widget_loading" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="高级 · 对话节奏与打断">
-        <SwitchPreferenceCompat
-            android:key="@string/pref_enable_barge_in"
-            android:title="允许语音打断 TTS"
-            android:summary="开启后 TTS 播报时可说出“停/算了”中断。App 启动会自动探测设备 AEC，如支持则默认开启。"
-            android:defaultValue="false" />
+    <PreferenceCategory android:title="高级 · 对话节奏">
         <!-- 冷却：正常播完后重新聆听的间隔，防回声。打断后会跳过此冷却。 -->
         <SeekBarPreference
             android:key="@string/pref_cooldown_ms"
@@ -106,36 +101,6 @@
             android:defaultValue="12"
             android:min="5"
             android:max="30"
-            app:showSeekBarValue="true" />
-
-        <!-- 打断起播保护期：TTS 出声后多久开始检测打断 -->
-        <SeekBarPreference
-            android:key="@string/pref_barge_guard_ms"
-            android:title="打断保护期 (ms)"
-            android:summary="TTS 刚出声多久内不检测打断，防误触发"
-            android:defaultValue="300"
-            android:min="0"
-            android:max="1000"
-            app:showSeekBarValue="true" />
-
-        <!-- 打断确认时长：连续语音多久才算真打断 -->
-        <SeekBarPreference
-            android:key="@string/pref_barge_confirm_ms"
-            android:title="打断确认时长 (ms)"
-            android:summary="连续检测到语音多久才算真打断。越大越不容易误打断"
-            android:defaultValue="200"
-            android:min="50"
-            android:max="800"
-            app:showSeekBarValue="true" />
-
-        <!-- 打断灵敏度（阈值，×0.1）。数值越小越灵敏。 -->
-        <SeekBarPreference
-            android:key="@string/pref_barge_threshold"
-            android:title="打断灵敏度 (×0.1，越小越灵敏)"
-            android:summary="GTCRN 降噪后的 VAD 阈值。越小越容易触发打断"
-            android:defaultValue="6"
-            android:min="3"
-            android:max="9"
             app:showSeekBarValue="true" />
 
         <!-- 麦克风增益（远距离收音） -->

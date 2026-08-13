@@ -44,10 +44,6 @@
     <!-- 高级时间参数（单位见 title） -->
     <string name="pref_cooldown_ms">cooldown_ms</string>
     <string name="pref_endpoint_silence">endpoint_silence</string>
-    <string name="pref_barge_guard_ms">barge_guard_ms</string>
-    <string name="pref_barge_confirm_ms">barge_confirm_ms</string>
-    <string name="pref_barge_threshold">barge_threshold</string>
-    <string name="pref_enable_barge_in">enable_barge_in</string>
     <string name="pref_mic_gain">mic_gain</string>
     <string name="pref_wake_word_idle_sec">wake_word_idle_sec</string>
     <string name="pref_wake_word">wake_word</string>
