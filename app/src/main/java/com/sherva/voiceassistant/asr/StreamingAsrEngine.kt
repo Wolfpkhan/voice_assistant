@@ -118,13 +118,9 @@ class StreamingAsrEngine(
             sampleRate, channelConfig, audioFormat, bufBytes
         )
         check(record?.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord 初始化失败" }
-        // ★ 全局回声消除：切 MODE_IN_COMMUNICATION 启用系统级 AEC（消除任意 App 回声）
-        if (globalAec) {
-            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            am.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
-            AppLog.i("SASR", "全局 AEC：已切 MODE_IN_COMMUNICATION")
-        }
-        // ★ 硬件 AEC：消除 TTS / 音乐播放时的扬声器回声，避免 ASR 把音乐当成语音
+        // ★ MODE_IN_COMMUNICATION 由 VoiceAssistant 统一管理（对话开始时设、结束时切回），
+        //    不在 engine 层切换（避免 KWS/ASR 交替时频繁抖动音频路由）
+        // ★ 硬件 AEC：消除 TTS / 音乐播放时的扬声器回声
         aec = AecManager.enable(record!!)
         stream = recognizer.createStream()
         record!!.startRecording()
@@ -193,12 +189,7 @@ class StreamingAsrEngine(
         stream = null
         AecManager.disable(aec)
         aec = null
-        // ★ 全局回声消除：切回 MODE_NORMAL
-        if (globalAec) {
-            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            am.mode = android.media.AudioManager.MODE_NORMAL
-            AppLog.i("SASR", "全局 AEC：已切回 MODE_NORMAL")
-        }
+        // ★ MODE_IN_COMMUNICATION 由 VoiceAssistant 统一管理，此处不切回
     }
 
     fun release() {

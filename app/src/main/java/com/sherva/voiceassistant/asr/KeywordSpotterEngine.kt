@@ -115,12 +115,7 @@ class KeywordSpotterEngine(
             sampleRate, channelConfig, audioFormat, bufBytes
         )
         check(record?.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord 初始化失败" }
-        // ★ 全局回声消除：切 MODE_IN_COMMUNICATION 启用系统级 AEC
-        if (globalAec) {
-            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            am.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
-            AppLog.i("KWS", "全局 AEC：已切 MODE_IN_COMMUNICATION")
-        }
+        // ★ MODE_IN_COMMUNICATION 由 VoiceAssistant 统一管理，此处不切
         // ★ 硬件 AEC：消除 TTS / 音乐播放时的扬声器回声，避免误唤醒
         aec = AecManager.enable(record!!)
         AppLog.i("KWS", "AudioRecord 实际采样率=${record!!.sampleRate} Hz, 请求=$sampleRate Hz")
@@ -182,12 +177,7 @@ class KeywordSpotterEngine(
         stream = null
         AecManager.disable(aec)
         aec = null
-        // ★ 全局回声消除：切回 MODE_NORMAL
-        if (globalAec) {
-            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            am.mode = android.media.AudioManager.MODE_NORMAL
-            AppLog.i("KWS", "全局 AEC：已切回 MODE_NORMAL")
-        }
+        // ★ MODE_IN_COMMUNICATION 由 VoiceAssistant 统一管理，此处不切回
     }
 
     fun release() {

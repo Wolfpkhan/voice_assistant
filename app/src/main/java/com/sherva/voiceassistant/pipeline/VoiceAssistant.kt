@@ -191,6 +191,7 @@ class VoiceAssistant(
         starting = true
         ensureHistory()
         acquireWakeLock()
+        enterGlobalAecMode()
         scope.launch { startListening() }
     }
 
@@ -325,6 +326,7 @@ class VoiceAssistant(
         }
         ensureHistory()
         active = true
+        enterGlobalAecMode()  // ★ 文字模式也统一管理 MODE_IN_COMMUNICATION
         scope.launch {
             AppLog.i("VA", "文字输入: \"$t\"")
             // 若语音引擎已初始化（此前切过语音模式）则停掉聆听，避免冲突
@@ -456,6 +458,30 @@ class VoiceAssistant(
         }
     }
 
+    /** ★ 全局 AEC：对话开始时切 MODE_IN_COMMUNICATION + 强制扬声器，结束时切回。
+     *  统一在 VoiceAssistant 管理（不在 engine 层切换，避免 KWS/ASR 交替时音频路由抖动）。 */
+    private val audioManager by lazy {
+        appContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+    }
+    private var aecModeActive = false
+
+    private fun enterGlobalAecMode() {
+        if (!config.globalAec || aecModeActive) return
+        aecModeActive = true
+        audioManager.mode = android.media.AudioManager.MODE_IN_COMMUNICATION
+        // ★ 强制扬声器输出（MODE_IN_COMMUNICATION 默认走听筒，TTS 会变小声）
+        audioManager.isSpeakerphoneOn = true
+        AppLog.i("VA", "全局 AEC：MODE_IN_COMMUNICATION + 扬声器已开启")
+    }
+
+    private fun exitGlobalAecMode() {
+        if (!aecModeActive) return
+        aecModeActive = false
+        audioManager.isSpeakerphoneOn = false
+        audioManager.mode = android.media.AudioManager.MODE_NORMAL
+        AppLog.i("VA", "全局 AEC：已切回 MODE_NORMAL")
+    }
+
     /** ★ 切后台暂停：停侦听+TTS+KWS（保留会话状态，不释放引擎）。 */
     fun pause() {
         AppLog.i("VA", "切后台，暂停侦听与播放")
@@ -522,6 +548,7 @@ class VoiceAssistant(
         llm.cancel()
         if (ttsLazy.isInitialized()) tts.stop()
         releaseWakeLock()
+        exitGlobalAecMode()
         setState(State.IDLE)
     }
 
