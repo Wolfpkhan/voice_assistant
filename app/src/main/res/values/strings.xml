@@ -39,6 +39,7 @@
     <string name="pref_llm_system_text">llm_system_text</string>
     <string name="pref_tts_speed">tts_speed</string>
     <string name="pref_tts_sid">tts_sid</string>
+    <string name="pref_tts_engine">tts_engine</string>
     <string name="pref_voice_preview">voice_preview</string>
     <!-- 高级时间参数（单位见 title） -->
     <string name="pref_cooldown_ms">cooldown_ms</string>

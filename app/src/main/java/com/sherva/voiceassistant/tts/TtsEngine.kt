@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit
 class TtsEngine(
     context: Context,
     private val numThreads: Int = 2,
-) {
+) : TtsProvider {
     companion object {
         private const val CN_DIGITS = "零一二三四五六七八九"
 
@@ -291,7 +291,7 @@ class TtsEngine(
         return t
     }
 
-    fun isSpeaking() = speakJob?.isActive == true
+    override fun isSpeaking() = speakJob?.isActive == true
 
     /** ★ 仅生成不播放（用于音色预览）。 */
     fun generateSync(text: String, sid: Int, speed: Float): Pair<FloatArray, Int>? {
@@ -319,11 +319,11 @@ class TtsEngine(
      *   - 首响延迟 = 第一个 batch 生成时间（~0.3s）
      *   - barge-in：stop() 清空队列 + cancel 两个线程 + flush AudioTrack
      */
-    fun speak(
+    override fun speak(
         text: String,
         sid: Int,
         speed: Float,
-        onComplete: (() -> Unit)? = null,
+        onComplete: (() -> Unit)?,
     ) {
         if (text.isBlank()) { onComplete?.invoke(); return }
         val gen = ++generation
@@ -444,7 +444,7 @@ class TtsEngine(
      * ★ 只 pause+flush，不 play —— 让 AudioTrack 真正静音
      *   play() 会让消费者协程继续写入并播放
      *   下次 speak() 时 ensureTrack 会自动恢复 play */
-    fun stop() {
+    override fun stop() {
         stopped = true
         generation++
         producerDone = true  // 让消费者不等待
@@ -456,7 +456,7 @@ class TtsEngine(
         AppLog.i("TTS", "stop() 已执行：AudioTrack paused+flushed")
     }
 
-    fun release() {
+    override fun release() {
         stop()
         scope.cancel()
         track?.runCatching { stop(); release() }

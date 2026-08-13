@@ -10,7 +10,7 @@ import com.sherva.voiceassistant.asr.KeywordSpotterEngine
 import com.sherva.voiceassistant.asr.StreamingAsrEngine
 import kotlinx.coroutines.delay
 import com.sherva.voiceassistant.llm.LlmClient
-import com.sherva.voiceassistant.tts.TtsEngine
+import com.sherva.voiceassistant.tts.TtsProvider
 import com.sherva.voiceassistant.vad.BargeInDetector
 import kotlinx.coroutines.*
 import kotlin.coroutines.resume
@@ -56,6 +56,7 @@ class VoiceAssistant(
         val continuous: Boolean = true,       // 连续对话：答完自动继续聆听
         val ttsSpeed: Float = 1.0f,
         val ttsSid: Int = 3,                    // 默认中文女声 zf_001
+        val ttsEngine: String = "kokoro",      // "kokoro" | "system"
         val llmBaseUrl: String,
         val llmApiKey: String,
         val llmModel: String,
@@ -111,7 +112,14 @@ class VoiceAssistant(
         AppLog.i("VA", "初始化唤醒词检测引擎...")
         KeywordSpotterEngine(appContext)
     }
-    private val ttsLazy: Lazy<TtsEngine> = lazy { AppLog.i("VA", "初始化 TTS 引擎..."); TtsEngine(appContext) }
+    private val ttsLazy: Lazy<TtsProvider> = lazy {
+        AppLog.i("VA", "初始化 TTS 引擎: ${config.ttsEngine}")
+        if (config.ttsEngine == "system") {
+            com.sherva.voiceassistant.tts.SystemTtsEngine(appContext)
+        } else {
+            com.sherva.voiceassistant.tts.TtsEngine(appContext)
+        }
+    }
     private val bargeInLazy: Lazy<BargeInDetector> = lazy {
         AppLog.i("VA", "初始化打断检测器...")
         BargeInDetector(appContext, threshold = config.bargeThreshold,
@@ -119,7 +127,7 @@ class VoiceAssistant(
     }
     private val asr: StreamingAsrEngine get() = asrLazy.value
     private val kws: KeywordSpotterEngine get() = kwsLazy.value
-    private val tts: TtsEngine get() = ttsLazy.value
+    private val tts: TtsProvider get() = ttsLazy.value
     private val bargeIn: BargeInDetector get() = bargeInLazy.value
     private val llm = LlmClient(
         baseUrl = config.llmBaseUrl,

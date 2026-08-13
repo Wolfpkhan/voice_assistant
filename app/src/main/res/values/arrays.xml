@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="tts_engine_entries">
+        <item>Kokoro（高品质，慢，需加载模型）</item>
+        <item>系统 TTS（极速，音色一般）</item>
+    </string-array>
+    <string-array name="tts_engine_values">
+        <item>kokoro</item>
+        <item>system</item>
+    </string-array>
+</resources>

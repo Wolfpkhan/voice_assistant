@@ -48,6 +48,14 @@
     </PreferenceCategory>
 
     <PreferenceCategory android:title="语音合成">
+        <ListPreference
+            android:key="@string/pref_tts_engine"
+            android:title="TTS 引擎"
+            android:summary="系统 TTS 极速但音色一般；Kokoro 音质好但需加载模型（需重启 App 生效）"
+            android:entries="@array/tts_engine_entries"
+            android:entryValues="@array/tts_engine_values"
+            android:defaultValue="kokoro" />
+
         <SeekBarPreference
             android:key="@string/pref_tts_speed"
             android:title="语速"

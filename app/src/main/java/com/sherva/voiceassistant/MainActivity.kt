@@ -48,6 +48,7 @@ class MainActivity : AppCompatActivity() {
             val systemText = sp.getString(ctx.getString(R.string.pref_llm_system_text), ctx.getString(R.string.default_system_text))!!
             val speed = sp.getInt(ctx.getString(R.string.pref_tts_speed), 10) / 10.0f
             val ttsSid = sp.getInt(ctx.getString(R.string.pref_tts_sid), 3)
+            val ttsEngine = sp.getString(ctx.getString(R.string.pref_tts_engine), "kokoro") ?: "kokoro"
             val cooldownMs = sp.getInt(ctx.getString(R.string.pref_cooldown_ms), 600).toLong()
             val endpointSilence = sp.getInt(ctx.getString(R.string.pref_endpoint_silence), 12) / 10.0f
             val bargeGuardMs = sp.getInt(ctx.getString(R.string.pref_barge_guard_ms), 300).toLong()
@@ -63,6 +64,7 @@ class MainActivity : AppCompatActivity() {
             val wakeWord = sp.getString(ctx.getString(R.string.pref_wake_word), "嗨赛琳娜") ?: "嗨赛琳娜"
             return VoiceAssistant.Config(
                 continuous = true, ttsSpeed = speed, ttsSid = ttsSid,
+                ttsEngine = ttsEngine,
                 llmBaseUrl = baseUrl, llmApiKey = apiKey, llmModel = model,
                 systemPrompt = system, systemPromptText = systemText,
                 cooldownMs = cooldownMs, endpointTrailingSilenceSec = endpointSilence,
