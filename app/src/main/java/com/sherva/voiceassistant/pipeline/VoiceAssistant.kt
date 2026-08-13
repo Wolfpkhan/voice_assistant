@@ -410,33 +410,11 @@ class VoiceAssistant(
     }
 
     /**
-     * TTS 播报。
-     * - 系统 TTS：即时合成，跳过 BargeIn（省 135ms GTCRN 初始化 + 不占用麦克风）
-     * - Kokoro：RTF~0.8，需 BargeIn 检测用户打断
+     * TTS 播报（统一 BargeIn 打断支持）。
      */
     private suspend fun speakAll(text: String) {
         if (text.isBlank()) return
         AppLog.i("VA", "TTS 播报：${text.length}字 (引擎=${config.ttsEngine})")
-
-        // ★ 系统 TTS 走简化路径：不初始化 BargeIn
-        if (config.ttsEngine == "system") {
-            try {
-                suspendCancellableCoroutine<Unit> { cont ->
-                    tts.speak(
-                        text = text,
-                        sid = config.ttsSid,
-                        speed = config.ttsSpeed,
-                        onComplete = { if (cont.isActive) cont.resume(Unit) { } },
-                    )
-                    cont.invokeOnCancellation { tts.stop() }
-                }
-            } finally {
-                AppLog.i("VA", "系统 TTS 播报结束")
-            }
-            return
-        }
-
-        // ★ Kokoro 路径：Barge-in 支持
         var speakCont: CancellableContinuation<Unit>? = null
         bargeIn.start(onInterrupt = {
             AppLog.i("VA", "BargeIn 触发回调，enableBargeIn=${config.enableBargeIn}")
