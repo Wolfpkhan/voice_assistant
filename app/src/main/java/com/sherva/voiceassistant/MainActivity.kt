@@ -936,6 +936,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun onAssistantDelta(delta: String) = runOnUiThread {
+            AppLog.i("Main", "onAssistantDelta: ${delta.length}字: \"${delta.take(20)}...\"")
             if (delta == "null" || delta.isBlank()) return@runOnUiThread
             // ★ 节流：累积 delta，每 100ms 才刷一次 UI（Markdown 渲染很贵）
             synchronized(pendingDelta) {
@@ -975,11 +976,11 @@ class MainActivity : AppCompatActivity() {
             // 以完整文本为准：覆盖或重建最后一条助手气泡，避免 delta 拼接不完整
             val final = text.trim()
             if (final.isEmpty()) return@runOnUiThread
-            val last = adapter.currentList.lastOrNull()
-            if (last?.role == ChatMessage.Role.ASSISTANT && last.id == curAssistantId) {
+            // ★ 只信任同步的 curAssistantId：last?.id 不可靠（AsyncListDiffer 异步）
+            if (curAssistantId != -1L) {
                 adapter.commitLastAssistant(final)   // ★ 覆盖 + 强制走 Markdown
                 streamedText.setLength(0)
-                streamedText.append(final)   // ★ 同步追踪：后续 flushDeltas 接着这个累积
+                streamedText.append(final)
                 AppLog.i("Main", "提交助手气泡 (id=${curAssistantId})")
             } else {
                 val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, final)
@@ -1002,6 +1003,7 @@ class MainActivity : AppCompatActivity() {
 
         // ★ 思考过程增量：累积到当前助手气泡的折叠区
         override fun onReasoningDelta(delta: String) = runOnUiThread {
+            AppLog.i("Main", "onReasoningDelta: ${delta.length}字: \"${delta.take(20)}...\"")
             if (delta.isBlank()) return@runOnUiThread
             // ★ 节流：复用 pendingDelta 同样的机制但单独累积 reasoning
             synchronized(pendingReasoning) {
