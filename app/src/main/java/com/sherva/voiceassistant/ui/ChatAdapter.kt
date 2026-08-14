@@ -178,14 +178,13 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         }
     }
 
-    /** ★ 追加最后一条助手消息的思考过程（用于 reasoning 流式增量）。 */
-    fun updateLastReasoning(delta: String) {
+    /** ★ 设置最后一条助手消息的思考过程（完整覆盖，用于 reasoning 流式）。 */
+    fun setLastReasoning(reasoning: String) {
         val idx = backingList.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
         if (idx >= 0) {
-            val cur = backingList[idx].reasoning ?: ""
-            backingList[idx] = backingList[idx].copy(reasoning = cur + delta)
+            // ★ 直接覆盖（flushReasoning 已累积完整内容），不再追加，避免重复
+            backingList[idx] = backingList[idx].copy(reasoning = reasoning)
             submitList(ArrayList(backingList))
-            // ★ 只通知折叠区重渲染，不走 text 流式检测（避免无谓 Markwon 渲染）
             notifyItemChanged(idx, PAYLOAD_REASONING)
         }
     }

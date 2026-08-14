@@ -108,6 +108,8 @@ class MainActivity : AppCompatActivity() {
     private val pendingDelta = StringBuilder()
     private var flushRunnable: Runnable? = null
     private val FLUSH_INTERVAL_MS = 100L
+    /** ★ reasoning 节流间隔（比 text 慢，避免高频重绘眼花）。 */
+    private val REASONING_FLUSH_INTERVAL_MS = 300L
     /** ★ 当前助手气泡已写入 UI 的文本同步追踪（避免 AsyncListDiffer 异步 currentList 带来的竞态）。 */
     private val streamedText = StringBuilder()
     /** ★ 当前助手气泡已写入 UI 的 reasoning 同步追踪。 */
@@ -1013,7 +1015,7 @@ class MainActivity : AppCompatActivity() {
                 pendingReasoning.append(delta)
                 if (flushReasoningRunnable == null) {
                     flushReasoningRunnable = Runnable { flushReasoning() }
-                    uiHandler.postDelayed(flushReasoningRunnable!!, FLUSH_INTERVAL_MS)
+                    uiHandler.postDelayed(flushReasoningRunnable!!, REASONING_FLUSH_INTERVAL_MS)
                 }
             }
         }
@@ -1048,8 +1050,7 @@ class MainActivity : AppCompatActivity() {
             scrollToEnd(smooth = true)
         } else {
             streamedReasoning.append(batch)
-            adapter.updateLastReasoning(streamedReasoning.toString())
-            scrollToEnd(smooth = true)   // ★ 思考过程展开时高度不断增长，跟随滚动
+            adapter.setLastReasoning(streamedReasoning.toString())
         }
     }
 
