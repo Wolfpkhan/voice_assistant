@@ -1047,7 +1047,9 @@ class MainActivity : AppCompatActivity() {
             streamedReasoning.clear()
             streamedReasoning.append(batch)
             adapter.add(msg)
-            scrollToEnd(smooth = true)
+            // ★ 新气泡出现时直接跳到底部（不 smooth，避免被高频重绘打断）
+            scrollToEnd(smooth = false)
+            messagesView.postDelayed({ scrollToEnd(smooth = false) }, 100)
         } else {
             streamedReasoning.append(batch)
             adapter.setLastReasoning(streamedReasoning.toString())
