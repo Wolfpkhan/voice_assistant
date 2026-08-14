@@ -356,6 +356,9 @@ class VoiceAssistant(
         setState(State.THINKING)
         // ★ STT/文字已发送给 pi 服务，开始思考的提示音（仅语音模式）
         if (!textMode) com.sherva.voiceassistant.audio.SoundEffects.sent()
+        // ★ 思考期间（无 ASR/TTS 占用）恢复音乐：让用户听音乐，
+        //   不必干等 3-10s 思考时间。TTS 即将播放时再 pauseMusic。
+        resumeMusic()
         val reply = StringBuilder()
         val reasoning = StringBuilder()   // ★ 思考过程全文
         val startTime = System.currentTimeMillis()
@@ -386,7 +389,10 @@ class VoiceAssistant(
             if (textMode) {
                 // 文字模式：不播报 TTS，只显示文字
                 AppLog.i("VA", "文字模式，跳过 TTS 播报")
+                // 下方统一在进入 IDLE 时 resumeMusic
             } else {
+                // ★ TTS 即将播放：再次暂停音乐（让 TTS 独占扬声器）
+                pauseMusic()
                 // TTS 播报：整段一次性喂 sherpa（内部按 token 分 batch 连续生成）
                 //   不再外层按句分——避免每句 generate 的启动开销
                 //   barge-in 通过 callback 返回 0 实现
@@ -408,8 +414,11 @@ class VoiceAssistant(
                 AppLog.i("VA", "文字模式，保持待听（不自动开启聆听）")
                 active = false   // ★ 复位，允许下次文字输入
                 setState(State.IDLE)
+                // ★ 进入 IDLE（非聆听）：恢复音乐，让用户继续听
+                resumeMusic()
             } else {
-                // ★ 被打断时跳过冷却：用户已经开口说话，不应再等
+                // ★ 语音模式连续模式：即将进入 LISTENING，不恢复音乐（马上要听用户）
+                //   被打断时跳过冷却：用户已经开口说话，不应再等
                 //   只有正常播完才冷却（防尾音回声）
                 if (wasInterrupted) {
                     AppLog.i("VA", "打断后立即重新聆听（跳过冷却）")
@@ -423,6 +432,8 @@ class VoiceAssistant(
         } else {
             active = false   // ★ 复位
             setState(State.IDLE)
+            // ★ 非连续模式 / 已 IDLE：恢复音乐
+            resumeMusic()
         }
     }
 
