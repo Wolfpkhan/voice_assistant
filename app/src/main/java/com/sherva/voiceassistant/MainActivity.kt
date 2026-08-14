@@ -108,6 +108,10 @@ class MainActivity : AppCompatActivity() {
     private val pendingDelta = StringBuilder()
     private var flushRunnable: Runnable? = null
     private val FLUSH_INTERVAL_MS = 100L
+    /** ★ 当前助手气泡已写入 UI 的文本同步追踪（避免 AsyncListDiffer 异步 currentList 带来的竞态）。 */
+    private val streamedText = StringBuilder()
+    /** ★ 当前助手气泡已写入 UI 的 reasoning 同步追踪。 */
+    private val streamedReasoning = StringBuilder()
 
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -922,6 +926,8 @@ class MainActivity : AppCompatActivity() {
         override fun onUserText(text: String) = runOnUiThread {
             partialText.visibility = android.view.View.GONE
             curAssistantId = -1L   // 新一轮，下一条助手消息会是新的
+            streamedText.setLength(0)
+            streamedReasoning.setLength(0)
             adapter.add(ChatMessage.create(ChatMessage.Role.USER, text))
             ChatStore.save(text, isFromUser = true)   // 落库
             // ★ 双重滚动：立即 + 延迟（应对布局刷新延迟）
@@ -950,17 +956,16 @@ class MainActivity : AppCompatActivity() {
                 pendingDelta.clear()
                 flushRunnable = null
             }
-            val last = adapter.currentList.lastOrNull()
-            if (curAssistantId != -1L && last?.role == ChatMessage.Role.ASSISTANT && last.id == curAssistantId) {
-                adapter.updateLastAssistant(last.text + batch)
-            } else {
-                val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, batch)
+            // ★ 同步跟踪：避免 AsyncListDiffer 异步 currentList 误判
+            if (curAssistantId == -1L) {
+                val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "")
                 curAssistantId = msg.id
+                streamedText.clear()
                 adapter.add(msg)
-                // ★ 新增气泡才需要 scroll（流式增量 update 不 scroll，避免每秒 10 次抖动）
                 scrollToEnd(smooth = true)
             }
-            // 流式期间不 scroll：只在 onAssistantComplete 后 scroll 一次
+            streamedText.append(batch)
+            adapter.updateLastAssistant(streamedText.toString())
         }
 
         override fun onAssistantComplete(text: String) = runOnUiThread {
@@ -973,10 +978,14 @@ class MainActivity : AppCompatActivity() {
             val last = adapter.currentList.lastOrNull()
             if (last?.role == ChatMessage.Role.ASSISTANT && last.id == curAssistantId) {
                 adapter.commitLastAssistant(final)   // ★ 覆盖 + 强制走 Markdown
+                streamedText.setLength(0)
+                streamedText.append(final)   // ★ 同步追踪：后续 flushDeltas 接着这个累积
                 AppLog.i("Main", "提交助手气泡 (id=${curAssistantId})")
             } else {
                 val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, final)
                 curAssistantId = msg.id
+                streamedText.setLength(0)
+                streamedText.append(final)
                 adapter.add(msg)
                 AppLog.i("Main", "新增助手气泡 (id=${curAssistantId})")
             }
@@ -1018,15 +1027,18 @@ class MainActivity : AppCompatActivity() {
             pendingReasoning.clear()
             flushReasoningRunnable = null
         }
-        // ★ 边界：如果 reasoning 先于 text 到达，flushDeltas 还没建气泡——先建空气泡
-        val last = adapter.currentList.lastOrNull()
-        if (curAssistantId == -1L || last?.role != ChatMessage.Role.ASSISTANT || last.id != curAssistantId) {
+        // ★ 同步跟踪：避免 AsyncListDiffer 异步 currentList 误判
+        if (curAssistantId == -1L) {
             val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "")
             curAssistantId = msg.id
+            streamedText.clear()
+            streamedReasoning.clear()
             adapter.add(msg)
             AppLog.i("Main", "提前创建空气泡 (reasoning 先到) (id=${curAssistantId})")
+            scrollToEnd(smooth = true)
         }
-        adapter.updateLastReasoning(batch)
+        streamedReasoning.append(batch)
+        adapter.updateLastReasoning(streamedReasoning.toString())
     }
 
     /** 滚动到底部。smooth=true 平滑（新消息到达），false 直接跳（首次加载）。借鉴 hermes 的 animateScrollToItem。 */
