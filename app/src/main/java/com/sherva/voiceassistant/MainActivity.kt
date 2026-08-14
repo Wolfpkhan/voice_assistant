@@ -957,12 +957,13 @@ class MainActivity : AppCompatActivity() {
                 pendingDelta.clear()
                 flushRunnable = null
             }
-            // ★ 同步跟踪：避免 AsyncListDiffer 异步 currentList 误判
+            // ★ 第一次 text 到达时建气泡（和之前没 think 时一样的时机，保证在 USER 之后）
+            //   同时把已累积的 reasoning 一起带上（思考内容已有但气泡刚建）
             if (curAssistantId == -1L) {
-                val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "")
+                val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, batch)
+                    .copy(reasoning = streamedReasoning.toString().ifBlank { null })
                 curAssistantId = msg.id
                 streamedText.clear()
-                AppLog.i("Main", "flushDeltas 创建新气泡 (id=${curAssistantId}), list size=${adapter.currentList.size}")
                 adapter.add(msg)
                 scrollToEnd(smooth = true)
             }
@@ -985,6 +986,7 @@ class MainActivity : AppCompatActivity() {
                 AppLog.i("Main", "提交助手气泡 (id=${curAssistantId})")
             } else {
                 val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, final)
+                    .copy(reasoning = streamedReasoning.toString().ifBlank { null })
                 curAssistantId = msg.id
                 streamedText.setLength(0)
                 streamedText.append(final)
@@ -1021,7 +1023,10 @@ class MainActivity : AppCompatActivity() {
     private val pendingReasoning = StringBuilder()
     private var flushReasoningRunnable: Runnable? = null
 
-    /** 取出累积的 reasoning 追加到最后一条助手气泡的思考区。 */
+    /** 取出累积的 reasoning。
+     *  ★ 不建气泡！只累积到 streamedReasoning。等 text 第一次到达时（flushDeltas）才建气泡，
+     *    这样气泡一定在 USER 消息之后（text 比 reasoning 晚到，天然保证顺序正确）。
+     *    气泡已存在时（text 已开始流式），才调 updateLastReasoning 刷新折叠区。 */
     private fun flushReasoning() {
         val batch: String
         synchronized(pendingReasoning) {
@@ -1030,18 +1035,12 @@ class MainActivity : AppCompatActivity() {
             pendingReasoning.clear()
             flushReasoningRunnable = null
         }
-        // ★ 同步跟踪：避免 AsyncListDiffer 异步 currentList 误判
-        if (curAssistantId == -1L) {
-            val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "")
-            curAssistantId = msg.id
-            streamedText.clear()
-            streamedReasoning.clear()
-            AppLog.i("Main", "提前创建空气泡 (reasoning 先到) (id=${curAssistantId}), list size=${adapter.currentList.size}")
-            adapter.add(msg)
-            scrollToEnd(smooth = true)
-        }
         streamedReasoning.append(batch)
-        adapter.updateLastReasoning(streamedReasoning.toString())
+        // ★ 气泡还没建（curAssistantId==-1）→ 只累积，不刷新 UI（等 text 来时一起建）
+        //   气泡已建（text 已开始流式）→ 刷新折叠区
+        if (curAssistantId != -1L) {
+            adapter.updateLastReasoning(streamedReasoning.toString())
+        }
     }
 
     /** 滚动到底部。smooth=true 平滑（新消息到达），false 直接跳（首次加载）。借鉴 hermes 的 animateScrollToItem。 */
