@@ -35,7 +35,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         // ★ 思考过程折叠区（默认隐藏）
         val reasoningHeader: TextView = v.findViewById(R.id.reasoningHeader)
         val reasoningText: TextView = v.findViewById(R.id.reasoningText)
-        var expanded = false
+        var expanded = true   // ★ 默认展开，让用户看到实时思考过程
         /** ★ 上一轮 onBind 时的文本长度：用于检测流式增量。 */
         var lastBoundTextLen: Int = 0
         /** ★ 是否上一轮走的是 Markdown（用于决定本次是否重渲染）。 */

@@ -1035,11 +1035,21 @@ class MainActivity : AppCompatActivity() {
             pendingReasoning.clear()
             flushReasoningRunnable = null
         }
-        streamedReasoning.append(batch)
-        // ★ 气泡还没建（curAssistantId==-1）→ 只累积，不刷新 UI（等 text 来时一起建）
-        //   气泡已建（text 已开始流式）→ 刷新折叠区
-        if (curAssistantId != -1L) {
+        // ★ reasoning 比 text 先到（思考在前）→ 第一次时建气泡，后续实时刷新折叠区
+        //   顺序安全：onUserText 的 broadcast 在 handleLlmTurn 之前调用，Handler FIFO 保证
+        //   USER 气泡先建；ChatAdapter backingList 同步，不会丢数据。
+        if (curAssistantId == -1L) {
+            val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "")
+                .copy(reasoning = batch)
+            curAssistantId = msg.id
+            streamedReasoning.clear()
+            streamedReasoning.append(batch)
+            adapter.add(msg)
+            scrollToEnd(smooth = true)
+        } else {
+            streamedReasoning.append(batch)
             adapter.updateLastReasoning(streamedReasoning.toString())
+            scrollToEnd(smooth = true)   // ★ 思考过程展开时高度不断增长，跟随滚动
         }
     }
 
