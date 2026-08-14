@@ -584,8 +584,10 @@ class VoiceAssistant(
         }
         // ★ WAKE_WORD 状态回前台：切后台时 KWS 被 stop 了，需重启
         if (state == State.WAKE_WORD) {
-            if (inWakeWord && !kws.isRunning) {
+            // ★ 不能用 inWakeWord 判断（pause() 会把它设回 false），要用 kws.isRunning 实际状态
+            if (!kws.isRunning) {
                 AppLog.i("VA", "回前台，重启唤醒模式（KWS 被后台停了）")
+                inWakeWord = true   // ★ 同步修正状态
                 try {
                     kws.start { keyword ->
                         AppLog.i("VA", "唤醒词命中: $keyword")
