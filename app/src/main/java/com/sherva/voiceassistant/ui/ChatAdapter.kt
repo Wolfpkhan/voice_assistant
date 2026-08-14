@@ -135,40 +135,43 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         }
     }
 
+    /** ★ 同步后备列表：不依赖 AsyncListDiffer 的 currentList（异步），避免连续 submitList 时丢数据。 */
+    private val backingList = mutableListOf<ChatMessage>()
+
     /** 追加一条消息（滚动由调用方处理）。 */
-    fun add(msg: ChatMessage) = submitList(currentList + msg)
+    fun add(msg: ChatMessage) {
+        backingList.add(msg)
+        submitList(ArrayList(backingList))
+    }
 
     /** 替换或追加：若 [msg] 的 id 已存在则更新，否则追加。 */
     fun upsert(msg: ChatMessage) {
-        val list = currentList.toMutableList()
-        val idx = list.indexOfFirst { it.id == msg.id }
-        if (idx >= 0) list[idx] = msg else list.add(msg)
-        submitList(list)
+        val idx = backingList.indexOfFirst { it.id == msg.id }
+        if (idx >= 0) backingList[idx] = msg else backingList.add(msg)
+        submitList(ArrayList(backingList))
     }
 
     /** 更新最后一条助手消息（用于流式增量），没有则新增。 */
     fun updateLastAssistant(text: String) {
-        val list = currentList.toMutableList()
-        val idx = list.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
+        val idx = backingList.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
         if (idx >= 0) {
             // ★ copy() 保留 id 和 reasoning（id 是主构造参数），DiffUtil 识别为同一 item → 原地更新不新增
-            list[idx] = list[idx].copy(text = text)
+            backingList[idx] = backingList[idx].copy(text = text)
         } else {
-            list.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text))
+            backingList.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text))
         }
-        submitList(list)
+        submitList(ArrayList(backingList))
     }
 
     /** ★ 最终提交（用于 onAssistantComplete）：覆盖文本 + 通知 holder 重新走 Markdown。 */
     fun commitLastAssistant(text: String) {
-        val list = currentList.toMutableList()
-        val idx = list.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
+        val idx = backingList.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
         if (idx >= 0) {
-            list[idx] = list[idx].copy(text = text)
+            backingList[idx] = backingList[idx].copy(text = text)
         } else {
-            list.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text))
+            backingList.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text))
         }
-        submitList(list)
+        submitList(ArrayList(backingList))
         // ★ notifyItemChanged 带 payload：触发 onBindViewHolder(holder, idx, payloads) 重载，强制走 Markdown
         if (idx >= 0) {
             notifyItemChanged(idx, PAYLOAD_FORCE_MARKDOWN)
@@ -177,20 +180,25 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
 
     /** ★ 追加最后一条助手消息的思考过程（用于 reasoning 流式增量）。 */
     fun updateLastReasoning(delta: String) {
-        val list = currentList.toMutableList()
-        val idx = list.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
+        val idx = backingList.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
         if (idx >= 0) {
-            val cur = list[idx].reasoning ?: ""
-            list[idx] = list[idx].copy(reasoning = cur + delta)
-            submitList(list)
+            val cur = backingList[idx].reasoning ?: ""
+            backingList[idx] = backingList[idx].copy(reasoning = cur + delta)
+            submitList(ArrayList(backingList))
             // ★ 只通知折叠区重渲染，不走 text 流式检测（避免无谓 Markwon 渲染）
             notifyItemChanged(idx, PAYLOAD_REASONING)
         }
     }
 
-    fun clearAll() = submitList(emptyList())
+    fun clearAll() {
+        backingList.clear()
+        submitList(emptyList())
+    }
 
     /** 一次性替换整个列表（避免 clearAll+逐个 add 的异步竞态叠加）。 */
-    fun submitAll(list: List<ChatMessage>, onCommit: Runnable? = null) =
-        submitList(list, onCommit)
+    fun submitAll(list: List<ChatMessage>, onCommit: Runnable? = null) {
+        backingList.clear()
+        backingList.addAll(list)
+        submitList(ArrayList(backingList), onCommit)
+    }
 }
