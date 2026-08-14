@@ -104,7 +104,11 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                 } else {
                     val oldLen = h.lastBoundTextLen
                     val curText = h.text.text.toString()
-                    val isIncrementalAppend = newText.length > oldLen
+                    // ★ 首次 bind 判定：lastBoundTextLen=0 表示从未渲染过，必须走 Markdown
+                    //   （修复：首次 bind 时 h.text.text=""，startsWith("")=true 会误判为增量跳过 Markdown）
+                    val isFirstBind = oldLen == 0 && newText.isNotEmpty()
+                    val isIncrementalAppend = !isFirstBind
+                            && newText.length > oldLen
                             && newText.length >= curText.length
                             && newText.startsWith(curText)
                     if (isIncrementalAppend) {
