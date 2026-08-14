@@ -46,15 +46,6 @@
     <string name="pref_cooldown_ms">cooldown_ms</string>
     <string name="pref_endpoint_silence">endpoint_silence</string>
     <string name="pref_mic_gain">mic_gain</string>
-    <string name="pref_asr_provider">asr_provider</string>
-    <string-array name="asr_provider_entries">
-        <item>CPU（流式·边说边出字）</item>
-        <item>QNN（NPU加速·骁龙888+）</item>
-    </string-array>
-    <string-array name="asr_provider_values">
-        <item>cpu</item>
-        <item>qnn</item>
-    </string-array>
     <string name="pref_wake_word_idle_sec">wake_word_idle_sec</string>
     <string name="pref_wake_word">wake_word</string>
     <string name="pref_global_aec">global_aec</string>

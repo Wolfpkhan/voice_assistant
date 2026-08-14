@@ -43,10 +43,8 @@ app/src/main/java/com/sherva/voiceassistant/
 │   └── SoundEffects.kt        # 提示音
 ├── vad/VadEngine.kt           # silero-vad 封装
 ├── asr/
-│   ├── AsrEngine.kt           # paraformer 离线识别（provider=cpu/qnn 可切，失败自动回退）
+│   ├── AsrEngine.kt           # paraformer 离线识别（备用；主链路用流式）
 │   ├── StreamingAsrEngine.kt  # 流式识别（CPU）
-│   ├── QnnAsrEngine.kt        # QNN(NPU)：VAD + 5s 滑窗模拟流式
-│   ├── VoiceAsrEngine.kt      # 两引擎公共接口（start/stop/resetStream/release）
 │   └── KeywordSpotterEngine.kt # 唤醒词 KWS
 ├── tts/
 │   ├── TtsEngine.kt           # matcha-baker 流式合成（可中断）
@@ -97,20 +95,18 @@ app/src/main/java/com/sherva/voiceassistant/
 
 ### 🔜 待办 / 优化方向
 
-- [x] **QNN/HTP 加速（已完成 2026-08-14，真机验证结论 08-15）**：设置页「ASR 加速」可切 CPU/QNN；QNN 模式
-      = 离线 paraformer QNN 5s 窗 + silero VAD + 滑窗模拟流式（官方无中文流式 QNN）。
-      实现：`VoiceAsrEngine` 接口 + `QnnAsrEngine`；`AsrEngine(useQnn)` 双 provider 构造，
-      失败自动回退 CPU。启用：`download-models.sh --qnn` + `download-qnn-libs.sh`。
-      ⚠️ **真机结论（vivo V2303A/SM8550/Android 16）：HTP 不可用**——deviceCreate 恒返 14001，
-      unsigned 与 odm 签名 Skel 均被 cDSP 拒载（高通量产机安全模型，需厂商白名单/系统签名/root）。
-      已固化：native 崩溃点全部改为抛异常（重编 libsherpa-onnx-jni.so，含 QNN backend +
-      LOGE 落盘 Download/qnn_native.log）；QNN 失败自动回退流式 CPU 不闪退；默认不打包 QNN 资产（省 ~230MB）。
-      换机（如解锁/开发机）可重跑两个下载脚本启用。
 - [ ] **APK 瘦身**（优先）：模型不打包 assets，改运行时下载到 `filesDir`，~350MB → ~15MB
-- [ ] **QNN 真机跟进**：当前机 cDSP 拒载 Skel（14001）。可验：adb root 设备、
-      或高通 HTP unsigned PD 开发模式（`setprop vendor.htp.pd_mode 0` 需 root）
 - [ ] **低延迟**：VAD `minSilenceDuration` 降至 0.3s
 - [ ] 可选：VITS-Baker 不存在，若要 VITS 架构用 `vits-melo-tts-zh_en`（见 `ModelPaths.kt` 注释）
+
+### ❌ 已否决方向（避免重复踩坑）
+
+- **QNN/NPU 加速（2026-08-15 真机验证否决）**：vivo V2303A（SM8550/Android 16）
+      cDSP 拒载任何第三方 HTP Skel（deviceCreate 14001，unsigned 官方库与 odm
+      签名版均不行），高通量产安全模型所致，需厂商白名单/系统签名/root。
+      完整实现见 git 历史（47567c2），换解锁机可参考重试。
+      附带收获：重编过抗崩溃版 libsherpa-onnx-jni.so（SHERPA_ONNX_EXIT→抛异常），
+      当前 AAR 即此版本，native 报错不再杀进程。
 
 ## 开发备忘
 

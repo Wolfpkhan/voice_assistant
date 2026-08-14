@@ -112,15 +112,6 @@
             android:min="10"
             android:max="30"
             app:showSeekBarValue="true" />
-
-        <!-- ASR 加速：CPU 流式 vs QNN NPU -->
-        <ListPreference
-            android:key="@string/pref_asr_provider"
-            android:title="ASR 加速（实验性）"
-            android:summary="QNN 走骁龙 NPU(HTP)，识别更快更省电；需先运行 download-models.sh --qnn 与 download-qnn-libs.sh。不可用时自动回退 CPU"
-            android:entries="@array/asr_provider_entries"
-            android:entryValues="@array/asr_provider_values"
-            android:defaultValue="cpu" />
     </PreferenceCategory>
 
     <!-- 唤醒词模式：语音模式下始终启用，省电 + 防误触 -->

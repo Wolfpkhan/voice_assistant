@@ -66,24 +66,18 @@ app/src/main/java/com/sherva/voiceassistant/
 
 ## 性能优化方向
 
-- **QNN/HTP 加速（已支持，可切换）**：设置页「ASR 加速」选 QNN，走骁龙 NPU。
-  官方无中文流式 QNN 模型，故 QNN 模式为：离线 paraformer QNN 5 秒窗 +
-  silero VAD + 滑窗模拟流式。启用步骤：
-  ```bash
-  bash scripts/download-models.sh --qnn   # QNN 模型包(~70MB)到 assets
-  bash scripts/download-qnn-libs.sh       # libQnnHtp.so 等到 jniLibs
-  # 重新编译安装；设置 → 高级 → ASR 加速 → QNN
-  ```
-  运行时 QNN 初始化失败（缺模型/缺so/芯片不支持）会自动回退 CPU，
-  日志 tag `ASR` 可见实际 provider。
 - **APK 瘦身**：模型不打包进 assets，改运行时下载到 `filesDir`（见
   `ModelPaths.ensureExtracted`），APK 可从 ~350MB 降到 ~15MB。
 - **低延迟播报**：当前已实现 LLM 流式 token 边收边按句切分入 TTS 队列；
   进一步可降低 VAD `minSilenceDuration` 到 0.3s 让应答更紧凑。
+- **QNN/NPU**：已验证不可行（vivo 商用机 cDSP 拒载第三方 HTP Skel，
+  deviceCreate 14001），不启用；详见 git 历史。
 
 ## 依赖
 
-- sherpa-onnx 1.13.4 (AAR)
+- sherpa-onnx 1.13.4 (AAR) — ℹ️ jni 库为 Termux 重编版（抗崩溃补丁：
+  native `SHERPA_ONNX_EXIT` 杀进程点改为抛 Java 异常，模型加载失败不闪退；
+  重编方法见 git 历史 47567c2）
 - Kotlin + Coroutines
 - OkHttp (SSE)
 - AndroidX / Material Components
