@@ -64,10 +64,12 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
             TYPE_NOTICE -> NoticeVH(inf.inflate(R.layout.item_message_notice, parent, false))
             else -> {
                 val vh = AssistantVH(inf.inflate(R.layout.item_message_assistant, parent, false))
-                // ★ 点击思考区头部展开/折叠
+                // ★ 点击思考区头部展开/折叠：直接改 View，不走 notifyItemChanged
+                //   （避免完整重绑导致 ViewHolder 被替换成新的 expanded=true 默认值，需点两次）
                 vh.reasoningHeader.setOnClickListener {
                     vh.expanded = !vh.expanded
-                    notifyItemChanged(vh.bindingAdapterPosition)
+                    vh.reasoningHeader.text = if (vh.expanded) "▼ 思考过程" else "▶ 思考过程"
+                    vh.reasoningText.visibility = if (vh.expanded) View.VISIBLE else View.GONE
                 }
                 vh
             }
