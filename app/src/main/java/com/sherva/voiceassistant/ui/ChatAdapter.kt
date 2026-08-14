@@ -21,8 +21,10 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         private const val TYPE_NOTICE = 3
         /** ★ notifyItemChanged payload：强制下次 bind 走 Markdown（用于 onAssistantComplete）。 */
         const val PAYLOAD_FORCE_MARKDOWN = "force_markdown"
-        /** ★ notifyItemChanged payload：只重渲染折叠区（用于 updateLastReasoning）。 */
+        /** ★ notifyItemChanged payload：只重渲染折叠区（用于 setLastReasoning）。 */
         const val PAYLOAD_REASONING = "reasoning_only"
+        /** ★ 增量追加正文（流式 delta，只 append 不重渲染，避免高频闪烁） */
+        data class PayloadAppendText(val delta: String)
         private val DIFF = object : DiffUtil.ItemCallback<ChatMessage>() {
             override fun areItemsTheSame(a: ChatMessage, b: ChatMessage) = a.id == b.id
             override fun areContentsTheSame(a: ChatMessage, b: ChatMessage) =
@@ -85,6 +87,12 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         when (h) {
             is AssistantVH -> {
                 val rs = m.reasoning
+                // ★ 增量追加正文：只 append delta 到 TextView，不走 Markdown 不 submitList
+                val appendDelta = payloads.filterIsInstance<PayloadAppendText>().firstOrNull()
+                if (appendDelta != null) {
+                    h.text.append(appendDelta.delta)
+                    return
+                }
                 // ★ 仅重渲染折叠区（reasoning 增量专用 payload，不动 text）
                 if (payloads.contains(PAYLOAD_REASONING)) {
                     if (!rs.isNullOrBlank()) {
@@ -149,6 +157,16 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         val idx = backingList.indexOfFirst { it.id == msg.id }
         if (idx >= 0) backingList[idx] = msg else backingList.add(msg)
         submitList(ArrayList(backingList))
+    }
+
+    /** ★ 增量追加正文：不 submitList，只 notifyItemChanged(PayloadAppendText)，
+     *    holder 做 TextView.append(delta) —— 增量布局，避免高频 setText 全量闪烁。 */
+    fun appendLastAssistant(delta: String) {
+        val idx = backingList.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
+        if (idx >= 0) {
+            backingList[idx] = backingList[idx].copy(text = backingList[idx].text + delta)
+            notifyItemChanged(idx, PayloadAppendText(delta))
+        }
     }
 
     /** 更新最后一条助手消息（用于流式增量），没有则新增。 */

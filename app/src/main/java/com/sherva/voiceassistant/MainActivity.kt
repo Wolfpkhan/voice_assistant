@@ -967,10 +967,12 @@ class MainActivity : AppCompatActivity() {
                 curAssistantId = msg.id
                 streamedText.clear()
                 adapter.add(msg)
-                scrollToEnd(smooth = true)
+                scrollToEnd(smooth = false)
+            } else {
+                // ★ 增量 append（不 setText 全量，避免高频重绘眼花）
+                adapter.appendLastAssistant(batch)
             }
             streamedText.append(batch)
-            adapter.updateLastAssistant(streamedText.toString())
         }
 
         override fun onAssistantComplete(text: String) = runOnUiThread {
