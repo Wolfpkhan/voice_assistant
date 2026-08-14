@@ -655,12 +655,10 @@ class MainActivity : AppCompatActivity() {
         assistant?.let { a ->
             listener.onState(a.state)
         }
-        // 回前台：仅当没有 Service 在运行时才恢复语音侦听（避免和 Service 冲突）
-        if (com.sherva.voiceassistant.service.VoiceAssistantService.instance == null) {
-            assistant?.resume()
-        } else {
-            AppLog.i("Main", "onResume：Service 在运行，跳过 resume（让悬浮球继续管）")
-        }
+        // ★ 回前台：恢复语音侦听 / 唤醒词监听
+        //   即使 Service 在跑（悬浮球模式）也要调 resume，因为切后台时 KWS 被 pause 停了，
+        //   需要在这里重启 KWS（resume 内部判断 state 决定动作）
+        assistant?.resume()
         // 按当前状态刷新 UI（避免状态丢失）: 文字模式不需要 startButton
         assistant?.let { a ->
             if (a.state == com.sherva.voiceassistant.pipeline.VoiceAssistant.State.IDLE) {
