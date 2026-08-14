@@ -17,12 +17,45 @@
         android:src="@drawable/avatar_assistant"
         android:contentDescription="@string/app_name" />
 
-    <TextView
-        android:id="@+id/messageText"
-        style="@style/MessageText"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:textIsSelectable="true" />
+        android:orientation="vertical">
+
+        <!-- ★ 思考过程（折叠/展开，默认隐藏） -->
+        <TextView
+            android:id="@+id/reasoningHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:paddingVertical="4dp"
+            android:paddingHorizontal="10dp"
+            android:background="@drawable/bg_reasoning_pill"
+            android:text="▶ 思考过程"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/reasoningText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:layout_marginTop="4dp"
+            android:padding="8dp"
+            android:background="@drawable/bg_reasoning_box"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true" />
+
+        <TextView
+            android:id="@+id/messageText"
+            style="@style/MessageText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textIsSelectable="true" />
+
+    </LinearLayout>
 
 </LinearLayout>

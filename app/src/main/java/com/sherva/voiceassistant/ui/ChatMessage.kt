@@ -10,6 +10,8 @@ data class ChatMessage(
     val role: Role,
     val text: String,
     val id: Long,
+    /** ★ 思考过程全文（reasoning 模型才有，普通模型为 null）。可折叠展示。 */
+    val reasoning: String? = null,
 ) {
     enum class Role { USER, ASSISTANT, NOTICE }
 

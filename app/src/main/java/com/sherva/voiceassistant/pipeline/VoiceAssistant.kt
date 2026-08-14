@@ -40,6 +40,8 @@ class VoiceAssistant(
         override fun onAssistantDelta(delta: String) {}
         override fun onAssistantComplete(text: String) {}
         override fun onError(message: String) {}
+        override fun onReasoningStart() {}
+        override fun onReasoningDelta(delta: String) {}
     }
 
     /**
@@ -88,6 +90,8 @@ class VoiceAssistant(
         fun onError(message: String)
         /** 进入深度思考阶段（reasoning 模型）。 */
         fun onReasoningStart() {}
+        /** ★ 思考过程增量（用于 UI 折叠展示）。 */
+        fun onReasoningDelta(delta: String) {}
     }
 
     companion object {
@@ -353,6 +357,7 @@ class VoiceAssistant(
         // ★ STT/文字已发送给 pi 服务，开始思考的提示音（仅语音模式）
         if (!textMode) com.sherva.voiceassistant.audio.SoundEffects.sent()
         val reply = StringBuilder()
+        val reasoning = StringBuilder()   // ★ 思考过程全文
         val startTime = System.currentTimeMillis()
         var reasoningSeen = false
         try {
@@ -361,8 +366,10 @@ class VoiceAssistant(
                     reply.append(delta)
                     broadcast { it.onAssistantDelta(delta) }
                 },
-                onReasoning = {
+                onReasoning = { delta ->
                     if (!reasoningSeen) { reasoningSeen = true; broadcast { it.onReasoningStart() } }
+                    reasoning.append(delta)   // ★ 累积思考全文
+                    broadcast { l -> l.onReasoningDelta(delta) }
                 },
             ).collect { full ->
                 if (full.length > reply.length) reply.clear().append(full)

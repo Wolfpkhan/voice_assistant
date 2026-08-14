@@ -988,6 +988,35 @@ class MainActivity : AppCompatActivity() {
         override fun onReasoningStart() = runOnUiThread {
             if (curAssistantId == -1L) stateText.text = "深度思考中…"
         }
+
+        // ★ 思考过程增量：累积到当前助手气泡的折叠区
+        override fun onReasoningDelta(delta: String) = runOnUiThread {
+            if (delta.isBlank()) return@runOnUiThread
+            // ★ 节流：复用 pendingDelta 同样的机制但单独累积 reasoning
+            synchronized(pendingReasoning) {
+                pendingReasoning.append(delta)
+                if (flushReasoningRunnable == null) {
+                    flushReasoningRunnable = Runnable { flushReasoning() }
+                    uiHandler.postDelayed(flushReasoningRunnable!!, FLUSH_INTERVAL_MS)
+                }
+            }
+        }
+    }
+
+    /** ★ 思考增量节流缓冲（与正文 delta 独立）。 */
+    private val pendingReasoning = StringBuilder()
+    private var flushReasoningRunnable: Runnable? = null
+
+    /** 取出累积的 reasoning 追加到最后一条助手气泡的思考区。 */
+    private fun flushReasoning() {
+        val batch: String
+        synchronized(pendingReasoning) {
+            if (pendingReasoning.isEmpty()) { flushReasoningRunnable = null; return }
+            batch = pendingReasoning.toString()
+            pendingReasoning.clear()
+            flushReasoningRunnable = null
+        }
+        adapter.updateLastReasoning(batch)
     }
 
     /** 滚动到底部。smooth=true 平滑（新消息到达），false 直接跳（首次加载）。借鉴 hermes 的 animateScrollToItem。 */

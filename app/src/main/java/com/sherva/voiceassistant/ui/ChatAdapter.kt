@@ -28,6 +28,10 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
 
     private class AssistantVH(v: View) : RecyclerView.ViewHolder(v) {
         val text: TextView = v.findViewById(R.id.messageText)
+        // ★ 思考过程折叠区（默认隐藏）
+        val reasoningHeader: TextView = v.findViewById(R.id.reasoningHeader)
+        val reasoningText: TextView = v.findViewById(R.id.reasoningText)
+        var expanded = false
     }
     private class UserVH(v: View) : RecyclerView.ViewHolder(v) {
         val text: TextView = v.findViewById(R.id.messageText)
@@ -48,15 +52,36 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         return when (viewType) {
             TYPE_USER -> UserVH(inf.inflate(R.layout.item_message_user, parent, false))
             TYPE_NOTICE -> NoticeVH(inf.inflate(R.layout.item_message_notice, parent, false))
-            else -> AssistantVH(inf.inflate(R.layout.item_message_assistant, parent, false))
+            else -> {
+                val vh = AssistantVH(inf.inflate(R.layout.item_message_assistant, parent, false))
+                // ★ 点击思考区头部展开/折叠
+                vh.reasoningHeader.setOnClickListener {
+                    vh.expanded = !vh.expanded
+                    notifyItemChanged(vh.bindingAdapterPosition)
+                }
+                vh
+            }
         }
     }
 
     override fun onBindViewHolder(h: RecyclerView.ViewHolder, position: Int) {
         val m = getItem(position)
         when (h) {
+            is AssistantVH -> {
+                MarkdownRenderer.render(h.text, m.text)
+                // ★ 思考过程：有内容才显示折叠区
+                val rs = m.reasoning
+                if (!rs.isNullOrBlank()) {
+                    h.reasoningHeader.visibility = View.VISIBLE
+                    h.reasoningHeader.text = if (h.expanded) "▼ 思考过程" else "▶ 思考过程"
+                    h.reasoningText.text = rs
+                    h.reasoningText.visibility = if (h.expanded) View.VISIBLE else View.GONE
+                } else {
+                    h.reasoningHeader.visibility = View.GONE
+                    h.reasoningText.visibility = View.GONE
+                }
+            }
             is UserVH -> MarkdownRenderer.render(h.text, m.text)
-            is AssistantVH -> MarkdownRenderer.render(h.text, m.text)
             is NoticeVH -> h.text.text = m.text
         }
     }
@@ -77,12 +102,23 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         val list = currentList.toMutableList()
         val idx = list.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
         if (idx >= 0) {
-            // ★ copy() 保留 id（id 是主构造参数），DiffUtil 识别为同一 item → 原地更新不新增
+            // ★ copy() 保留 id 和 reasoning（id 是主构造参数），DiffUtil 识别为同一 item → 原地更新不新增
             list[idx] = list[idx].copy(text = text)
         } else {
             list.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text))
         }
         submitList(list)
+    }
+
+    /** ★ 追加最后一条助手消息的思考过程（用于 reasoning 流式增量）。 */
+    fun updateLastReasoning(delta: String) {
+        val list = currentList.toMutableList()
+        val idx = list.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
+        if (idx >= 0) {
+            val cur = list[idx].reasoning ?: ""
+            list[idx] = list[idx].copy(reasoning = cur + delta)
+            submitList(list)
+        }
     }
 
     fun clearAll() = submitList(emptyList())
