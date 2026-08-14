@@ -47,12 +47,21 @@ class AsrEngine(
                 qnnRecognizer = buildQnnRecognizer()
                 AppLog.i("ASR", "QNN(HTP) OfflineRecognizer 构造成功")
             } catch (e: Throwable) {
-                AppLog.e("ASR", "QNN 初始化失败，回退 CPU（${e.message}）", e)
+                AppLog.e("ASR", "QNN 初始化失败：${e.message}", e)
             }
         } else if (useQnn) {
-            AppLog.w("ASR", "QNN 模型不在 assets 中（未运行 download-models.sh --qnn?），回退 CPU")
+            AppLog.w("ASR", "QNN 模型不在 assets 中（未运行 download-models.sh --qnn?）")
         }
-        recognizer = qnnRecognizer ?: buildCpuRecognizer()
+        if (qnnRecognizer == null) {
+            if (useQnn) {
+                // ★ 回退决策上移：QNN 模式失败直接抛，由 VoiceAssistant 换用流式 CPU 引擎
+                //   （assets 内无离线 paraformer，不能在此构造 CPU 离线引擎）
+                throw IllegalStateException("QNN 初始化失败，请查看日志 tag ASR")
+            }
+            recognizer = buildCpuRecognizer()
+        } else {
+            recognizer = qnnRecognizer
+        }
         provider = if (qnnRecognizer != null) "qnn" else "cpu"
     }
 
@@ -80,14 +89,27 @@ class AsrEngine(
     /**
      * QNN：文件路径模式构造（OfflineRecognizer(assetManager=null) → newFromFile）。
      *
-     * 1. prependAdspLibraryPath(nativeLibraryDir)：否则 QNN deviceCreate 报 error 1008
-     * 2. 模型 .so 从 assets 拷到 filesDir（QNN 以 dlopen 方式加载，需真实文件）
-     * 3. contextBinary(*.bin) 不存在时跳过拷贝 —— 首次运行由 QNN EP 编译生成，
-     *    之后冷启动直接加载 .bin（官方注释：*.bin 用于替代二次运行的 *.so）
+     * 1. 后端库优先用系统自带 QNN（如 /odm/lib64/npuhw/qnnv3/，厂商签名，
+     *    host 库与 Skel 版本配套）：unsigned Skel 在商用机上常被 cDSP 拒载
+     *    （deviceCreate 报 INVALID_CONFIG/14001）。系统无 QNN 时用 APK 自带的。
+     * 2. prependAdspLibraryPath：让 DSP 能找到 Skel（否则 error 1008/14001）
+     * 3. 模型 .so 从 assets 拷到 filesDir（QNN 以 dlopen 方式加载，需真实文件）
+     * 4. contextBinary(*.bin) 不存在时跳过拷贝 —— 首次运行由 HTP 编译生成
      */
     private fun buildQnnRecognizer(): OfflineRecognizer {
-        // QNN 后端库依赖 ADSP_LIBRARY_PATH，指向 nativeLibraryDir（libQnnHtp*.so 所在处）
+        // —— 后端库选择：优先 APK 自带（与编译头文件版本一致 2.40）；
+        //    系统签名版（odm）仅作后备——版本不匹配时 dlopen 可能因符号缺失失败
+        val sysDir = File("/odm/lib64/npuhw/qnnv3")
+        val sysHtp = File(sysDir, ModelPaths.QNN_BACKEND_LIB)
+        val backendLib: String
+        val systemLib: String
+        // 先试 APK 自带 2.40（与重编的 jni 库 ABI/接口版本配套）
+        backendLib = ModelPaths.QNN_BACKEND_LIB
+        systemLib = ModelPaths.QNN_SYSTEM_LIB
+        AppLog.i("ASR", "使用 APK 自带 QNN (2.40)；系统后备: ${if (sysHtp.exists()) sysDir else "无"}")
+        // ADSP 路径：nativeLibraryDir（Skel 所在）前插；系统目录也加上（若存在，多一路 Skel 来源）
         OfflineRecognizer.prependAdspLibraryPath(appContext.applicationInfo.nativeLibraryDir)
+        if (sysHtp.exists()) OfflineRecognizer.prependAdspLibraryPath(sysDir.absolutePath)
 
         val dir = File(appContext.filesDir, ModelPaths.ASR_QNN_DIR)
         dir.mkdirs()
@@ -117,7 +139,7 @@ class AsrEngine(
         }
         val tokens = copyAsset(ModelPaths.ASR_QNN_TOKENS)
 
-        AppLog.i("ASR", "构造 QNN OfflineRecognizer: dir=${dir.name}")
+        AppLog.i("ASR", "构造 QNN OfflineRecognizer: dir=${dir.name}, backend=$backendLib")
         return OfflineRecognizer(
             assetManager = null,   // 文件路径模式（JNI newFromFile）
             config = OfflineRecognizerConfig(
@@ -126,9 +148,9 @@ class AsrEngine(
                     paraformer = OfflineParaformerModelConfig(
                         model = models,
                         qnnConfig = QnnConfig(
-                            backendLib = ModelPaths.QNN_BACKEND_LIB,
+                            backendLib = backendLib,
                             contextBinary = bins,
-                            systemLib = ModelPaths.QNN_SYSTEM_LIB,
+                            systemLib = systemLib,
                         ),
                     ),
                     tokens = tokens,
@@ -139,6 +161,21 @@ class AsrEngine(
                 decodingMethod = "greedy_search",
             )
         )
+    }
+
+    /** 从 libQnnSystem.so 提取 QNN SDK 版本号（日志诊断用） */
+    private fun qnnLibVersion(htp: File): String {
+        val sys = File(htp.parentFile, ModelPaths.QNN_SYSTEM_LIB)
+        if (!sys.canRead()) return "版本未知"
+        return runCatching {
+            sys.inputStream().use { ins ->
+                val buf = ByteArray(4 * 1024 * 1024)
+                var off = 0
+                val head = ins.read(buf)
+                val s = String(buf, 0, head, Charsets.ISO_8859_1)
+                Regex("2\\.\\d{2}\\.\\d").find(s)?.value ?: "版本未知"
+            }
+        }.getOrDefault("版本未知")
     }
 
     /**

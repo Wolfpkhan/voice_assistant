@@ -115,16 +115,22 @@ class VoiceAssistant(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     // ★ 引擎 lazy 加载：首次使用才初始化（加载模型），避免构造阻塞 UI。
     //   文字模式只用 LLM，不触发 asr/tts/kws 加载，发送不卡顿。
-    //   asrProvider 从设置页读取：cpu=流式 zipformer；qnn=NPU 离线+VAD 滑窗（失败自动回退）
+    //   asrProvider 从设置页读取：cpu=流式 zipformer；qnn=NPU 离线+VAD 滑窗。
+    //   ★ QNN 失败（无模型/无libQnnHtp/Skel被拒等）→ 自动回退流式 CPU，不闪退
     private val asrLazy: Lazy<VoiceAsrEngine> = lazy {
         AppLog.i("VA", "初始化 ASR 引擎 (provider=${config.asrProvider})...")
         if (config.asrProvider == "qnn") {
-            QnnAsrEngine(
-                appContext,
-                endpointTrailingSilenceSec = config.endpointTrailingSilenceSec,
-                micGain = config.micGain,
-                globalAec = config.globalAec,
-            )
+            try {
+                QnnAsrEngine(
+                    appContext,
+                    endpointTrailingSilenceSec = config.endpointTrailingSilenceSec,
+                    micGain = config.micGain,
+                    globalAec = config.globalAec,
+                )
+            } catch (t: Throwable) {
+                AppLog.e("VA", "QNN 引擎不可用，回退流式 CPU（${t.message}）", t)
+                StreamingAsrEngine(appContext, endpointTrailingSilenceSec = config.endpointTrailingSilenceSec, micGain = config.micGain, globalAec = config.globalAec)
+            }
         } else {
             StreamingAsrEngine(appContext, endpointTrailingSilenceSec = config.endpointTrailingSilenceSec, micGain = config.micGain, globalAec = config.globalAec)
         }

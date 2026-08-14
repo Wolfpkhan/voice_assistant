@@ -97,13 +97,18 @@ app/src/main/java/com/sherva/voiceassistant/
 
 ### 🔜 待办 / 优化方向
 
-- [x] **QNN/HTP 加速（已完成 2026-08-14）**：设置页「ASR 加速」可切 CPU/QNN；QNN 模式
+- [x] **QNN/HTP 加速（已完成 2026-08-14，真机验证结论 08-15）**：设置页「ASR 加速」可切 CPU/QNN；QNN 模式
       = 离线 paraformer QNN 5s 窗 + silero VAD + 滑窗模拟流式（官方无中文流式 QNN）。
       实现：`VoiceAsrEngine` 接口 + `QnnAsrEngine`；`AsrEngine(useQnn)` 双 provider 构造，
       失败自动回退 CPU。启用：`download-models.sh --qnn` + `download-qnn-libs.sh`。
-      ⚠️ 真机尚未验证（需 libQnnHtp.so 从高通 QNN SDK 获取，见脚本说明）
+      ⚠️ **真机结论（vivo V2303A/SM8550/Android 16）：HTP 不可用**——deviceCreate 恒返 14001，
+      unsigned 与 odm 签名 Skel 均被 cDSP 拒载（高通量产机安全模型，需厂商白名单/系统签名/root）。
+      已固化：native 崩溃点全部改为抛异常（重编 libsherpa-onnx-jni.so，含 QNN backend +
+      LOGE 落盘 Download/qnn_native.log）；QNN 失败自动回退流式 CPU 不闪退；默认不打包 QNN 资产（省 ~230MB）。
+      换机（如解锁/开发机）可重跑两个下载脚本启用。
 - [ ] **APK 瘦身**（优先）：模型不打包 assets，改运行时下载到 `filesDir`，~350MB → ~15MB
-- [ ] **QNN 真机验证**：下载 QNN 模型与 so 后实测识别效果/耗时，必要时换 8/10s 窗模型
+- [ ] **QNN 真机跟进**：当前机 cDSP 拒载 Skel（14001）。可验：adb root 设备、
+      或高通 HTP unsigned PD 开发模式（`setprop vendor.htp.pd_mode 0` 需 root）
 - [ ] **低延迟**：VAD `minSilenceDuration` 降至 0.3s
 - [ ] 可选：VITS-Baker 不存在，若要 VITS 架构用 `vits-melo-tts-zh_en`（见 `ModelPaths.kt` 注释）
 

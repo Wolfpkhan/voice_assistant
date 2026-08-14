@@ -2,69 +2,58 @@
 # ============================================================
 # download-qnn-libs.sh — 下载高通 QNN 运行库到 app/src/main/jniLibs/arm64-v8a
 #
-# QNN(NPU/HTP) 加速必需的三个库：
-#   libQnnHtp.so          — HTP 后端主库（运行时按设备加载对应 Skel）
-#   libQnnSystem.so       — QNN 系统库
-#   libQnnHtpV*Skel.so    — 各代 HTP 架构的 Skel（V68=888, V69, V73=8Gen1/2, V75=8Gen3, V79/V81…）
+# ✅ 来源：sherpa-onnx 官方 asr-models-qnn release 托管的 QNN 2.40 运行库
+#    https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models-qnn/qnn-libs-2.40.0.251030.tar.bz2
+#    含 libQnnHtp.so / libQnnSystem.so / libQnnHtpPrepare.so 及 V68~V81 各代 Skel
 #
-# 高通 QNN SDK 官方需在 https://qpm.qualcomm.com 登录下载（QNN SDK 2.2x），
-# 解压后位于 hexagon-v73/unsigned/lib/aarch64-android/libQnnHtpV73Skel.so 等。
-# 若下方镜像失效，请手动拷贝以下文件到 jniLibs/arm64-v8a 后重新编译：
-#   libQnnHtp.so / libQnnSystem.so / libQnnHtpV68Skel.so / libQnnHtpV69Skel.so
-#   libQnnHtpV73Skel.so / libQnnHtpV75Skel.so / libQnnHtpV79Skel.so ...
-#   （至少包含你手机芯片对应代次的 Skel，多放几代不影响）
+# ⚠️ 重要：仅放入这些库还不够！标准 sherpa-onnx AAR 未编译 QNN backend
+#    （libsherpa-onnx-jni.so 无 csrc/qnn/* 代码），需用 scripts/build-qnn-jni.sh
+#    重编含 QNN 的 libsherpa-onnx-jni.so 并替换 AAR 内同名文件。
 #
-# 注意：libQnnHtp.so 版本需与 sherpa-onnx AAR 内 libonnxruntime.so
-#       编译时链接的 QNN SDK 版本兼容（1.13.x 对应 QNN 2.3x）。
+# 若上述镜像失效，可从高通官方获取：
+#   1. https://qpm.qualcomm.com 下载 Qualcomm AI Engine Direct (QAIRT) SDK
+#   2. 解压后把 lib/aarch64-android/ 下的 libQnn*.so 拷入 jniLibs/arm64-v8a
+#   3. 头文件用 asr-models-qnn/qnn-include-2.40.0.251030.tar.bz2（重编时需要）
 # ============================================================
 set -euo pipefail
 
 PROJ_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 DEST="$PROJ_DIR/app/src/main/jniLibs/arm64-v8a"
+WORK="$PROJ_DIR/.qnn-libs-tmp"
 mkdir -p "$DEST"
 
-# 公开镜像（sherpa-onnx 相关项目托管的 QNN 2.31 运行库，按需替换）
-BASE="https://github.com/k2-fsa/sherpa-onnx/releases/download/qnn-engine"
-FILES=(
-    "libQnnHtp.so"
-    "libQnnSystem.so"
-    "libQnnHtpV68Skel.so"
-    "libQnnHtpV69Skel.so"
-    "libQnnHtpV73Skel.so"
-    "libQnnHtpV75Skel.so"
-    "libQnnHtpV79Skel.so"
-    "libQnnHtpV81Skel.so"
-)
+VER="2.40.0.251030"
+URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models-qnn/qnn-libs-${VER}.tar.bz2"
 
-ok=0
-fail=0
-for f in "${FILES[@]}"; do
-    if [ -f "$DEST/$f" ]; then
-        echo "✓ 已存在: $f"
-        ok=$((ok+1))
-        continue
-    fi
-    echo "⬇  $f"
-    if wget -q -c -O "$DEST/$f.tmp" "$BASE/$f"; then
-        mv "$DEST/$f.tmp" "$DEST/$f"
-        ok=$((ok+1))
-    else
-        rm -f "$DEST/$f.tmp"
-        echo "  ✗ 下载失败: $BASE/$f"
-        fail=$((fail+1))
-    fi
+if [ -f "$DEST/libQnnHtp.so" ] && [ -f "$DEST/libQnnSystem.so" ]; then
+    echo "✓ QNN 运行库已存在: $DEST"
+    ls -lh "$DEST" | grep -i qnn || true
+    exit 0
+fi
+
+echo "⬇  下载 QNN ${VER} 运行库 (~136MB)..."
+mkdir -p "$WORK"
+wget -c -O "$WORK/qnn-libs.tar.bz2" "$URL"
+tar xjf "$WORK/qnn-libs.tar.bz2" -C "$WORK"
+
+# 只拷贝运行必需：HTP 后端 + System + Prepare（首次生成 context binary 用）+ 全部 Skel
+# （Skel 每个约 10MB，按芯片代次运行时自动选择，多放不影响正确性；要省体积可只留对应代次）
+SRC="$WORK/qnn-libs-${VER}"
+for f in libQnnHtp.so libQnnSystem.so libQnnHtpPrepare.so; do
+    cp -v "$SRC/$f" "$DEST/"
 done
+for f in "$SRC"/libQnnHtpV*Skel.so; do
+    cp -v "$f" "$DEST/"
+done
+
+rm -rf "$WORK"
 
 echo ""
 echo "========================================"
-if [ "$ok" -gt 0 ] && [ "$fail" -eq 0 ]; then
-    echo "✅ QNN 运行库就绪: $DEST"
-    ls -lh "$DEST" | grep -i qnn || true
-    echo "下一步: bash scripts/download-models.sh --qnn && 设置页选「QNN」"
-else
-    echo "⚠  $ok 个成功 / $fail 个失败。"
-    echo "镜像不可用时，请从高通 QNN SDK 手动拷贝（见脚本头部说明）："
-    echo "  1. https://qpm.qualcomm.com 下载 Qualcomm AI Engine Direct SDK"
-    echo "  2. 解压后把 lib/aarch64-android/ 下的 libQnn*.so 拷入 $DEST"
-fi
+echo "✅ QNN 运行库就绪: $DEST"
+ls -lh "$DEST" | grep -i qnn
+echo ""
+echo "下一步："
+echo "  1. bash scripts/build-qnn-jni.sh   # 重编含 QNN 的 libsherpa-onnx-jni.so（Termux 原生编译）"
+echo "  2. bash scripts/download-models.sh --qnn && ./gradlew assembleDebug"
 echo "========================================"

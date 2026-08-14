@@ -107,4 +107,14 @@ object ModelPaths {
      */
     fun qnnModelInAssets(am: android.content.res.AssetManager): Boolean =
         assetExists(am, "$ASR_QNN_DIR/libencoder.so") && assetExists(am, ASR_QNN_TOKENS)
+
+    /**
+     * ⚠️ 2026-08-15 真机结论（vivo V2303A / SM8550 / Android 16）：
+     * QNN HTP 在本机不可用 —— deviceCreate 恒返 14001 (INVALID_CONFIG)，
+     * 无论 APK 自带 unsigned Skel（qnn-libs-2.40）还是 odm 签名版 Skel。
+     * 高通量产机的 cDSP 对第三方 App 加载 HTP Skel 有强制验证，
+     * 需厂商白名单/系统签名/root 才能绕过。
+     * 故默认不打包 QNN 模型与库（可省 ~230MB）；设置页仍保留切换项，
+     * 若未来换机可重跑 download-models.sh --qnn + download-qnn-libs.sh。
+     */
 }
