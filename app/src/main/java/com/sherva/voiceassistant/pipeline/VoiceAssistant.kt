@@ -72,6 +72,9 @@ class VoiceAssistant(
         /** ★ 全局回声消除（实验性）：true 时 ASR/KWS 用 VOICE_COMMUNICATION + MODE_IN_COMMUNICATION，
          *     系统级 AEC 可消除任意 App 播放的回声。但可能切听筒、影响音质。 */
         val globalAec: Boolean = false,
+        /** ★ 聆听时暂停音乐：对话开始时暂停其他 App（喜马拉雅/QQ音乐/B站等）和 FI 的播放，
+         *     对话结束后恢复。通过 TermuxRemoteFrontend 的 /media_pause_all 端点统一管理。 */
+        val pauseMusic: Boolean = false,
     )
 
     interface Listener {
@@ -192,6 +195,7 @@ class VoiceAssistant(
         ensureHistory()
         acquireWakeLock()
         enterGlobalAecMode()
+        pauseMusic()
         scope.launch { startListening() }
     }
 
@@ -327,6 +331,7 @@ class VoiceAssistant(
         ensureHistory()
         active = true
         enterGlobalAecMode()  // ★ 文字模式也统一管理 MODE_IN_COMMUNICATION
+        pauseMusic()
         scope.launch {
             AppLog.i("VA", "文字输入: \"$t\"")
             // 若语音引擎已初始化（此前切过语音模式）则停掉聆听，避免冲突
@@ -482,6 +487,43 @@ class VoiceAssistant(
         AppLog.i("VA", "全局 AEC：已切回 MODE_NORMAL")
     }
 
+    /** ★ 暂停其他 App 的音乐播放（通过 TermuxRemoteFrontend 的 /media_pause_all）。
+     *  在 IO 线程调用，不阻塞对话。 */
+    private fun pauseMusic() {
+        if (!config.pauseMusic) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                val url = java.net.URL("http://127.0.0.1:8765/media_pause_all")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 2000
+                conn.readTimeout = 3000
+                val resp = conn.inputStream.bufferedReader().readText()
+                conn.disconnect()
+                AppLog.i("VA", "暂停音乐: $resp")
+            } catch (e: Exception) {
+                AppLog.w("VA", "暂停音乐失败（FI 可能没启动）: ${e.message}")
+            }
+        }
+    }
+
+    /** ★ 恢复对话前暂停的音乐。 */
+    private fun resumeMusic() {
+        if (!config.pauseMusic) return
+        scope.launch(Dispatchers.IO) {
+            try {
+                val url = java.net.URL("http://127.0.0.1:8765/media_resume_all")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 2000
+                conn.readTimeout = 3000
+                val resp = conn.inputStream.bufferedReader().readText()
+                conn.disconnect()
+                AppLog.i("VA", "恢复音乐: $resp")
+            } catch (e: Exception) {
+                AppLog.w("VA", "恢复音乐失败: ${e.message}")
+            }
+        }
+    }
+
     /** ★ 切后台暂停：停侦听+TTS+KWS（保留会话状态，不释放引擎）。 */
     fun pause() {
         AppLog.i("VA", "切后台，暂停侦听与播放")
@@ -549,6 +591,7 @@ class VoiceAssistant(
         if (ttsLazy.isInitialized()) tts.stop()
         releaseWakeLock()
         exitGlobalAecMode()
+        resumeMusic()
         setState(State.IDLE)
     }
 

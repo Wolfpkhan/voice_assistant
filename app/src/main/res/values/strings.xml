@@ -49,6 +49,7 @@
     <string name="pref_wake_word_idle_sec">wake_word_idle_sec</string>
     <string name="pref_wake_word">wake_word</string>
     <string name="pref_global_aec">global_aec</string>
+    <string name="pref_pause_music">pause_music</string>
     <string name="pref_keep_screen_on">keep_screen_on</string>
     <string name="pref_floating_ball">floating_ball</string>
 
