@@ -198,7 +198,9 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         submitList(ArrayList(backingList))
     }
 
-    /** ★ 最终提交（用于 onAssistantComplete）：覆盖文本 + 通知 holder 重新走 Markdown。 */
+    /** ★ 最终提交（用于 onAssistantComplete）：覆盖文本 + 强制 holder 走 Markdown。
+     *   不走 submitList：避免 DiffUtil 判定为 changed 后吞掉 notifyItemChanged 的 payload，
+     *   导致 forceMarkdown 不生效（isIncrementalAppend 误判走增量 setText，跳过 Markdown）。 */
     fun commitLastAssistant(text: String) {
         val idx = backingList.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
         if (idx >= 0) {
@@ -206,8 +208,8 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         } else {
             backingList.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text))
         }
-        submitList(ArrayList(backingList))
-        // ★ notifyItemChanged 带 payload：触发 onBindViewHolder(holder, idx, payloads) 重载，强制走 Markdown
+        // ★ 只用 payload 路径：onBindViewHolder 收到 PAYLOAD_FORCE_MARKDOWN 强制走 Markdown
+        //   不调 submitList，payload 不会被 DiffUtil 吞掉
         if (idx >= 0) {
             notifyItemChanged(idx, PAYLOAD_FORCE_MARKDOWN)
         }
