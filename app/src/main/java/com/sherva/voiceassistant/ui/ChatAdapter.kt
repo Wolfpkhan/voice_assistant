@@ -15,6 +15,18 @@ import com.sherva.voiceassistant.R
  */
 class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
 
+    private var recyclerView: RecyclerView? = null
+
+    override fun onAttachedToRecyclerView(rv: RecyclerView) {
+        super.onAttachedToRecyclerView(rv)
+        recyclerView = rv
+    }
+
+    override fun onDetachedFromRecyclerView(rv: RecyclerView) {
+        super.onDetachedFromRecyclerView(rv)
+        recyclerView = null
+    }
+
     companion object {
         private const val TYPE_ASSISTANT = 1
         private const val TYPE_USER = 2
@@ -199,8 +211,9 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
     }
 
     /** ★ 最终提交（用于 onAssistantComplete）：覆盖文本 + 强制 holder 走 Markdown。
-     *   不走 submitList：避免 DiffUtil 判定为 changed 后吞掉 notifyItemChanged 的 payload，
-     *   导致 forceMarkdown 不生效（isIncrementalAppend 误判走增量 setText，跳过 Markdown）。 */
+     *   主动找 holder 调用 MarkdownRenderer.render：不依赖 payload 路径，
+     *   避免被 setLastReasoning 的 submitList 触发的完整重绑吞掉（那次重绑会走
+     *   isIncrementalAppend=true 分支，只 setText 不渲染 Markdown）。 */
     fun commitLastAssistant(text: String) {
         val idx = backingList.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
         if (idx >= 0) {
@@ -208,9 +221,16 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         } else {
             backingList.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text))
         }
-        // ★ 只用 payload 路径：onBindViewHolder 收到 PAYLOAD_FORCE_MARKDOWN 强制走 Markdown
-        //   不调 submitList，payload 不会被 DiffUtil 吞掉
         if (idx >= 0) {
+            // ★ 主动同步：找到屏幕上的 holder，直接强制 Markdown 渲染
+            val rv = recyclerView
+            val holder = rv?.findViewHolderForAdapterPosition(idx) as? AssistantVH
+            if (holder != null) {
+                MarkdownRenderer.render(holder.text, text)
+                holder.lastWasMarkdown = true
+                holder.lastBoundTextLen = text.length
+            }
+            // ★ 仍 notify 一下（即使 holder 不在屏幕）保证 RecyclerView 状态一致
             notifyItemChanged(idx, PAYLOAD_FORCE_MARKDOWN)
         }
     }
