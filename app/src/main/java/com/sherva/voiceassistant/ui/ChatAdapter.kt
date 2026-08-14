@@ -21,6 +21,8 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         private const val TYPE_NOTICE = 3
         /** ★ notifyItemChanged payload：强制下次 bind 走 Markdown（用于 onAssistantComplete）。 */
         const val PAYLOAD_FORCE_MARKDOWN = "force_markdown"
+        /** ★ notifyItemChanged payload：只重渲染折叠区（用于 updateLastReasoning）。 */
+        const val PAYLOAD_REASONING = "reasoning_only"
         private val DIFF = object : DiffUtil.ItemCallback<ChatMessage>() {
             override fun areItemsTheSame(a: ChatMessage, b: ChatMessage) = a.id == b.id
             override fun areContentsTheSame(a: ChatMessage, b: ChatMessage) =
@@ -80,12 +82,22 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
      */
     override fun onBindViewHolder(h: RecyclerView.ViewHolder, position: Int, payloads: List<Any>) {
         val m = getItem(position)
-        val forceMarkdown = payloads.contains(PAYLOAD_FORCE_MARKDOWN)
         when (h) {
             is AssistantVH -> {
+                val rs = m.reasoning
+                // ★ 仅重渲染折叠区（reasoning 增量专用 payload，不动 text）
+                if (payloads.contains(PAYLOAD_REASONING)) {
+                    if (!rs.isNullOrBlank()) {
+                        h.reasoningHeader.visibility = View.VISIBLE
+                        h.reasoningHeader.text = if (h.expanded) "▼ 思考过程" else "▶ 思考过程"
+                        h.reasoningText.text = rs
+                        h.reasoningText.visibility = if (h.expanded) View.VISIBLE else View.GONE
+                    }
+                    return
+                }
+                val forceMarkdown = payloads.contains(PAYLOAD_FORCE_MARKDOWN)
                 val newText = m.text
                 if (forceMarkdown) {
-                    // ★ onAssistantComplete：强制完整 Markdown 渲染
                     MarkdownRenderer.render(h.text, newText)
                     h.lastWasMarkdown = true
                     h.lastBoundTextLen = newText.length
@@ -104,8 +116,6 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                     }
                     h.lastBoundTextLen = newText.length
                 }
-                // ★ 思考过程：有内容才显示折叠区
-                val rs = m.reasoning
                 if (!rs.isNullOrBlank()) {
                     h.reasoningHeader.visibility = View.VISIBLE
                     h.reasoningHeader.text = if (h.expanded) "▼ 思考过程" else "▶ 思考过程"
@@ -169,6 +179,8 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
             val cur = list[idx].reasoning ?: ""
             list[idx] = list[idx].copy(reasoning = cur + delta)
             submitList(list)
+            // ★ 只通知折叠区重渲染，不走 text 流式检测（避免无谓 Markwon 渲染）
+            notifyItemChanged(idx, PAYLOAD_REASONING)
         }
     }
 

@@ -1018,6 +1018,14 @@ class MainActivity : AppCompatActivity() {
             pendingReasoning.clear()
             flushReasoningRunnable = null
         }
+        // ★ 边界：如果 reasoning 先于 text 到达，flushDeltas 还没建气泡——先建空气泡
+        val last = adapter.currentList.lastOrNull()
+        if (curAssistantId == -1L || last?.role != ChatMessage.Role.ASSISTANT || last.id != curAssistantId) {
+            val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "")
+            curAssistantId = msg.id
+            adapter.add(msg)
+            AppLog.i("Main", "提前创建空气泡 (reasoning 先到) (id=${curAssistantId})")
+        }
         adapter.updateLastReasoning(batch)
     }
 

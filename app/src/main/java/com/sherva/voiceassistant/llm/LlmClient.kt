@@ -105,9 +105,13 @@ class LlmClient(
                     if (data == "[DONE]") break
                     // 解析增量 delta.content（正文）与 delta.reasoning_content（思考）
                     val (delta, reasoning) = parseDelta(data)
-                    if (reasoning.isNotEmpty()) onReasoning?.invoke(reasoning)
+                    if (reasoning.isNotEmpty()) {
+                        Log.i(TAG, "onReasoning delta=${reasoning.length}字: \"${reasoning.take(20)}...\"")
+                        onReasoning?.invoke(reasoning)
+                    }
                     if (delta.isNotEmpty()) {
                         full.append(delta)
+                        Log.i(TAG, "onToken delta=${delta.length}字: \"${delta.take(20)}...\"")
                         onToken(delta)
                     }
                 }
