@@ -23,6 +23,8 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         const val PAYLOAD_FORCE_MARKDOWN = "force_markdown"
         /** ★ notifyItemChanged payload：只重渲染折叠区（用于 setLastReasoning）。 */
         const val PAYLOAD_REASONING = "reasoning_only"
+        /** ★ payload：折叠思考区（思考结束开始正文时）。 */
+        const val PAYLOAD_COLLAPSE = "collapse_reasoning"
         /** ★ 增量追加正文（流式 delta，只 append 不重渲染，避免高频闪烁） */
         data class PayloadAppendText(val delta: String)
         private val DIFF = object : DiffUtil.ItemCallback<ChatMessage>() {
@@ -89,6 +91,13 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         when (h) {
             is AssistantVH -> {
                 val rs = m.reasoning
+                // ★ 折叠思考区（思考结束开始正文时）：设 expanded=false 并直接改 View
+                if (payloads.contains(PAYLOAD_COLLAPSE)) {
+                    h.expanded = false
+                    h.reasoningHeader.text = "▶ 思考过程"
+                    h.reasoningText.visibility = View.GONE
+                    return
+                }
                 // ★ 增量追加正文：只 append delta 到 TextView，不走 Markdown 不 submitList
                 val appendDelta = payloads.filterIsInstance<PayloadAppendText>().firstOrNull()
                 if (appendDelta != null) {
@@ -169,6 +178,12 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
             backingList[idx] = backingList[idx].copy(text = backingList[idx].text + delta)
             notifyItemChanged(idx, PayloadAppendText(delta))
         }
+    }
+
+    /** ★ 思考结束开始正文时自动折叠思考区（正文给位，用户可点击再展开）。 */
+    fun collapseLastReasoning() {
+        val idx = backingList.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
+        if (idx >= 0) notifyItemChanged(idx, PAYLOAD_COLLAPSE)
     }
 
     /** 更新最后一条助手消息（用于流式增量），没有则新增。 */

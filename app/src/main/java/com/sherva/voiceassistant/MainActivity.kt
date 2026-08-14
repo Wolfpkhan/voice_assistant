@@ -971,6 +971,8 @@ class MainActivity : AppCompatActivity() {
             } else {
                 // ★ 增量 append（不 setText 全量，避免高频重绘眼花）
                 adapter.appendLastAssistant(batch)
+                // ★ 思考结束开始正文：自动折叠思考区（正文给位，可点击再展开）
+                adapter.collapseLastReasoning()
             }
             streamedText.append(batch)
         }
