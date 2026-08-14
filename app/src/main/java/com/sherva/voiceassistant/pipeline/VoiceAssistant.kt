@@ -268,6 +268,8 @@ class VoiceAssistant(
         setState(State.WAKE_WORD)
         AppLog.i("VA", "进入唤醒模式: 等待唤醒词 \"${config.wakeWord}\"")
         com.sherva.voiceassistant.audio.SoundEffects.wakeWord()
+        // ★ 待机状态：恢复音乐播放（用户没在说话，可以继续听）
+        resumeMusic()
         try {
             kws.start { keyword ->
                 AppLog.i("VA", "唤醒词命中: $keyword")
@@ -284,6 +286,8 @@ class VoiceAssistant(
     /** 唤醒命中：停 KWS，重启 ASR 继续监听。 */
     private fun exitWakeWordMode() {
         try { kws.stop() } catch (_: Throwable) {}
+        // ★ 唤醒了，要开始聆听：再次暂停音乐
+        pauseMusic()
         // 回到 LISTENING：重启 ASR
         if (state != State.IDLE) {
             AppLog.i("VA", "唤醒后重启 ASR")
