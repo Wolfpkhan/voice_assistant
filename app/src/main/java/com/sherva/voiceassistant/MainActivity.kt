@@ -56,6 +56,7 @@ class MainActivity : AppCompatActivity() {
             val wakeWord = sp.getString(ctx.getString(R.string.pref_wake_word), "嗨赛琳娜") ?: "嗨赛琳娜"
             val globalAec = sp.getBoolean(ctx.getString(R.string.pref_global_aec), false)
             val pauseMusic = sp.getBoolean(ctx.getString(R.string.pref_pause_music), false)
+            val asrProvider = sp.getString(ctx.getString(R.string.pref_asr_provider), "cpu") ?: "cpu"
             return VoiceAssistant.Config(
                 continuous = true, ttsSpeed = speed, ttsSid = ttsSid,
                 ttsEngine = ttsEngine,
@@ -68,6 +69,7 @@ class MainActivity : AppCompatActivity() {
                 wakeWord = wakeWord,
                 globalAec = globalAec,
                 pauseMusic = pauseMusic,
+                asrProvider = asrProvider,
             )
         }
     }

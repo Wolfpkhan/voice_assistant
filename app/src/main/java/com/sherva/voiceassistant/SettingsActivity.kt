@@ -8,6 +8,7 @@ import android.media.AudioTrack
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
@@ -71,6 +72,11 @@ class SettingsActivity : AppCompatActivity() {
                     updateSidSummary((newValue as? Int) ?: 3)
                     true
                 }
+            }
+
+            // ★ ASR 加速选项联动：显示当前选中项
+            findPreference<ListPreference>(getString(R.string.pref_asr_provider))?.let { pref ->
+                pref.summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
             }
 
             // ★ 音色预览

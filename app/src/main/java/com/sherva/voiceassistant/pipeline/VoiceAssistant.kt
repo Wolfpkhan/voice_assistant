@@ -7,7 +7,9 @@ import android.os.PowerManager
 import android.util.Log
 import com.sherva.voiceassistant.AppLog
 import com.sherva.voiceassistant.asr.KeywordSpotterEngine
+import com.sherva.voiceassistant.asr.QnnAsrEngine
 import com.sherva.voiceassistant.asr.StreamingAsrEngine
+import com.sherva.voiceassistant.asr.VoiceAsrEngine
 import kotlinx.coroutines.delay
 import com.sherva.voiceassistant.llm.LlmClient
 import com.sherva.voiceassistant.tts.TtsProvider
@@ -77,6 +79,10 @@ class VoiceAssistant(
         /** ★ 聆听时暂停音乐：对话开始时暂停其他 App（喜马拉雅/QQ音乐/B站等）和 FI 的播放，
          *     对话结束后恢复。通过 TermuxRemoteFrontend 的 /media_pause_all 端点统一管理。 */
         val pauseMusic: Boolean = false,
+        /** ★ ASR 加速："cpu"（流式 zipformer，边说边出字）或 "qnn"（骁龙 NPU/HTP，
+         *     离线 paraformer + VAD + 5s 滑窗模拟流式；不可用时自动回退 CPU）。
+         *     对应设置页「ASR 加速」。 */
+        val asrProvider: String = "cpu",
     )
 
     interface Listener {
@@ -109,9 +115,19 @@ class VoiceAssistant(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     // ★ 引擎 lazy 加载：首次使用才初始化（加载模型），避免构造阻塞 UI。
     //   文字模式只用 LLM，不触发 asr/tts/kws 加载，发送不卡顿。
-    private val asrLazy: Lazy<StreamingAsrEngine> = lazy {
-        AppLog.i("VA", "初始化流式 ASR 引擎...")
-        StreamingAsrEngine(appContext, endpointTrailingSilenceSec = config.endpointTrailingSilenceSec, micGain = config.micGain, globalAec = config.globalAec)
+    //   asrProvider 从设置页读取：cpu=流式 zipformer；qnn=NPU 离线+VAD 滑窗（失败自动回退）
+    private val asrLazy: Lazy<VoiceAsrEngine> = lazy {
+        AppLog.i("VA", "初始化 ASR 引擎 (provider=${config.asrProvider})...")
+        if (config.asrProvider == "qnn") {
+            QnnAsrEngine(
+                appContext,
+                endpointTrailingSilenceSec = config.endpointTrailingSilenceSec,
+                micGain = config.micGain,
+                globalAec = config.globalAec,
+            )
+        } else {
+            StreamingAsrEngine(appContext, endpointTrailingSilenceSec = config.endpointTrailingSilenceSec, micGain = config.micGain, globalAec = config.globalAec)
+        }
     }
     private val kwsLazy: Lazy<KeywordSpotterEngine> = lazy {
         AppLog.i("VA", "初始化唤醒词检测引擎...")
@@ -125,7 +141,7 @@ class VoiceAssistant(
             com.sherva.voiceassistant.tts.TtsEngine(appContext)
         }
     }
-    private val asr: StreamingAsrEngine get() = asrLazy.value
+    private val asr: VoiceAsrEngine get() = asrLazy.value
     private val kws: KeywordSpotterEngine get() = kwsLazy.value
     private val tts: TtsProvider get() = ttsLazy.value
     private val llm = LlmClient(

@@ -66,9 +66,16 @@ app/src/main/java/com/sherva/voiceassistant/
 
 ## 性能优化方向
 
-- **QNN/HTP 加速**：骁龙 888+ 可把 ASR 换成 `asr-models-qnn` 预编译 int8 版
-  （Paraformer / SenseVoice / Zipformer-CTC），NPU 推理降到几十 ms。改
-  `AsrEngine.kt` 的 `provider="qnn"` + `qnnConfig`。
+- **QNN/HTP 加速（已支持，可切换）**：设置页「ASR 加速」选 QNN，走骁龙 NPU。
+  官方无中文流式 QNN 模型，故 QNN 模式为：离线 paraformer QNN 5 秒窗 +
+  silero VAD + 滑窗模拟流式。启用步骤：
+  ```bash
+  bash scripts/download-models.sh --qnn   # QNN 模型包(~70MB)到 assets
+  bash scripts/download-qnn-libs.sh       # libQnnHtp.so 等到 jniLibs
+  # 重新编译安装；设置 → 高级 → ASR 加速 → QNN
+  ```
+  运行时 QNN 初始化失败（缺模型/缺so/芯片不支持）会自动回退 CPU，
+  日志 tag `ASR` 可见实际 provider。
 - **APK 瘦身**：模型不打包进 assets，改运行时下载到 `filesDir`（见
   `ModelPaths.ensureExtracted`），APK 可从 ~350MB 降到 ~15MB。
 - **低延迟播报**：当前已实现 LLM 流式 token 边收边按句切分入 TTS 队列；

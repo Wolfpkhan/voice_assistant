@@ -50,7 +50,7 @@ class StreamingAsrEngine(
      *     系统级 AEC 能消除任意 App 播放的声音（但可能切听筒、影响音质）。
      *     false 时用 VOICE_RECOGNITION + AcousticEchoCanceler（仅消除本进程回声）。 */
     private val globalAec: Boolean = false,
-) {
+) : VoiceAsrEngine {
     private val appContext: Context = context.applicationContext
     private val recognizer = run {
         AppLog.i("SASR", "构造 OnlineRecognizer: encoder=${ModelPaths.STREAM_ENCODER}")
@@ -90,7 +90,7 @@ class StreamingAsrEngine(
     @Volatile private var pendingReset = false
 
     /** 撤销当前累积的 partial 文本并重新聆听（不重启 ASR）。 */
-    fun resetStream() {
+    override fun resetStream() {
         pendingReset = true
         AppLog.i("SASR", "请求撤销当前识别内容")
     }
@@ -102,7 +102,7 @@ class StreamingAsrEngine(
      */
     @SuppressLint("MissingPermission")
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    fun start(onPartial: (String) -> Unit, onFinal: (String) -> Unit) {
+    override fun start(onPartial: (String) -> Unit, onFinal: (String) -> Unit) {
         if (running) return
         val sampleRate = 16000
         val channelConfig = AudioFormat.CHANNEL_IN_MONO
@@ -175,7 +175,7 @@ class StreamingAsrEngine(
     }
 
     /** 停止识别与录音。 */
-    fun stop() {
+    override fun stop() {
         if (!running && workThread == null) return   // 已停止，避免重入
         running = false
         // ★ 关键顺序：先 stop record 让 read() 立刻返回，再 join worker，最后 release
@@ -192,7 +192,7 @@ class StreamingAsrEngine(
         // ★ MODE_IN_COMMUNICATION 由 VoiceAssistant 统一管理，此处不切回
     }
 
-    fun release() {
+    override fun release() {
         stop()
         recognizer.release()
     }
