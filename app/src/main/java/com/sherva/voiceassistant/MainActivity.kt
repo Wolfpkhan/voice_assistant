@@ -962,6 +962,7 @@ class MainActivity : AppCompatActivity() {
                 val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "")
                 curAssistantId = msg.id
                 streamedText.clear()
+                AppLog.i("Main", "flushDeltas 创建新气泡 (id=${curAssistantId}), list size=${adapter.currentList.size}")
                 adapter.add(msg)
                 scrollToEnd(smooth = true)
             }
@@ -1035,8 +1036,8 @@ class MainActivity : AppCompatActivity() {
             curAssistantId = msg.id
             streamedText.clear()
             streamedReasoning.clear()
+            AppLog.i("Main", "提前创建空气泡 (reasoning 先到) (id=${curAssistantId}), list size=${adapter.currentList.size}")
             adapter.add(msg)
-            AppLog.i("Main", "提前创建空气泡 (reasoning 先到) (id=${curAssistantId})")
             scrollToEnd(smooth = true)
         }
         streamedReasoning.append(batch)
