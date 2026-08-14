@@ -210,10 +210,13 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         submitList(ArrayList(backingList))
     }
 
-    /** ★ 最终提交（用于 onAssistantComplete）：覆盖文本 + 强制 holder 走 Markdown。
-     *   主动找 holder 调用 MarkdownRenderer.render：不依赖 payload 路径，
-     *   避免被 setLastReasoning 的 submitList 触发的完整重绑吞掉（那次重绑会走
-     *   isIncrementalAppend=true 分支，只 setText 不渲染 Markdown）。 */
+    /** ★ 最终提交（用于 onAssistantComplete）：用 submitList 触发正常 DiffUtil 重绑。
+     *   onBindViewHolder 会走到 isFirstBind=true 分支（lastBoundTextLen=0 来自首次空文本 bind，
+     *   appendLastAssistant 路径不更新 lastBoundTextLen），强制走 Markdown 渲染。
+     *
+     *   之前用 findViewHolderForAdapterPosition + notifyItemChanged(PAYLOAD_FORCE_MARKDOWN) 有 bug：
+     *   notifyItemChanged 路径里 m.text = getItem(idx).text 来自 currentList（未更新为 final），
+     *   会用旧累积文本覆盖主动渲染的正确 final 文本。 */
     fun commitLastAssistant(text: String) {
         val idx = backingList.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
         if (idx >= 0) {
@@ -221,18 +224,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         } else {
             backingList.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text))
         }
-        if (idx >= 0) {
-            // ★ 主动同步：找到屏幕上的 holder，直接强制 Markdown 渲染
-            val rv = recyclerView
-            val holder = rv?.findViewHolderForAdapterPosition(idx) as? AssistantVH
-            if (holder != null) {
-                MarkdownRenderer.render(holder.text, text)
-                holder.lastWasMarkdown = true
-                holder.lastBoundTextLen = text.length
-            }
-            // ★ 仍 notify 一下（即使 holder 不在屏幕）保证 RecyclerView 状态一致
-            notifyItemChanged(idx, PAYLOAD_FORCE_MARKDOWN)
-        }
+        submitList(ArrayList(backingList))
     }
 
     /** ★ 设置最后一条助手消息的思考过程（完整覆盖，用于 reasoning 流式）。 */
