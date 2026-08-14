@@ -91,6 +91,8 @@ class KeywordSpotterEngine(
     private var stream: OnlineStream? = null
     private var record: AudioRecord? = null
     @Volatile private var running = false
+    /** KWS 是否在跑（供 VoiceAssistant 检测切后台后是否需重启）。 */
+    val isRunning: Boolean get() = running
     private var workThread: Thread? = null
 
     /**

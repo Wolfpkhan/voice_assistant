@@ -564,9 +564,22 @@ class VoiceAssistant(
             AppLog.i("VA", "回前台，进度继续 ($state)")
             return
         }
-        // ★ WAKE_WORD 状态回前台：保持唤醒模式（KWS 继续跑）
+        // ★ WAKE_WORD 状态回前台：切后台时 KWS 被 stop 了，需重启
         if (state == State.WAKE_WORD) {
-            AppLog.i("VA", "回前台，继续唤醒模式（KWS 监听中）")
+            if (inWakeWord && !kws.isRunning) {
+                AppLog.i("VA", "回前台，重启唤醒模式（KWS 被后台停了）")
+                try {
+                    kws.start { keyword ->
+                        AppLog.i("VA", "唤醒词命中: $keyword")
+                        inWakeWord = false
+                        exitWakeWordMode()
+                    }
+                } catch (e: Throwable) {
+                    AppLog.e("VA", "KWS 回前台重启失败", e)
+                }
+            } else {
+                AppLog.i("VA", "回前台，继续唤醒模式（KWS 监听中）")
+            }
             return
         }
         // ★ 只有 LISTENING（pause 后台停顿）才恢复；IDLE 保持待机
