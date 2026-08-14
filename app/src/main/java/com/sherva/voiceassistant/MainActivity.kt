@@ -347,6 +347,9 @@ class MainActivity : AppCompatActivity() {
             messagesView.layoutManager = LinearLayoutManager(this).apply {
                 stackFromEnd = true
             }
+            // ★ 关闭 change 动画：流式内容高度频繁变化时，change 预测动画导致锚点跳动
+            //   （思考折叠/正文增长 → item 高度骤变 → 锚点补偿 → 上下滚动）
+            messagesView.itemAnimator = null
             messagesView.adapter = adapter
             // ★ 滚到顶时加载更早的历史（分页）
             messagesView.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
