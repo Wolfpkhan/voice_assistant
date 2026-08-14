@@ -19,10 +19,12 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         private const val TYPE_ASSISTANT = 1
         private const val TYPE_USER = 2
         private const val TYPE_NOTICE = 3
+        /** ★ notifyItemChanged payload：强制下次 bind 走 Markdown（用于 onAssistantComplete）。 */
+        const val PAYLOAD_FORCE_MARKDOWN = "force_markdown"
         private val DIFF = object : DiffUtil.ItemCallback<ChatMessage>() {
             override fun areItemsTheSame(a: ChatMessage, b: ChatMessage) = a.id == b.id
             override fun areContentsTheSame(a: ChatMessage, b: ChatMessage) =
-                a.role == b.role && a.text == b.text
+                a.role == b.role && a.text == b.text && a.reasoning == b.reasoning
         }
     }
 
@@ -32,6 +34,10 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         val reasoningHeader: TextView = v.findViewById(R.id.reasoningHeader)
         val reasoningText: TextView = v.findViewById(R.id.reasoningText)
         var expanded = false
+        /** ★ 上一轮 onBind 时的文本长度：用于检测流式增量。 */
+        var lastBoundTextLen: Int = 0
+        /** ★ 是否上一轮走的是 Markdown（用于决定本次是否重渲染）。 */
+        var lastWasMarkdown: Boolean = false
     }
     private class UserVH(v: View) : RecyclerView.ViewHolder(v) {
         val text: TextView = v.findViewById(R.id.messageText)
@@ -65,10 +71,39 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
     }
 
     override fun onBindViewHolder(h: RecyclerView.ViewHolder, position: Int) {
+        onBindViewHolder(h, position, emptyList())
+    }
+
+    /**
+     * 带 payload 的 bind：支持 PAYLOAD_FORCE_MARKDOWN 强制走 Markdown（onAssistantComplete 用）。
+     * 流式增量不带 payload，走默认增量检测逻辑。
+     */
+    override fun onBindViewHolder(h: RecyclerView.ViewHolder, position: Int, payloads: List<Any>) {
         val m = getItem(position)
+        val forceMarkdown = payloads.contains(PAYLOAD_FORCE_MARKDOWN)
         when (h) {
             is AssistantVH -> {
-                MarkdownRenderer.render(h.text, m.text)
+                val newText = m.text
+                if (forceMarkdown) {
+                    // ★ onAssistantComplete：强制完整 Markdown 渲染
+                    MarkdownRenderer.render(h.text, newText)
+                    h.lastWasMarkdown = true
+                    h.lastBoundTextLen = newText.length
+                } else {
+                    val oldLen = h.lastBoundTextLen
+                    val curText = h.text.text.toString()
+                    val isIncrementalAppend = newText.length > oldLen
+                            && newText.length >= curText.length
+                            && newText.startsWith(curText)
+                    if (isIncrementalAppend) {
+                        h.text.text = newText
+                        h.lastWasMarkdown = false
+                    } else {
+                        MarkdownRenderer.render(h.text, newText)
+                        h.lastWasMarkdown = true
+                    }
+                    h.lastBoundTextLen = newText.length
+                }
                 // ★ 思考过程：有内容才显示折叠区
                 val rs = m.reasoning
                 if (!rs.isNullOrBlank()) {
@@ -108,6 +143,22 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
             list.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text))
         }
         submitList(list)
+    }
+
+    /** ★ 最终提交（用于 onAssistantComplete）：覆盖文本 + 通知 holder 重新走 Markdown。 */
+    fun commitLastAssistant(text: String) {
+        val list = currentList.toMutableList()
+        val idx = list.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
+        if (idx >= 0) {
+            list[idx] = list[idx].copy(text = text)
+        } else {
+            list.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text))
+        }
+        submitList(list)
+        // ★ notifyItemChanged 带 payload：触发 onBindViewHolder(holder, idx, payloads) 重载，强制走 Markdown
+        if (idx >= 0) {
+            notifyItemChanged(idx, PAYLOAD_FORCE_MARKDOWN)
+        }
     }
 
     /** ★ 追加最后一条助手消息的思考过程（用于 reasoning 流式增量）。 */

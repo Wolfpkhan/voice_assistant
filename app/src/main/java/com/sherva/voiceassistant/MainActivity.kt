@@ -957,8 +957,10 @@ class MainActivity : AppCompatActivity() {
                 val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, batch)
                 curAssistantId = msg.id
                 adapter.add(msg)
+                // ★ 新增气泡才需要 scroll（流式增量 update 不 scroll，避免每秒 10 次抖动）
+                scrollToEnd(smooth = true)
             }
-            scrollToEnd()
+            // 流式期间不 scroll：只在 onAssistantComplete 后 scroll 一次
         }
 
         override fun onAssistantComplete(text: String) = runOnUiThread {
@@ -970,8 +972,8 @@ class MainActivity : AppCompatActivity() {
             if (final.isEmpty()) return@runOnUiThread
             val last = adapter.currentList.lastOrNull()
             if (last?.role == ChatMessage.Role.ASSISTANT && last.id == curAssistantId) {
-                adapter.updateLastAssistant(final)   // 覆盖文本，id 不变
-                AppLog.i("Main", "覆盖最后一条助手气泡 (id=${curAssistantId})")
+                adapter.commitLastAssistant(final)   // ★ 覆盖 + 强制走 Markdown
+                AppLog.i("Main", "提交助手气泡 (id=${curAssistantId})")
             } else {
                 val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, final)
                 curAssistantId = msg.id
