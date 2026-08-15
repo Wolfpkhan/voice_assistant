@@ -1,6 +1,7 @@
 package com.sherva.voiceassistant
 
 import android.app.Application
+import androidx.appcompat.app.AppCompatDelegate
 import com.sherva.voiceassistant.pipeline.VoiceAssistant
 
 /**
@@ -16,6 +17,9 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         AppLog.init(this)
+        // ★ 夜间模式跟随系统：values-night/themes.xml 已定义深色主题，
+        //   默认值是 Light 主题，加这一行才能随系统切换。
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM)
         AppLog.i("App", "Application.onCreate 完成")
     }
 

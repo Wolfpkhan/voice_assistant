@@ -1003,7 +1003,7 @@ class MainActivity : AppCompatActivity() {
             // 保持在"进行中"状态，供下一轮 onUserText 重置（避免与尾部 delta 竞态）
         }
 
-        override fun onError(message: String) = runOnUiThread { toast(message) }
+        override fun onError(message: String) = runOnUiThread { showError(message) }
 
         override fun onReasoningStart() = runOnUiThread {
             if (curAssistantId == -1L) stateText.text = "深度思考中…"
@@ -1081,4 +1081,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    /** ★ 错误提示：Snackbar（比 Toast 持久，可滑动/点按关闭；长消息可展开）。
+     *  LLM/ASR/TTS 异常都用这里；"重试"按钮仅 LLM 错误时有意义（重新发送上一句）。 */
+    private fun showError(message: String) {
+        val root = findViewById<android.view.View>(R.id.messagesView)?.parent as? android.view.ViewGroup
+            ?: findViewById(android.R.id.content)
+        com.google.android.material.snackbar.Snackbar.make(
+            root ?: window.decorView,
+            android.text.Html.fromHtml("<b>⚠ </b>${android.text.Html.escapeHtml(message)}", 0),
+            com.google.android.material.snackbar.Snackbar.LENGTH_LONG
+        ).setAction("关闭") { }.show()
+    }
 }

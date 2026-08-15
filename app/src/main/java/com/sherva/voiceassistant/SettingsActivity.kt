@@ -5,7 +5,9 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.net.Uri
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.preference.Preference
@@ -16,6 +18,7 @@ import com.sherva.voiceassistant.tts.TtsEngine
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 
 /** 设置页：配置云端 LLM 与 TTS 参数。 */
 class SettingsActivity : AppCompatActivity() {
@@ -78,6 +81,101 @@ class SettingsActivity : AppCompatActivity() {
                 if (previewing) return@setOnPreferenceClickListener true
                 onPreviewClick()
                 true
+            }
+
+            // ★ 设置导出/导入：SharedPreferences → JSON，方便换机/重装
+            findPreference<Preference>("settings_export")?.setOnPreferenceClickListener {
+                exportLauncher.launch("settings_backup_${System.currentTimeMillis()}.json")
+                true
+            }
+            findPreference<Preference>("settings_import")?.setOnPreferenceClickListener {
+                importLauncher.launch(arrayOf("application/json", "application/octet-stream", "text/*"))
+                true
+            }
+        }
+
+        // ---------- 设置导入/导出 ----------
+
+        private val exportLauncher = registerForActivityResult(
+            ActivityResultContracts.CreateDocument("application/json")
+        ) { uri: Uri? ->
+            if (uri != null) doExportSettings(uri)
+        }
+
+        private val importLauncher = registerForActivityResult(
+            ActivityResultContracts.OpenDocument()
+        ) { uri: Uri? ->
+            if (uri != null) doImportSettings(uri)
+        }
+
+        private fun doExportSettings(uri: Uri) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val sp = PreferenceManager.getDefaultSharedPreferences(requireContext())
+                    val root = JSONObject().apply {
+                        put("_type", "sherva-settings-backup")
+                        put("_version", 1)
+                        put("_exportedAt", System.currentTimeMillis())
+                        val prefs = JSONObject()
+                        sp.all.forEach { (k, v) ->
+                            when (v) {
+                                is String -> prefs.put(k, v)
+                                is Int -> prefs.put(k, v)
+                                is Long -> prefs.put(k, v)
+                                is Float -> prefs.put(k, v)
+                                is Boolean -> prefs.put(k, v)
+                            }
+                        }
+                        put("prefs", prefs)
+                    }
+                    requireContext().contentResolver.openOutputStream(uri)?.use { os ->
+                        os.write(root.toString(2).toByteArray(Charsets.UTF_8))
+                    } ?: throw RuntimeException("无法写入 $uri")
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(requireContext(), "✅ 设置已导出", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(requireContext(), "导出失败: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+
+        private fun doImportSettings(uri: Uri) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val json = requireContext().contentResolver.openInputStream(uri)?.use { ins ->
+                        ins.readBytes().toString(Charsets.UTF_8)
+                    } ?: throw RuntimeException("无法读取 $uri")
+                    val root = JSONObject(json)
+                    if (root.optString("_type") != "sherva-settings-backup") {
+                        throw RuntimeException("不是有效的设置备份文件")
+                    }
+                    val prefs = root.optJSONObject("prefs") ?: throw RuntimeException("备份缺少 prefs 字段")
+                    val sp = PreferenceManager.getDefaultSharedPreferences(requireContext())
+                    val ed = sp.edit().clear()  // ★ 先清空再导入：以备份为准，避免残留
+                    var count = 0
+                    prefs.keys().forEach { k ->
+                        when (val v = prefs.get(k)) {
+                            is String -> { ed.putString(k, v); count++ }
+                            is Int -> { ed.putInt(k, v); count++ }
+                            is Long -> { ed.putLong(k, v); count++ }
+                            is Float -> { ed.putFloat(k, v); count++ }
+                            is Boolean -> { ed.putBoolean(k, v); count++ }
+                        }
+                    }
+                    ed.apply()
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(
+                            requireContext(), "✅ 已导入 $count 项设置，重启 App 生效", android.widget.Toast.LENGTH_LONG
+                        ).show()
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        android.widget.Toast.makeText(requireContext(), "导入失败: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                    }
+                }
             }
         }
 

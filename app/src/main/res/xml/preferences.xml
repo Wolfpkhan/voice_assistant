@@ -147,4 +147,16 @@
             android:defaultValue="false" />
     </PreferenceCategory>
 
+    <!-- ★ 设置备份：导出/导入 SharedPreferences 为 JSON，方便换机/重装 -->
+    <PreferenceCategory android:title="设置备份">
+        <Preference
+            android:key="settings_export"
+            android:title="导出设置"
+            android:summary="把当前全部设置（含 LLM 配置/TTS/唤醒词等）导出为 JSON 文件" />
+        <Preference
+            android:key="settings_import"
+            android:title="导入设置"
+            android:summary="从 JSON 文件恢复设置（导入后需重启 App 生效）" />
+    </PreferenceCategory>
+
 </PreferenceScreen>

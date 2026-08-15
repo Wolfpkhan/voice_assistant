@@ -214,8 +214,16 @@ class VoiceAssistant(
         // ★ 先确保 ASR 模型已就绪（首次 lazy 加载耗时 ~3s），再进入聆听态+音效
         AppLog.i("VA", "准备聆听（加载 ASR 模型）")
         scope.launch {
-            withContext(Dispatchers.Default) {
-                asr   // 触发 lazy 加载
+            try {
+                withContext(Dispatchers.Default) {
+                    asr   // 触发 lazy 加载
+                }
+            } catch (e: Throwable) {
+                AppLog.e("VA", "ASR 模型加载失败", e)
+                broadcast { it.onError("ASR 模型加载失败：${e.message}") }
+                starting = false
+                setState(State.IDLE)
+                return@launch
             }
             setState(State.LISTENING)
             starting = false  // ★ 已进入 LISTENING，允许下次重启
@@ -282,6 +290,7 @@ class VoiceAssistant(
             }
         } catch (e: Throwable) {
             AppLog.e("VA", "KWS 启动失败", e)
+            broadcast { it.onError("唤醒词模型加载失败：${e.message}") }
             inWakeWord = false
             setState(State.IDLE)
         }

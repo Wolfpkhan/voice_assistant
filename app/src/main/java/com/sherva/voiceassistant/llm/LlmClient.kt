@@ -98,11 +98,13 @@ class LlmClient(
                 }
                 val source = resp.body?.source()
                     ?: throw RuntimeException("LLM 响应体为空")
+                // ★ 是否收到过 [DONE] 哨兵；EOF 但未收到 → 流被截断（上游掐流 / 网络中断）
+                var sawDone = false
                 while (!source.exhausted()) {
                     val line = source.readUtf8Line() ?: break
                     if (!line.startsWith("data:")) continue
                     val data = line.removePrefix("data:").trim()
-                    if (data == "[DONE]") break
+                    if (data == "[DONE]") { sawDone = true; break }
                     // 解析增量 delta.content（正文）与 delta.reasoning_content（思考）
                     val (delta, reasoning) = parseDelta(data)
                     if (reasoning.isNotEmpty()) {
@@ -116,6 +118,12 @@ class LlmClient(
                     }
                 }
                 resp.close()
+                // ★ 截断检测：EOF 但未收到 [DONE] 视为上游异常中断
+                if (!sawDone) {
+                    val msg = "LLM 流被截断（未收到 [DONE]，已收到 ${full.length} 字）"
+                    Log.w(TAG, msg)
+                    throw RuntimeException(msg)
+                }
             } catch (e: Throwable) {
                 Log.e(TAG, "LLM 流式失败: ${e.message}", e)
                 throw e
