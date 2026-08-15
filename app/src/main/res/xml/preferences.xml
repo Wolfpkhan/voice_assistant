@@ -13,8 +13,7 @@
         <EditTextPreference
             android:key="@string/pref_llm_apikey"
             android:title="API Key"
-            android:summary="服务端密钥（本地保存）"
-            android:defaultValue="@string/default_apikey"
+            android:summary="服务端密钥（本地保存；首次安装请填写）"
             android:inputType="textPassword" />
 
         <EditTextPreference

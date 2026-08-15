@@ -12,7 +12,7 @@ android {
         applicationId "com.sherva.voiceassistant"
         minSdk 26          // Android 8.0；sherpa-onnx AAR 要求 24+，26 覆盖绝大多数骁龙机型
         targetSdk 34
-        versionCode 3
+        versionCode 14
         versionName "1.1"
 
         // 目标是骁龙 arm64 手机，只保留该架构以瘦身 APK（57MB→~30MB）。

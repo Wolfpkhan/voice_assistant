@@ -38,7 +38,7 @@ class MainActivity : AppCompatActivity() {
         fun buildServiceConfig(ctx: Context): VoiceAssistant.Config {
             val sp: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(ctx)
             val baseUrl = sp.getString(ctx.getString(R.string.pref_llm_baseurl), ctx.getString(R.string.default_baseurl))!!
-            val apiKey = sp.getString(ctx.getString(R.string.pref_llm_apikey), ctx.getString(R.string.default_apikey))!!
+            val apiKey = sp.getString(ctx.getString(R.string.pref_llm_apikey), "") ?: ""
             val model = sp.getString(ctx.getString(R.string.pref_llm_model), ctx.getString(R.string.default_model))!!
             val system = sp.getString(ctx.getString(R.string.pref_llm_system), ctx.getString(R.string.default_system))!!
             val systemText = sp.getString(ctx.getString(R.string.pref_llm_system_text), ctx.getString(R.string.default_system_text))!!
