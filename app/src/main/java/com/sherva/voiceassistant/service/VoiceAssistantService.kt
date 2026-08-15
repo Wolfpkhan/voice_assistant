@@ -166,7 +166,7 @@ class VoiceAssistantService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.notify_title))
             .setContentText(text)
-            .setSmallIcon(R.drawable.ic_mic)
+            .setSmallIcon(R.drawable.ic_stat_argus)
             .setOngoing(true)
             .setContentIntent(openIntent)
             .addAction(R.drawable.ic_stop, getString(R.string.btn_stop), stopIntent)

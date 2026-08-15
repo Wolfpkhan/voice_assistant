@@ -68,6 +68,7 @@ class FloatingBallManager(
         ).toInt()
         val container = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
+            // ★ 留 4dp 边距：眼睛图标不贴球边，视觉比例舒服
             val pad = TypedValue.applyDimension(
                 TypedValue.COMPLEX_UNIT_DIP, 4f, ctx.resources.displayMetrics
             ).toInt()
@@ -76,8 +77,11 @@ class FloatingBallManager(
         }
         val img = ImageView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(sizePx, sizePx)
-            setImageResource(R.drawable.ic_mic)
-            scaleType = ImageView.ScaleType.CENTER_INSIDE
+            setImageResource(R.drawable.ic_argus_eye_closed)
+            // ★ FIT_CENTER + 66% 尺寸：用户确认的黄金比例
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            scaleX = 0.66f
+            scaleY = 0.66f
         }
         container.addView(img)
         icon = img
@@ -127,9 +131,10 @@ class FloatingBallManager(
 
     fun setState(state: VoiceAssistant.State) {
         // ★ Argus 配色：深空底 + 辉光渐变（中心亮→边缘深），与启动图标同一设计语言
+        //   图标：IDLE（未激活）→ 闭眼；其余激活态 → 睁眼之眼
         val (centerColor, edgeColor, iconRes) = when (state) {
             VoiceAssistant.State.IDLE ->
-                Triple(0xFF3A4A6A.toInt(), 0xFF1A2332.toInt(), R.drawable.ic_argus_eye)
+                Triple(0xFF3A4A6A.toInt(), 0xFF1A2332.toInt(), R.drawable.ic_argus_eye_closed)
             VoiceAssistant.State.LISTENING ->
                 Triple(0xFF00E5FF.toInt(), 0xFF00688B.toInt(), R.drawable.ic_argus_eye)
             VoiceAssistant.State.THINKING ->

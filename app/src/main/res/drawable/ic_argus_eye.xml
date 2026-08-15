@@ -1,29 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Argus 之眼（悬浮球版）：简化杏仁眼 + 瞳孔 + 上方一道声波，白色线条可与任意底色叠加 -->
+<!-- Argus 之眼（悬浮球版·最大）：杏仁眼撑满整个画布，声波只留一道点睛 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
 
-    <!-- 声波（上方一道弧） -->
+    <!-- ===== 声波（只留一道上方，点睛）===== -->
     <path
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="1.4"
-        android:strokeLineCap="round"
-        android:fillColor="#00000000"
-        android:pathData="M8.5,5.5 Q12,3.5 15.5,5.5" />
-
-    <!-- 杏仁眼轮廓 -->
-    <path
-        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.45"
         android:strokeWidth="1.6"
         android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M4,12 C6.5,8.5 17.5,8.5 20,12 C17.5,15.5 6.5,15.5 4,12 Z" />
+        android:pathData="M8,4.2 Q12,1.8 16,4.2" />
 
-    <!-- 瞳孔 -->
+    <!-- ===== 眼睛（杏仁形，撑满整个 24 画布）===== -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M0.8,12 C3.4,6.4 20.6,6.4 23.2,12 C20.6,17.6 3.4,17.6 0.8,12 Z" />
+
+    <!-- ===== 瞳孔（大）===== -->
     <path
         android:fillColor="#FFFFFFFF"
-        android:pathData="M12,12 m-2.4,0 a2.4,2.4 0,1 1,4.8 0 a2.4,2.4 0,1 1,-4.8 0" />
+        android:pathData="M12,12 m-4.2,0 a4.2,4.2 0,1 1,8.4 0 a4.2,4.2 0,1 1,-8.4 0" />
 </vector>
