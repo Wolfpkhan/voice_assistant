@@ -108,6 +108,18 @@ class TtsEngine(
             }
             // 7. 温度 ° → 度
             r = Regex("([0-9]+)°").replace(r) { "${numToZh(it.groupValues[1].toLong())}度" }
+            // 7a. ★ 完整日期 YYYY/M/D → X年X月X日（优先于斜杠列表规则）
+            r = Regex("(\\d{4})/(\\d{1,2})/(\\d{1,2})").replace(r) {
+                "${it.groupValues[1].map { c -> CN_DIGITS[c - '0'] }.joinToString("")}年" +
+                    "${numToZh(it.groupValues[2].toLong())}月${numToZh(it.groupValues[3].toLong())}日"
+            }
+            // 7b. ★ 斜杠分隔的数字组（12/13/17、8/15）→ 顿号分开读，
+            //     避免被后续规则拼成大数（121317 → 十二万…）
+            r = Regex("(\\d{1,4})(?:/(\\d{1,4}))+").replace(r) { m ->
+                Regex("\\d{1,4}").findAll(m.value).joinToString("、") { g ->
+                    numToZh(g.value.toLong())
+                }
+            }
             // 8. 剩余数字：按数值读
             r = Regex("[0-9]+").replace(r) {
                 it.value.toLongOrNull()?.let(::numToZh) ?: it.value

@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
             val endpointSilence = sp.getInt(ctx.getString(R.string.pref_endpoint_silence), 12) / 10.0f
             val micGain = sp.getInt(ctx.getString(R.string.pref_mic_gain), 10) / 10.0f
             val wakeWordIdleSec = sp.getInt(ctx.getString(R.string.pref_wake_word_idle_sec), 5).toFloat()
-            val wakeWord = sp.getString(ctx.getString(R.string.pref_wake_word), "嗨赛琳娜") ?: "嗨赛琳娜"
+            val wakeWord = sp.getString(ctx.getString(R.string.pref_wake_word), ctx.getString(R.string.default_wake_word)) ?: ctx.getString(R.string.default_wake_word)
             val globalAec = sp.getBoolean(ctx.getString(R.string.pref_global_aec), false)
             val pauseMusic = sp.getBoolean(ctx.getString(R.string.pref_pause_music), false)
             return VoiceAssistant.Config(
@@ -114,7 +114,7 @@ class MainActivity : AppCompatActivity() {
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (granted) startAssistant() else toast("需要录音权限才能使用语音助手")
+        if (granted) startAssistant() else toast(getString(R.string.toast_need_mic_permission))
     }
 
     // ★ 悬浮球：权限请求 launcher
@@ -122,10 +122,10 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.StartActivityForResult()
     ) {
         if (android.provider.Settings.canDrawOverlays(this)) {
-            toast("悬浮窗权限已授予")
+            toast(getString(R.string.toast_overlay_granted))
             enableFloatingBall()
         } else {
-            toast("未授悬浮窗权限，无法显示悬浮球")
+            toast(getString(R.string.toast_overlay_denied))
         }
     }
     // ★ 附件选择 launcher：OpenMultipleDocuments 拿到多个 Uri，需用 ContentResolver 取真实路径
@@ -139,7 +139,7 @@ class MainActivity : AppCompatActivity() {
             p
         }
         if (paths.isEmpty()) {
-            toast("未能获取文件路径，请查看 logcat (tag=AttachPicker)")
+            toast(getString(R.string.toast_no_path))
             return@registerForActivityResult
         }
         // ★ 多个路径以换行符拼接（不入换行符的为首则不加；已有文本后追加换行）
@@ -300,7 +300,7 @@ class MainActivity : AppCompatActivity() {
     private val notifPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (!granted) toast("未授通知权限，后台服务可能被系统杀")
+        if (!granted) toast(getString(R.string.toast_need_notif))
         enableFloatingBall()  // 即使没权限也启动
     }
 
@@ -388,17 +388,17 @@ class MainActivity : AppCompatActivity() {
             // ★ 同时中断 LLM 输出 + 停 TTS 播放（用户期望点'中断'就是全停）
             assistant?.interruptOutput()
             assistant?.stopPlayback()
-            toast("已中断")
+            toast(getString(R.string.toast_interrupted))
         }
         // ★ 撤销当前 STT 内容并重新聆听（仅 LISTENING 状态可用）
         undoButton.setOnClickListener {
             assistant?.discardAndRelisten()
             partialText.text = ""
             partialText.visibility = android.view.View.GONE
-            toast("已撤销，重新聆听")
+            toast(getString(R.string.toast_revoked))
         }
         muteButton.setOnClickListener {
-            assistant?.stopPlayback(); toast("已停止播放")
+            assistant?.stopPlayback(); toast(getString(R.string.toast_playback_stopped))
         }
         // 文字输入发送
         sendButton.setOnClickListener { sendTextFromInput() }
@@ -407,7 +407,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 pickFilesLauncher.launch(arrayOf("*/*"))
             } catch (e: android.content.ActivityNotFoundException) {
-                toast("未找到可用的文件选择器")
+                toast(getString(R.string.toast_no_file_picker))
             }
         }
         // ★ 停止生成（文字/语音模式通用：停 LLM + 清除流式状态）
@@ -415,7 +415,7 @@ class MainActivity : AppCompatActivity() {
             assistant?.interruptOutput()
             // 立即隐藏按钮 + 反馈，避免用户重复点击
             stopGenButton.visibility = android.view.View.GONE
-            toast("已停止")
+            toast(getString(R.string.toast_stopped))
         }
         textInput.setOnEditorActionListener { _, actionId, event ->
             if (actionId == EditorInfo.IME_ACTION_SEND ||
@@ -433,7 +433,7 @@ class MainActivity : AppCompatActivity() {
         // 停掉当前会话，释放旧 assistant
         stopAssistant()
         // 列表插入提示消息（类似微信聊天列表分隔）
-        adapter.add(ChatMessage.create(ChatMessage.Role.NOTICE, "以下为新对话"))
+        adapter.add(ChatMessage.create(ChatMessage.Role.NOTICE, getString(R.string.notice_new_chat)))
         // ★ 双重滚动到底部，确保显示新对话提示胶囊
         scrollToEnd(smooth = false)
         messagesView.postDelayed({ scrollToEnd(smooth = false) }, 200)
@@ -479,7 +479,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             // 权限检查 → 悬浮窗 → 通知 → 启动
             if (!android.provider.Settings.canDrawOverlays(this)) {
-                toast("需授权「显示在其他应用上层」才能显示悬浮球")
+                toast(getString(R.string.toast_need_overlay))
                 overlayPermissionLauncher.launch(
                     android.content.Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION).apply {
                         data = android.net.Uri.parse("package:${packageName}")
@@ -500,8 +500,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /** 启动悬浮球后台服务 + 按钮高亮。 */
-    private fun enableFloatingBall() {
+    /** 启动悬浮球后台服务 + 按钮高亮。silent=true 时不弹 toast（自动开启场景）。 */
+    private fun enableFloatingBall(silent: Boolean = false) {
         val intent = android.content.Intent(this, com.sherva.voiceassistant.service.VoiceAssistantService::class.java)
             .setAction(com.sherva.voiceassistant.service.VoiceAssistantService.ACTION_START)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O)
@@ -510,7 +510,7 @@ class MainActivity : AppCompatActivity() {
             startService(intent)
         // 按钮高亮（品牌色）
         floatingBallButton.iconTint = android.content.res.ColorStateList.valueOf(0xFF10A37F.toInt())
-        toast("悬浮球已开启")
+        if (!silent) toast(getString(R.string.toast_ball_on))
         // ★ 延迟接管：Service 创建实例后，Activity 也注册 listener
         //   这样无论谁触发状态变化，App UI 和悬浮球都同步
         floatingBallButton.postDelayed({
@@ -530,7 +530,7 @@ class MainActivity : AppCompatActivity() {
         startService(intent)
         // 按钮复位（灰色）
         floatingBallButton.iconTint = android.content.res.ColorStateList.valueOf(0xFF8E8E93.toInt())
-        toast("悬浮球已关闭")
+        toast(getString(R.string.toast_ball_off))
     }
 
     /** 同步悬浮球按钮状态（onResume 调用，确保图标高亮/灰色与实际服务状态一致）。 */
@@ -543,7 +543,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** 切换语音/文字模式（互斥：切走时停掉对方的会话）。 */
-    private fun switchMode(newMode: Mode) {
+        private fun switchMode(newMode: Mode) {
         if (mode == newMode) return
         mode = newMode
         // 切走时若语音在跑，立即停止
@@ -600,6 +600,15 @@ class MainActivity : AppCompatActivity() {
     private fun startAssistant() {
         val cfg = buildConfig()
         if (cfg.llmApiKey.isBlank()) return
+        // ★ 启动语音会话时自动开启悬浮球（权限齐备才开，静默）——
+        //   开始对话了才需要后台保活；切模式不触发
+        if (com.sherva.voiceassistant.service.VoiceAssistantService.instance == null) {
+            val overlayOk = android.provider.Settings.canDrawOverlays(this)
+            val notifOk = android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU ||
+                ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) ==
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+            if (overlayOk && notifOk) enableFloatingBall(silent = true)
+        }
         // ★ 复用 App.sharedAssistant：不释放（悬浮球可能接管）
         assistant?.let { existing ->
             // 已存在只订阅 + 启动（其他 listener 如 Service 仍保留）

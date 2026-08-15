@@ -72,7 +72,7 @@ class FloatingBallManager(
                 TypedValue.COMPLEX_UNIT_DIP, 4f, ctx.resources.displayMetrics
             ).toInt()
             setPadding(pad, pad, pad, pad)
-            background = makeBackground(0xFF10A37F.toInt())
+            background = makeBackground(0xFF3A4A6A.toInt(), 0xFF1A2332.toInt(), sizePx)
         }
         val img = ImageView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(sizePx, sizePx)
@@ -126,29 +126,39 @@ class FloatingBallManager(
     }
 
     fun setState(state: VoiceAssistant.State) {
-        val (bgColor, iconRes) = when (state) {
-            VoiceAssistant.State.IDLE -> 0xFF6E6E6E.toInt() to R.drawable.ic_mic
-            VoiceAssistant.State.LISTENING -> 0xFF10A37F.toInt() to R.drawable.ic_mic
-            VoiceAssistant.State.THINKING -> 0xFFFF8C00.toInt() to R.drawable.ic_stop_gen
-            VoiceAssistant.State.SPEAKING -> 0xFF0A84FF.toInt() to R.drawable.ic_mic
-            VoiceAssistant.State.WAKE_WORD -> 0xFFF59E0B.toInt() to R.drawable.ic_mic
+        // ★ Argus 配色：深空底 + 辉光渐变（中心亮→边缘深），与启动图标同一设计语言
+        val (centerColor, edgeColor, iconRes) = when (state) {
+            VoiceAssistant.State.IDLE ->
+                Triple(0xFF3A4A6A.toInt(), 0xFF1A2332.toInt(), R.drawable.ic_argus_eye)
+            VoiceAssistant.State.LISTENING ->
+                Triple(0xFF00E5FF.toInt(), 0xFF00688B.toInt(), R.drawable.ic_argus_eye)
+            VoiceAssistant.State.THINKING ->
+                Triple(0xFF7C4DFF.toInt(), 0xFF3F2B99.toInt(), R.drawable.ic_stop_gen)
+            VoiceAssistant.State.SPEAKING ->
+                Triple(0xFF64FFDA.toInt(), 0xFF0E8F7A.toInt(), R.drawable.ic_argus_eye)
+            VoiceAssistant.State.WAKE_WORD ->
+                Triple(0xFFFFB74D.toInt(), 0xFF8D5A1F.toInt(), R.drawable.ic_argus_eye)
         }
         view?.post {
             icon?.setImageResource(iconRes)
-            (view as? LinearLayout)?.background?.let {
-                (it as? GradientDrawable)?.setColor(bgColor)
-            }
+            val sz = (view as? LinearLayout)?.width ?: 0
+            (view as? LinearLayout)?.background = if (sz > 0) makeBackground(centerColor, edgeColor, sz)
+                else makeBackground(centerColor, edgeColor, TypedValue.applyDimension(
+                    TypedValue.COMPLEX_UNIT_DIP, 56f, ctx.resources.displayMetrics).toInt())
         }
     }
 
-    private fun makeBackground(color: Int): GradientDrawable = GradientDrawable().apply {
+    /** ★ 辉光背景：径向渐变（中心亮→边缘深）+ 半透明青描边（发光感） */
+    private fun makeBackground(center: Int, edge: Int, sizePx: Int): GradientDrawable = GradientDrawable().apply {
         shape = GradientDrawable.OVAL
-        setColor(color)
+        setGradientType(GradientDrawable.RADIAL_GRADIENT)
+        setGradientRadius(sizePx / 2f)
+        colors = intArrayOf(center, edge)
         setStroke(
             TypedValue.applyDimension(
-                TypedValue.COMPLEX_UNIT_DIP, 3f, ctx.resources.displayMetrics
+                TypedValue.COMPLEX_UNIT_DIP, 2f, ctx.resources.displayMetrics
             ).toInt(),
-            0xFFFFFFFF.toInt()
+            0x6664FFDA.toInt()  // 半透明电光青描边
         )
     }
 }

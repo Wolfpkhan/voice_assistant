@@ -1,14 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 悬浮球开关图标：悬浮在手机屏幕右上角的小球（圆 + 底部斜切屏幕轮廓）
+     隐喻：一个浮在其他界面之上的球 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- 悬浮球外圆 -->
+
+    <!-- 屏幕（圆角矩形轮廓，斜着表示手机） -->
+    <path
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.8"
+        android:fillColor="#00000000"
+        android:pathData="M4,4 h16 a1.5,1.5 0 0 1 1.5,1.5 v13 a1.5,1.5 0 0 1 -1.5,1.5 h-16 a1.5,1.5 0 0 1 -1.5,-1.5 v-13 a1.5,1.5 0 0 1 1.5,-1.5 z" />
+
+    <!-- 悬浮球（实心，位于屏幕右上，略微超出屏幕感） -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M12,2m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0" />
-    <!-- 内圆（镂空效果） -->
+        android:pathData="M17,8.5 m-3.2,0 a3.2,3.2 0,1 1,6.4 0 a3.2,3.2 0,1 1,-6.4 0" />
+
+    <!-- 球的辉光（半透明外圈，呼应 Argus 主题的发光感） -->
     <path
-        android:fillColor="?android:attr/colorBackground"
-        android:pathData="M12,12m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
+        android:fillColor="@android:color/white"
+        android:fillAlpha="0.3"
+        android:pathData="M17,8.5 m-4.4,0 a4.4,4.4 0,1 1,8.8 0 a4.4,4.4 0,1 1,-8.8 0" />
 </vector>

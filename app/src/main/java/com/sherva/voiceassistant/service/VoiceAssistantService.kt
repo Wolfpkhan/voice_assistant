@@ -131,10 +131,10 @@ class VoiceAssistantService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "语音助手后台服务",
+                getString(R.string.notif_channel),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "保持语音对话在后台运行"
+                description = getString(R.string.notif_channel_desc)
                 setShowBadge(false)
             }
             val nm = getSystemService(NotificationManager::class.java)
@@ -143,7 +143,7 @@ class VoiceAssistantService : Service() {
     }
 
     private fun startForegroundCompat() {
-        val notif = buildNotification("语音助手运行中")
+        val notif = buildNotification(getString(R.string.notify_title))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             // Android 14+ 必须指定 foregroundServiceType
             startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
@@ -164,12 +164,12 @@ class VoiceAssistantService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("灵犀语音助手")
+            .setContentTitle(getString(R.string.notify_title))
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_mic)
             .setOngoing(true)
             .setContentIntent(openIntent)
-            .addAction(R.drawable.ic_stop, "停止", stopIntent)
+            .addAction(R.drawable.ic_stop, getString(R.string.btn_stop), stopIntent)
             .build()
     }
 
@@ -183,11 +183,11 @@ class VoiceAssistantService : Service() {
     private fun updateBallState(state: VoiceAssistant.State) {
         ball?.setState(state)
         updateNotification(when (state) {
-            VoiceAssistant.State.IDLE -> "待机"
-            VoiceAssistant.State.LISTENING -> "正在聆听..."
-            VoiceAssistant.State.THINKING -> "正在思考..."
-            VoiceAssistant.State.SPEAKING -> "正在播报..."
-            VoiceAssistant.State.WAKE_WORD -> "唤醒待机..."
+            VoiceAssistant.State.IDLE -> getString(R.string.state_idle)
+            VoiceAssistant.State.LISTENING -> getString(R.string.state_listening)
+            VoiceAssistant.State.THINKING -> getString(R.string.state_thinking)
+            VoiceAssistant.State.SPEAKING -> getString(R.string.state_speaking)
+            VoiceAssistant.State.WAKE_WORD -> getString(R.string.state_wake_word)
         })
     }
 

@@ -2,161 +2,137 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory android:title="云端大模型 (OpenAI 兼容)">
+    <!-- 云端大模型 -->
+    <PreferenceCategory app:title="@string/cat_llm">
         <EditTextPreference
-            android:key="@string/pref_llm_baseurl"
-            android:title="Base URL"
-            android:summary="OpenAI 兼容接口地址"
-            android:defaultValue="@string/default_baseurl"
-            app:useSimpleSummaryProvider="true" />
-
+            app:key="@string/pref_llm_baseurl"
+            app:title="@string/pref_title_baseurl"
+            app:summary="@string/pref_summary_baseurl"
+            app:defaultValue="@string/default_baseurl" />
         <EditTextPreference
-            android:key="@string/pref_llm_apikey"
-            android:title="API Key"
-            android:summary="服务端密钥（本地保存；首次安装请填写）"
+            app:key="@string/pref_llm_apikey"
+            app:title="@string/pref_title_apikey"
+            app:summary="@string/pref_summary_apikey"
             android:inputType="textPassword" />
-
         <EditTextPreference
-            android:key="@string/pref_llm_model"
-            android:title="模型"
-            android:summary="如 deepseek-chat / qwen-plus / gpt-4o-mini"
-            android:defaultValue="@string/default_model"
-            app:useSimpleSummaryProvider="true" />
-
+            app:key="@string/pref_llm_model"
+            app:title="@string/pref_title_model"
+            app:defaultValue="@string/default_model" />
         <EditTextPreference
-            android:key="@string/pref_llm_system"
-            android:title="系统提示词（语音模式）"
-            android:summary="语音对话的人设与风格（口语化、短句）"
-            android:defaultValue="@string/default_system"
-            app:useSimpleSummaryProvider="true" />
-
+            app:key="@string/pref_llm_system"
+            app:title="@string/pref_title_system_voice"
+            app:summary="@string/pref_summary_system_voice"
+            app:defaultValue="@string/default_system" />
         <EditTextPreference
-            android:key="@string/pref_llm_system_text"
-            android:title="系统提示词（文字模式）"
-            android:summary="文字对话的人设与风格（可用 Markdown）"
-            android:defaultValue="@string/default_system_text"
-            app:useSimpleSummaryProvider="true" />
+            app:key="@string/pref_llm_system_text"
+            app:title="@string/pref_title_system_text"
+            app:summary="@string/pref_summary_system_text"
+            app:defaultValue="@string/default_system_text" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="界面">
-        <SwitchPreferenceCompat
-            android:key="@string/pref_keep_screen_on"
-            android:title="屏幕常亮"
-            android:summary="前台时保持屏幕常亮（语音对话时方便查看，耗电增加）"
-            android:defaultValue="false" />
-    </PreferenceCategory>
-
-    <PreferenceCategory android:title="语音合成">
+    <!-- 界面 -->
+    <PreferenceCategory app:title="@string/cat_ui">
+        <!-- ★ 语言切换：AppCompatDelegate.setApplicationLocales（appcompat 1.6 兼容 API<33） -->
         <ListPreference
-            android:key="@string/pref_tts_engine"
-            android:title="TTS 引擎"
-            android:summary="系统 TTS 极速但音色一般；Kokoro 音质好但需加载模型（需重启 App 生效）"
-            android:entries="@array/tts_engine_entries"
-            android:entryValues="@array/tts_engine_values"
-            android:defaultValue="kokoro" />
+            app:key="@string/pref_app_language"
+            app:title="@string/pref_title_language"
+            app:summary="@string/pref_summary_language"
+            app:entries="@array/language_entries"
+            app:entryValues="@array/language_values"
+            app:defaultValue="system" />
+        <SwitchPreferenceCompat
+            app:key="@string/pref_keep_screen_on"
+            app:title="@string/pref_title_keep_screen_on"
+            app:summary="@string/pref_summary_keep_screen_on"
+            app:defaultValue="false" />
+    </PreferenceCategory>
 
+    <!-- 语音合成 -->
+    <PreferenceCategory app:title="@string/cat_tts">
+        <ListPreference
+            app:key="@string/pref_tts_engine"
+            app:title="@string/pref_title_tts_engine"
+            app:entries="@array/tts_engine_entries"
+            app:entryValues="@array/tts_engine_values"
+            app:defaultValue="kokoro" />
         <SeekBarPreference
-            android:key="@string/pref_tts_speed"
-            android:title="语速"
-            android:summary="1.0 = 正常"
-            android:defaultValue="10"
-            android:min="5"
+            app:key="@string/pref_tts_speed"
+            app:title="@string/pref_title_tts_speed"
+            app:summary="@string/pref_summary_tts_speed"
             android:max="20"
-            app:showSeekBarValue="true" />
-
+            app:defaultValue="10" />
         <SeekBarPreference
-            android:key="@string/pref_tts_sid"
-            android:title="说话人 ID (sid)"
-            android:summary="0~2 英文、3~57 中文女声（推荐）、58~102 中文男声"
-            android:defaultValue="3"
-            android:min="0"
+            app:key="@string/pref_tts_sid"
+            app:title="@string/pref_title_tts_sid"
+            app:summary="@string/pref_summary_tts_sid"
             android:max="102"
-            app:showSeekBarValue="true" />
-
-        <!-- ★ 音色预览：点一下用当前 sid 生成一段试听文本 -->
+            app:defaultValue="3" />
         <Preference
-            android:key="@string/pref_voice_preview"
-            android:title="🎵 试听当前音色"
-            android:summary="点击用当前 sid 生成并播放一句示例"
-            android:widgetLayout="@layout/widget_loading" />
+            app:key="@string/pref_voice_preview"
+            app:title="@string/pref_title_voice_preview" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="高级 · 对话节奏">
-        <!-- 冷却：正常播完后重新聆听的间隔，防回声。打断后会跳过此冷却。 -->
+    <!-- 高级 · 对话节奏 -->
+    <PreferenceCategory app:title="@string/cat_timing">
         <SeekBarPreference
-            android:key="@string/pref_cooldown_ms"
-            android:title="播报后冷却 (ms)"
-            android:summary="正常答完后等多久重新聆听，防回声"
-            android:defaultValue="600"
-            android:min="0"
-            android:max="2000"
-            app:showSeekBarValue="true" />
-
-        <!-- ASR 端点尾静默：说完停顿多久判定该句结束 -->
+            app:key="@string/pref_cooldown_ms"
+            app:title="@string/pref_title_cooldown"
+            app:summary="@string/pref_summary_cooldown"
+            android:max="3000"
+            app:defaultValue="600" />
         <SeekBarPreference
-            android:key="@string/pref_endpoint_silence"
-            android:title="说完判定延时 (×0.1s)"
-            android:summary="停顿多久判定一句话说完整。越小响应越快、越大越稳"
-            android:defaultValue="12"
-            android:min="5"
+            app:key="@string/pref_endpoint_silence"
+            app:title="@string/pref_title_endpoint_silence"
+            app:summary="@string/pref_summary_endpoint_silence"
             android:max="30"
-            app:showSeekBarValue="true" />
-
-        <!-- 麦克风增益（远距离收音） -->
+            app:defaultValue="12" />
         <SeekBarPreference
-            android:key="@string/pref_mic_gain"
-            android:title="麦克风增益 (×0.1)"
-            android:summary="放大收音。1.0=原始，2.0~3.0适合远距离/小声说话"
-            android:defaultValue="10"
-            android:min="10"
+            app:key="@string/pref_mic_gain"
+            app:title="@string/pref_title_mic_gain"
+            app:summary="@string/pref_summary_mic_gain"
             android:max="30"
-            app:showSeekBarValue="true" />
+            app:defaultValue="10" />
     </PreferenceCategory>
 
-    <!-- 唤醒词模式：语音模式下始终启用，省电 + 防误触 -->
-    <PreferenceCategory android:title="唤醒词模式">
-        <!-- 唤醒空闲秒数（ASR 启动后多久无语音进入 KWS） -->
+    <!-- 唤醒词模式 -->
+    <PreferenceCategory app:title="@string/cat_wake">
         <SeekBarPreference
-            android:key="@string/pref_wake_word_idle_sec"
-            android:title="唤醒空闲时间 (秒)"
-            android:summary="ASR 启动后多少秒无语音进入唤醒模式。越大越不容易误进"
-            android:defaultValue="5"
-            android:min="3"
-            android:max="20"
-            app:showSeekBarValue="true" />
-
-        <!-- 唤醒词 -->
+            app:key="@string/pref_wake_word_idle_sec"
+            app:title="@string/pref_title_wake_idle"
+            app:summary="@string/pref_summary_wake_idle"
+            android:max="30"
+            app:defaultValue="5" />
         <EditTextPreference
-            android:key="@string/pref_wake_word"
-            android:title="唤醒词"
-            android:summary="支持任意中文。修改后重启 App 生效。推荐 2~4 字"
-            android:defaultValue="小薇" />
+            app:key="@string/pref_wake_word"
+            app:title="@string/pref_title_wake_word"
+            app:summary="@string/pref_summary_wake_word"
+            app:defaultValue="@string/default_wake_word" />
     </PreferenceCategory>
 
-    <!-- 全局回声消除（实验性）：VOICE_COMMUNICATION + MODE_IN_COMMUNICATION，系统级 AEC -->
-    <PreferenceCategory android:title="音频（实验性）">
+    <!-- 全局回声消除（实验性） -->
+    <PreferenceCategory app:title="@string/cat_audio">
         <SwitchPreferenceCompat
-            android:key="@string/pref_global_aec"
-            android:title="全局回声消除"
-            android:summary="开启后可消除任意 App（音乐/视频）播放的回声。但可能切听筒、影响音质。默认关闭，仅本 App TTS 回声被消除"
-            android:defaultValue="false" />
+            app:key="@string/pref_global_aec"
+            app:title="@string/pref_title_global_aec"
+            app:summary="@string/pref_summary_global_aec"
+            app:defaultValue="false" />
         <SwitchPreferenceCompat
-            android:key="@string/pref_pause_music"
-            android:title="聆听时暂停音乐"
-            android:summary="对话开始时自动暂停其他 App（喜马拉雅/QQ音乐/B站等）的播放，结束后恢复。需开启远程前台 App"
-            android:defaultValue="false" />
+            app:key="@string/pref_pause_music"
+            app:title="@string/pref_title_pause_music"
+            app:summary="@string/pref_summary_pause_music"
+            app:defaultValue="false" />
     </PreferenceCategory>
 
     <!-- ★ 设置备份：导出/导入 SharedPreferences 为 JSON，方便换机/重装 -->
-    <PreferenceCategory android:title="设置备份">
+    <PreferenceCategory app:title="@string/cat_backup">
         <Preference
-            android:key="settings_export"
-            android:title="导出设置"
-            android:summary="把当前全部设置（含 LLM 配置/TTS/唤醒词等）导出为 JSON 文件" />
+            app:key="settings_export"
+            app:title="@string/pref_title_settings_export"
+            app:summary="@string/pref_summary_settings_export" />
         <Preference
-            android:key="settings_import"
-            android:title="导入设置"
-            android:summary="从 JSON 文件恢复设置（导入后需重启 App 生效）" />
+            app:key="settings_import"
+            app:title="@string/pref_title_settings_import"
+            app:summary="@string/pref_summary_settings_import" />
     </PreferenceCategory>
 
 </PreferenceScreen>

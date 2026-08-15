@@ -16,6 +16,6 @@
         android:textSize="12sp"
         android:textColor="#9B9BA7"
         android:background="@drawable/bg_notice_pill"
-        android:text="以下为新对话" />
+        android:text="@string/notice_new_chat" />
 
 </FrameLayout>

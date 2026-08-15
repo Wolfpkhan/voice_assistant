@@ -32,7 +32,7 @@
             android:paddingVertical="4dp"
             android:paddingHorizontal="10dp"
             android:background="@drawable/bg_reasoning_pill"
-            android:text="▶ 思考过程"
+            android:text="@string/reasoning_toggle"
             android:textColor="?android:attr/textColorSecondary"
             android:textSize="12sp" />
 

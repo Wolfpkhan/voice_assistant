@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">设置</string>
+
+    <!-- 状态文案 -->
+    <string name="state_idle">待机</string>
+    <string name="state_listening">聆听中…</string>
+    <string name="state_recognizing">识别中…</string>
+    <string name="state_thinking">思考中…</string>
+    <string name="state_speaking">回答中…</string>
+    <string name="state_wake_word">唤醒待机</string>
+
+    <!-- 按钮 -->
+    <string name="btn_start">开始对话</string>
+    <string name="btn_stop">停止</string>
+    <string name="btn_interrupt">中断输出</string>
+    <string name="btn_mute">静音播放</string>
+    <string name="btn_settings">设置</string>
+    <string name="btn_voice_mode">🎤 语音</string>
+    <string name="btn_text_mode">⌨ 文字</string>
+
+    <!-- 文字输入 -->
+    <string name="input_hint">输入消息…</string>
+    <string name="action_send">发送</string>
+    <string name="action_attach">附件</string>
+
+    <!-- 历史/备份菜单 -->
+    <string name="history_title">聊天记录</string>
+    <string name="action_new_chat">新对话</string>
+    <string name="history_search_hint">搜索聊天记录…</string>
+    <string name="history_empty">暂无聊天记录</string>
+    <string name="action_export">导出备份</string>
+    <string name="action_import">导入备份</string>
+    <string name="action_clear">清空历史</string>
+    <string name="notice_new_chat">以下为新对话</string>
+    <string name="reasoning_toggle">▶ 思考过程</string>
+    <string name="reasoning_hide">▼ 思考过程</string>
+
+    <!-- 默认值 -->
+    <string name="default_wake_word">小薇</string>
+    <string name="default_system">你是中文语音助手，直接用嘴说话的方式回答。规则：1.只用1到2个短句，像日常聊天；2.禁止markdown、列表、符号、emoji、编号；3.禁止书面语和长难句，用大白话；4.不解释过程，直接给答案。例如问“你是谁”只答“我是你的语音助手呀，有啥事尽管说。”</string>
+    <string name="default_system_text">你是中文 AI 助手，用 Markdown 回答（表格/列表/代码块均可）。简洁准确，可展开说明，适合阅读。</string>
+
+    <!-- 设置页文案 -->
+    <string name="cat_llm">云端大模型 (OpenAI 兼容)</string>
+    <string name="pref_title_baseurl">Base URL</string>
+    <string name="pref_summary_baseurl">OpenAI 兼容接口，如 http://127.0.0.1:8988/v1</string>
+    <string name="pref_title_apikey">API Key</string>
+    <string name="pref_summary_apikey">服务端密钥（本地保存；首次安装请填写）</string>
+    <string name="pref_title_model">模型</string>
+    <string name="pref_title_system_voice">系统提示词（语音模式）</string>
+    <string name="pref_summary_system_voice">语音对话人设——口语化、禁 markdown</string>
+    <string name="pref_title_system_text">系统提示词（文字模式）</string>
+    <string name="pref_summary_system_text">文字聊天人设——可用 markdown</string>
+    <string name="cat_ui">界面</string>
+    <string name="pref_title_language">语言</string>
+    <string name="pref_summary_language">应用显示语言</string>
+    <string name="lang_system">跟随系统</string>
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="pref_title_keep_screen_on">屏幕常亮</string>
+    <string name="pref_summary_keep_screen_on">App 在前台时保持屏幕不熄灭</string>
+    <string name="cat_tts">语音合成</string>
+    <string name="pref_title_tts_engine">TTS 引擎</string>
+    <string name="tts_kokoro">kokoro（本地离线）</string>
+    <string name="tts_system">系统（云端，内置）</string>
+    <string name="pref_title_tts_speed">语速</string>
+    <string name="pref_summary_tts_speed">1.0 = 正常</string>
+    <string name="pref_title_tts_sid">说话人 ID (sid)</string>
+    <string name="pref_summary_tts_sid">音色选择</string>
+    <string name="pref_title_voice_preview">🎵 试听当前音色</string>
+    <string name="cat_timing">高级 · 对话节奏</string>
+    <string name="pref_title_cooldown">播报后冷却 (ms)</string>
+    <string name="pref_summary_cooldown">TTS 播完到重新聆听的间隔</string>
+    <string name="pref_title_endpoint_silence">说完判定延时 (×0.1s)</string>
+    <string name="pref_summary_endpoint_silence">静音多久判定一句话结束（VAD）</string>
+    <string name="pref_title_mic_gain">麦克风增益 (×0.1)</string>
+    <string name="pref_summary_mic_gain">增强麦克风输入</string>
+    <string name="cat_wake">唤醒词模式</string>
+    <string name="pref_title_wake_idle">唤醒空闲时间 (秒)</string>
+    <string name="pref_summary_wake_idle">多久没说话后退回唤醒词待命</string>
+    <string name="pref_title_wake_word">唤醒词</string>
+    <string name="pref_summary_wake_word">支持任意中文。修改后重启 App 生效。推荐 2~4 字</string>
+    <string name="cat_audio">音频（实验性）</string>
+    <string name="pref_title_global_aec">全局回声消除</string>
+    <string name="pref_summary_global_aec">开启后可消除任意 App（音乐/视频）播放的回声。但可能切听筒、影响音质。默认关闭，仅本 App TTS 回声被消除</string>
+    <string name="pref_title_pause_music">聆听时暂停音乐</string>
+    <string name="pref_summary_pause_music">对话开始时自动暂停其他 App（喜马拉雅/QQ音乐/B站等）的播放，结束后恢复。需开启远程前台 App</string>
+    <string name="cat_backup">设置备份</string>
+    <string name="pref_title_settings_export">导出设置</string>
+    <string name="pref_summary_settings_export">把当前全部设置（含 LLM 配置/TTS/唤醒词等）导出为 JSON 文件</string>
+    <string name="pref_title_settings_import">导入设置</string>
+    <string name="pref_summary_settings_import">从 JSON 文件恢复设置（导入后需重启 App 生效）</string>
+
+    <!-- 通用提示 -->
+    <string name="toast_interrupted">已中断</string>
+    <string name="toast_revoked">已撤销，重新聆听</string>
+    <string name="toast_playback_stopped">已停止播放</string>
+    <string name="toast_stopped">已停止</string>
+    <string name="toast_need_mic_permission">需要录音权限才能使用语音助手</string>
+    <string name="toast_overlay_granted">悬浮窗权限已授予</string>
+    <string name="toast_overlay_denied">未授悬浮窗权限，无法显示悬浮球</string>
+    <string name="toast_need_overlay">需授权「显示在其他应用上层」才能显示悬浮球</string>
+    <string name="toast_ball_on">悬浮球已开启</string>
+    <string name="toast_ball_off">悬浮球已关闭</string>
+    <string name="toast_need_notif">未授通知权限，后台服务可能被系统杀</string>
+    <string name="toast_no_file_picker">未找到可用的文件选择器</string>
+    <string name="toast_no_path">未能获取文件路径，请查看 logcat (tag=AttachPicker)</string>
+    <string name="notify_title">Argus 语音助手</string>
+    <string name="notif_channel">语音助手后台服务</string>
+    <string name="notif_channel_desc">保持语音对话在后台运行</string>
+    <string name="notify_listening">聆听中…</string>
+    <string name="notify_thinking">思考中…</string>
+    <string name="notify_speaking">回答中…</string>
+    <string name="notify_wake">唤醒词待命中</string>
+
+    <!-- 历史/备份 -->
+    <string name="dlg_clear_title">清空历史</string>
+    <string name="dlg_clear_message">确定删除全部聊天记录？此操作不可恢复。</string>
+    <string name="toast_cleared">已清空</string>
+    <string name="prefix_user">你</string>
+    <string name="prefix_assistant">助手</string>
+    <string name="dlg_ok">确定</string>
+    <string name="dlg_cancel">取消</string>
+    <string name="toast_exported">已导出 %1$d 条记录</string>
+    <string name="toast_export_failed">导出失败: %1$s</string>
+    <string name="toast_imported">已导入 %1$d 条记录</string>
+    <string name="toast_import_failed">导入失败: %1$s</string>
+    <string name="toast_settings_exported">✅ 设置已导出</string>
+    <string name="toast_settings_export_failed">导出失败: %1$s</string>
+    <string name="toast_settings_imported">✅ 已导入 %1$d 项设置，重启 App 生效</string>
+    <string name="toast_settings_import_failed">导入失败: %1$s</string>
+    <string name="err_write_uri">无法写入 %1$s</string>
+    <string name="err_read_uri">无法读取 %1$s</string>
+    <string name="err_invalid_backup">不是有效的设置备份文件</string>
+    <string name="err_backup_missing_prefs">备份缺少 prefs 字段</string>
+
+    <!-- 音色名 -->
+    <string name="speaker_us_female_1">美式女声 #1 (af_maple)</string>
+    <string name="speaker_us_female_2">美式女声 #2 (af_sol)</string>
+    <string name="speaker_uk_female_1">英式女声 #1 (bf_vale)</string>
+    <string name="speaker_zh_female">中文女声 #%1$d</string>
+    <string name="speaker_zh_male">中文男声 #%1$d</string>
+    <string name="speaker_unknown">未知</string>
+    <string name="voice_preview_sample">你好，我是 Argus 语音助手。今天是2024年8月11日，The weather is nice today.</string>
+    <string name="voice_preview_generating">正在生成 %1$s…（首次需加载模型约3秒）</string>
+    <string name="voice_preview_idle">点击试听 sid=%1$d %2$s</string>
+
+    <!-- 错误 -->
+    <string name="err_asr_load">ASR 模型加载失败：%1$s</string>
+    <string name="err_kws_load">唤醒词模型加载失败：%1$s</string>
+    <string name="err_llm_call">LLM 调用失败：%1$s</string>
+    <string name="err_close">关闭</string>
+</resources>

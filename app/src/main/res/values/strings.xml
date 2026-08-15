@@ -1,38 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">灵犀</string>
-    <string name="settings_title">设置</string>
+    <string name="app_name">Argus</string>
+    <string name="settings_title">Settings</string>
 
-    <!-- 状态文案 -->
-    <string name="state_idle">待机</string>
-    <string name="state_listening">聆听中…</string>
-    <string name="state_recognizing">识别中…</string>
-    <string name="state_thinking">思考中…</string>
-    <string name="state_speaking">回答中…</string>
-    <string name="state_wake_word">唤醒待机</string>
+    <!-- 状态文案 / State labels -->
+    <string name="state_idle">Idle</string>
+    <string name="state_listening">Listening…</string>
+    <string name="state_recognizing">Recognizing…</string>
+    <string name="state_thinking">Thinking…</string>
+    <string name="state_speaking">Speaking…</string>
+    <string name="state_wake_word">Wake word standby</string>
 
-    <!-- 按钮 -->
-    <string name="btn_start">开始对话</string>
-    <string name="btn_stop">停止</string>
-    <string name="btn_interrupt">中断输出</string>
-    <string name="btn_mute">静音播放</string>
-    <string name="btn_settings">设置</string>
+    <!-- 按钮 / Buttons -->
+    <string name="btn_start">Start</string>
+    <string name="btn_stop">Stop</string>
+    <string name="btn_interrupt">Interrupt</string>
+    <string name="btn_mute">Mute</string>
+    <string name="btn_settings">Settings</string>
+    <string name="btn_voice_mode">🎤 Voice</string>
+    <string name="btn_text_mode">⌨ Text</string>
 
-    <!-- 文字输入 -->
-    <string name="input_hint">输入消息…</string>
-    <string name="action_send">发送</string>
-    <string name="action_attach">附件</string>
+    <!-- 文字输入 / Text input -->
+    <string name="input_hint">Type a message…</string>
+    <string name="action_send">Send</string>
+    <string name="action_attach">Attach</string>
 
-    <!-- 历史/备份菜单 -->
-    <string name="history_title">聊天记录</string>
-    <string name="action_new_chat">新对话</string>
-    <string name="history_search_hint">搜索聊天记录…</string>
-    <string name="history_empty">暂无聊天记录</string>
-    <string name="action_export">导出备份</string>
-    <string name="action_import">导入备份</string>
-    <string name="action_clear">清空历史</string>
+    <!-- 历史/备份菜单 / History & backup -->
+    <string name="history_title">History</string>
+    <string name="action_new_chat">New chat</string>
+    <string name="history_search_hint">Search history…</string>
+    <string name="history_empty">No history yet</string>
+    <string name="action_export">Export backup</string>
+    <string name="action_import">Import backup</string>
+    <string name="action_clear">Clear history</string>
+    <string name="notice_new_chat">New conversation</string>
+    <string name="reasoning_toggle">▶ Thinking</string>
+    <string name="reasoning_hide">▼ Thinking</string>
 
-    <!-- 设置键 -->
+    <!-- 设置键（存储 key，不翻译） / Pref keys (do not translate) -->
     <string name="pref_llm_baseurl">llm_baseurl</string>
     <string name="pref_llm_apikey">llm_apikey</string>
     <string name="pref_llm_model">llm_model</string>
@@ -42,7 +47,6 @@
     <string name="pref_tts_sid">tts_sid</string>
     <string name="pref_tts_engine">tts_engine</string>
     <string name="pref_voice_preview">voice_preview</string>
-    <!-- 高级时间参数（单位见 title） -->
     <string name="pref_cooldown_ms">cooldown_ms</string>
     <string name="pref_endpoint_silence">endpoint_silence</string>
     <string name="pref_mic_gain">mic_gain</string>
@@ -52,11 +56,123 @@
     <string name="pref_pause_music">pause_music</string>
     <string name="pref_keep_screen_on">keep_screen_on</string>
     <string name="pref_floating_ball">floating_ball</string>
+    <string name="pref_app_language">app_language</string>
 
-    <!-- 默认值：pi-proxy（包装 pi agent 为 OpenAI 兼容 API，带工具能力）。
-         baseurl/model 可预设；apiKey 是私密凭据，不预设，首次安装需在设置页填写。 -->
+    <!-- 默认值 / Defaults -->
     <string name="default_baseurl">http://127.0.0.1:8988/v1</string>
     <string name="default_model">deepseek-v4-flash</string>
-    <string name="default_system">你是中文语音助手，直接用嘴说话的方式回答。规则：1.只用1到2个短句，像日常聊天；2.禁止markdown、列表、符号、emoji、编号；3.禁止书面语和长难句，用大白话；4.不解释过程，直接给答案。例如问“你是谁”只答“我是你的语音助手呀，有啥事尽管说。”</string>
-    <string name="default_system_text">你是中文 AI 助手，用 Markdown 回答（表格/列表/代码块均可）。简洁准确，可展开说明，适合阅读。</string>
+    <string name="default_wake_word">小薇</string>
+    <string name="default_system">You are a voice assistant. Answer as if speaking aloud. Rules: 1. Use only 1-2 short sentences, like casual chat; 2. No markdown, lists, symbols, emoji or numbering; 3. No formal or long sentences, use plain spoken language; 4. Do not explain your process, just give the answer.</string>
+    <string name="default_system_text">You are an AI assistant. Answer in Markdown (tables/lists/code blocks allowed). Be concise and accurate, elaborate when needed, suitable for reading.</string>
+
+    <!-- 设置页文案 / Settings screen -->
+    <string name="cat_llm">Cloud LLM (OpenAI-compatible)</string>
+    <string name="pref_title_baseurl">Base URL</string>
+    <string name="pref_summary_baseurl">OpenAI-compatible endpoint, e.g. http://127.0.0.1:8988/v1</string>
+    <string name="pref_title_apikey">API Key</string>
+    <string name="pref_summary_apikey">Server key (stored locally; required on first install)</string>
+    <string name="pref_title_model">Model</string>
+    <string name="pref_title_system_voice">System prompt (voice mode)</string>
+    <string name="pref_summary_system_voice">Persona for voice conversations — spoken style, no markdown</string>
+    <string name="pref_title_system_text">System prompt (text mode)</string>
+    <string name="pref_summary_system_text">Persona for text chats — markdown allowed</string>
+    <string name="cat_ui">Interface</string>
+    <string name="pref_title_language">Language</string>
+    <string name="pref_summary_language">App display language</string>
+    <string name="lang_system">Follow system</string>
+    <string name="lang_zh">中文</string>
+    <string name="lang_en">English</string>
+    <string name="pref_title_keep_screen_on">Keep screen on</string>
+    <string name="pref_summary_keep_screen_on">Keep screen awake while the app is in foreground</string>
+    <string name="cat_tts">Text-to-speech</string>
+    <string name="pref_title_tts_engine">TTS engine</string>
+    <string name="tts_kokoro">kokoro (local, offline)</string>
+    <string name="tts_system">system (cloud-ish, built-in)</string>
+    <string name="pref_title_tts_speed">Speech rate</string>
+    <string name="pref_summary_tts_speed">1.0 = normal</string>
+    <string name="pref_title_tts_sid">Speaker ID (sid)</string>
+    <string name="pref_summary_tts_sid">Voice timbre selection</string>
+    <string name="pref_title_voice_preview">🎵 Preview current voice</string>
+    <string name="cat_timing">Advanced · Conversation timing</string>
+    <string name="pref_title_cooldown">Cooldown after reply (ms)</string>
+    <string name="pref_summary_cooldown">Pause before re-listening after TTS finishes</string>
+    <string name="pref_title_endpoint_silence">End-of-speech silence (×0.1s)</string>
+    <string name="pref_summary_endpoint_silence">How long silence ends an utterance (VAD)</string>
+    <string name="pref_title_mic_gain">Mic gain (×0.1)</string>
+    <string name="pref_summary_mic_gain">Boost microphone input</string>
+    <string name="cat_wake">Wake word mode</string>
+    <string name="pref_title_wake_idle">Idle before wake mode (s)</string>
+    <string name="pref_summary_wake_idle">Fall back to wake word after this much silence</string>
+    <string name="pref_title_wake_word">Wake word</string>
+    <string name="pref_summary_wake_word">Any Chinese words. Takes effect after app restart. 2-4 chars recommended</string>
+    <string name="cat_audio">Audio (experimental)</string>
+    <string name="pref_title_global_aec">Global echo cancellation</string>
+    <string name="pref_summary_global_aec">Cancels echo from any app (music/video) via VOICE_COMMUNICATION. May switch to earpiece or lower quality. Off by default — only this app\'s TTS echo is cancelled</string>
+    <string name="pref_title_pause_music">Pause music while listening</string>
+    <string name="pref_summary_pause_music">Pause other apps (Ximalaya/QQ Music/Bilibili etc.) during conversation, resume after. Requires the remote frontend app</string>
+    <string name="cat_backup">Settings backup</string>
+    <string name="pref_title_settings_export">Export settings</string>
+    <string name="pref_summary_settings_export">Export all current settings (LLM/TTS/wake word etc.) as JSON</string>
+    <string name="pref_title_settings_import">Import settings</string>
+    <string name="pref_summary_settings_import">Restore settings from a JSON file (restart app to apply)</string>
+
+    <!-- 通用提示 / Misc UI strings -->
+    <string name="toast_interrupted">Interrupted</string>
+    <string name="toast_revoked">Revoked, listening again</string>
+    <string name="toast_playback_stopped">Playback stopped</string>
+    <string name="toast_stopped">Stopped</string>
+    <string name="toast_need_mic_permission">Microphone permission is required</string>
+    <string name="toast_overlay_granted">Overlay permission granted</string>
+    <string name="toast_overlay_denied">Overlay permission denied — floating ball unavailable</string>
+    <string name="toast_need_overlay">Overlay permission required for the floating ball</string>
+    <string name="toast_ball_on">Floating ball enabled</string>
+    <string name="toast_ball_off">Floating ball disabled</string>
+    <string name="toast_need_notif">Without notification permission the background service may be killed</string>
+    <string name="toast_no_file_picker">No file picker available</string>
+    <string name="toast_no_path">Could not get file path, check logcat (tag=AttachPicker)</string>
+    <string name="notify_title">Argus voice assistant</string>
+    <string name="notif_channel">Voice assistant background service</string>
+    <string name="notif_channel_desc">Keeps voice conversations running in the background</string>
+    <string name="notify_listening">Listening…</string>
+    <string name="notify_thinking">Thinking…</string>
+    <string name="notify_speaking">Answering…</string>
+    <string name="notify_wake">Wake word standby</string>
+
+    <!-- 历史/备份 / History & backup -->
+    <string name="dlg_clear_title">Clear history</string>
+    <string name="dlg_clear_message">Delete ALL chat history? This cannot be undone.</string>
+    <string name="toast_cleared">Cleared</string>
+    <string name="prefix_user">You</string>
+    <string name="prefix_assistant">Assistant</string>
+    <string name="dlg_ok">OK</string>
+    <string name="dlg_cancel">Cancel</string>
+    <string name="toast_exported">%1$d messages exported</string>
+    <string name="toast_export_failed">Export failed: %1$s</string>
+    <string name="toast_imported">%1$d messages imported</string>
+    <string name="toast_import_failed">Import failed: %1$s</string>
+    <string name="toast_settings_exported">✅ Settings exported</string>
+    <string name="toast_settings_export_failed">Export failed: %1$s</string>
+    <string name="toast_settings_imported">✅ Imported %1$d settings, restart app to apply</string>
+    <string name="toast_settings_import_failed">Import failed: %1$s</string>
+    <string name="err_write_uri">Cannot write to %1$s</string>
+    <string name="err_read_uri">Cannot read %1$s</string>
+    <string name="err_invalid_backup">Not a valid settings backup file</string>
+    <string name="err_backup_missing_prefs">Backup is missing the prefs field</string>
+
+    <!-- 音色名 / Speaker names -->
+    <string name="speaker_us_female_1">US female #1 (af_maple)</string>
+    <string name="speaker_us_female_2">US female #2 (af_sol)</string>
+    <string name="speaker_uk_female_1">UK female #1 (bf_vale)</string>
+    <string name="speaker_zh_female">Chinese female #%1$d</string>
+    <string name="speaker_zh_male">Chinese male #%1$d</string>
+    <string name="speaker_unknown">Unknown</string>
+    <string name="voice_preview_sample">Hello, I am Argus, your voice assistant. Today is August 11, 2024. The weather is nice today.</string>
+    <string name="voice_preview_generating">Generating %1$s… (first run loads the model, ~3s)</string>
+    <string name="voice_preview_idle">Tap to preview sid=%1$d %2$s</string>
+
+    <!-- 错误 / Errors -->
+    <string name="err_asr_load">ASR model failed to load: %1$s</string>
+    <string name="err_kws_load">Wake word model failed to load: %1$s</string>
+    <string name="err_llm_call">LLM call failed: %1$s</string>
+    <string name="err_close">Close</string>
 </resources>

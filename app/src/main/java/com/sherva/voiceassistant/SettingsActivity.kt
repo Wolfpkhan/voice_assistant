@@ -10,6 +10,7 @@ import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
@@ -36,18 +37,17 @@ class SettingsActivity : AppCompatActivity() {
         private var audioTrack: AudioTrack? = null
         private var previewing = false
 
-        companion object {
-            /** Kokoro v1_1 的 103 个 speaker 描述（基于 sherpa PR #1942）。
-             * 中文音色没有官方名称，只有内部编号 zf/zm。 */
-            private fun speakerName(sid: Int): String {
-                return when {
-                    sid == 0 -> "美式女声 #1 (af_maple)"
-                    sid == 1 -> "美式女声 #2 (af_sol)"
-                    sid == 2 -> "英式女声 #1 (bf_vale)"
-                    sid in 3..57 -> "中文女声 #${sid - 2}"
-                    sid in 58..102 -> "中文男声 #${sid - 57}"
-                    else -> "未知"
-                }
+        /** Kokoro v1_1 的 103 个 speaker 描述（基于 sherpa PR #1942）。
+         * 中文音色没有官方名称，只有内部编号 zf/zm。
+         * ★ 从 companion 移到 fragment 成员：需要 getString() 走资源做双语。 */
+        private fun speakerName(sid: Int): String {
+            return when {
+                sid == 0 -> getString(R.string.speaker_us_female_1)
+                sid == 1 -> getString(R.string.speaker_us_female_2)
+                sid == 2 -> getString(R.string.speaker_uk_female_1)
+                sid in 3..57 -> getString(R.string.speaker_zh_female, sid - 2)
+                sid in 58..102 -> getString(R.string.speaker_zh_male, sid - 57)
+                else -> getString(R.string.speaker_unknown)
             }
         }
 
@@ -62,6 +62,20 @@ class SettingsActivity : AppCompatActivity() {
                 sp.edit().putInt(sidKey, sidInt).apply()
             }
             setPreferencesFromResource(R.xml.preferences, rootKey)
+
+            // ★ 语言切换：AppCompatDelegate.setApplicationLocales（appcompat 1.6 兼容到 API<33，
+            //   自动持久化并重建 Activity；API 33+ 走系统 per-app language）
+            findPreference<ListPreference>(getString(R.string.pref_app_language))?.apply {
+                setOnPreferenceChangeListener { _, newValue ->
+                    val locales = when (newValue as? String) {
+                        "zh" -> androidx.core.os.LocaleListCompat.forLanguageTags("zh")
+                        "en" -> androidx.core.os.LocaleListCompat.forLanguageTags("en")
+                        else -> androidx.core.os.LocaleListCompat.getEmptyLocaleList()  // 跟随系统
+                    }
+                    androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(locales)
+                    true
+                }
+            }
 
             // ★ sid 滑块联动：实时显示当前音色名称
             val sidPref = findPreference<SeekBarPreference>(getString(R.string.pref_tts_sid))
@@ -130,13 +144,13 @@ class SettingsActivity : AppCompatActivity() {
                     }
                     requireContext().contentResolver.openOutputStream(uri)?.use { os ->
                         os.write(root.toString(2).toByteArray(Charsets.UTF_8))
-                    } ?: throw RuntimeException("无法写入 $uri")
+                    } ?: throw RuntimeException(getString(R.string.err_write_uri, uri.toString()))
                     withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(requireContext(), "✅ 设置已导出", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(requireContext(), getString(R.string.toast_settings_exported), android.widget.Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(requireContext(), "导出失败: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                        android.widget.Toast.makeText(requireContext(), getString(R.string.toast_settings_export_failed, e.message), android.widget.Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -147,12 +161,12 @@ class SettingsActivity : AppCompatActivity() {
                 try {
                     val json = requireContext().contentResolver.openInputStream(uri)?.use { ins ->
                         ins.readBytes().toString(Charsets.UTF_8)
-                    } ?: throw RuntimeException("无法读取 $uri")
+                    } ?: throw RuntimeException(getString(R.string.err_read_uri, uri.toString()))
                     val root = JSONObject(json)
                     if (root.optString("_type") != "sherva-settings-backup") {
-                        throw RuntimeException("不是有效的设置备份文件")
+                        throw RuntimeException(getString(R.string.err_invalid_backup))
                     }
-                    val prefs = root.optJSONObject("prefs") ?: throw RuntimeException("备份缺少 prefs 字段")
+                    val prefs = root.optJSONObject("prefs") ?: throw RuntimeException(getString(R.string.err_backup_missing_prefs))
                     val sp = PreferenceManager.getDefaultSharedPreferences(requireContext())
                     val ed = sp.edit().clear()  // ★ 先清空再导入：以备份为准，避免残留
                     var count = 0
@@ -168,12 +182,12 @@ class SettingsActivity : AppCompatActivity() {
                     ed.apply()
                     withContext(Dispatchers.Main) {
                         android.widget.Toast.makeText(
-                            requireContext(), "✅ 已导入 $count 项设置，重启 App 生效", android.widget.Toast.LENGTH_LONG
+                            requireContext(), getString(R.string.toast_settings_imported, count), android.widget.Toast.LENGTH_LONG
                         ).show()
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        android.widget.Toast.makeText(requireContext(), "导入失败: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+                        android.widget.Toast.makeText(requireContext(), getString(R.string.toast_settings_import_failed, e.message), android.widget.Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -189,7 +203,7 @@ class SettingsActivity : AppCompatActivity() {
             previewing = true
             showLoading(true)
             // 提示文本：含中英文+数字，能测出音色全貌
-            val sample = "你好，我是灵犀语音助手。今天是2024年8月11日，The weather is nice today."
+            val sample = getString(R.string.voice_preview_sample)
 
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
@@ -260,8 +274,8 @@ class SettingsActivity : AppCompatActivity() {
             val sp = PreferenceManager.getDefaultSharedPreferences(requireContext())
             val sid = sp.getInt(getString(R.string.pref_tts_sid), 3)
             findPreference<Preference>(getString(R.string.pref_voice_preview))?.summary =
-                if (show) "正在生成 ${speakerName(sid)}...（首次需加载模型约3秒）"
-                else "点击试听 sid=$sid ${speakerName(sid)}"
+                if (show) getString(R.string.voice_preview_generating, speakerName(sid))
+                else getString(R.string.voice_preview_idle, sid, speakerName(sid))
         }
 
         override fun onDestroy() {

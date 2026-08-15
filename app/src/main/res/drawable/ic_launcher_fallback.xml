@@ -1,17 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 低版本 fallback：深绿底 + 双对话气泡 -->
+<!-- 低版本 fallback：深空底 + Argus 发光之眼（与自适应图标一致，合并背景+前景） -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:fillColor="#0D8A6A" android:pathData="M0,0h108v108h-108z" />
-    <!-- 后方气泡 -->
-    <path android:fillColor="#FFFFFF" android:fillAlpha="0.35" android:pathData="M30,34h34c3.3,0 6,2.7 6,6v18c0,3.3 -2.7,6 -6,6h-6l-10,8v-8h-18c-3.3,0 -6,-2.7 -6,-6v-18c0,-3.3 2.7,-6 6,-6z" />
-    <!-- 前方气泡 -->
-    <path android:fillColor="#FFFFFF" android:pathData="M44,48h34c3.3,0 6,2.7 6,6v16c0,3.3 -2.7,6 -6,6h-14l-10,8v-8h-10c-3.3,0 -6,-2.7 -6,-6v-16c0,-3.3 2.7,-6 6,-6z" />
-    <!-- 三点 -->
-    <path android:fillColor="#10A37F" android:pathData="M56,62m-2.2,0a2.2,2.2 0,1 1,4.4 0a2.2,2.2 0,1 1,-4.4 0" />
-    <path android:fillColor="#10A37F" android:pathData="M66,62m-2.2,0a2.2,2.2 0,1 1,4.4 0a2.2,2.2 0,1 1,-4.4 0" />
-    <path android:fillColor="#10A37F" android:pathData="M76,62m-2.2,0a2.2,2.2 0,1 1,4.4 0a2.2,2.2 0,1 1,-4.4 0" />
+
+    <!-- 深空底（纯色，低版本不支持渐变的话也有颜色过渡感） -->
+    <path android:fillColor="#0B1120" android:pathData="M0,0h108v108h-108z" />
+
+    <!-- 声波涟漪 上 -->
+    <path android:strokeColor="#64FFDA" android:strokeWidth="2" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M44,33 Q54,28 64,33" />
+    <path android:strokeColor="#64FFDA" android:strokeAlpha="0.66" android:strokeWidth="2" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M39,26 Q54,19 69,26" />
+    <path android:strokeColor="#64FFDA" android:strokeAlpha="0.35" android:strokeWidth="2" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M34,19 Q54,10 74,19" />
+
+    <!-- 声波涟漪 下 -->
+    <path android:strokeColor="#64FFDA" android:strokeWidth="2" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M44,75 Q54,80 64,75" />
+    <path android:strokeColor="#64FFDA" android:strokeAlpha="0.66" android:strokeWidth="2" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M39,82 Q54,89 69,82" />
+    <path android:strokeColor="#64FFDA" android:strokeAlpha="0.35" android:strokeWidth="2" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M34,89 Q54,98 74,89" />
+
+    <!-- 眼睛 -->
+    <path android:strokeColor="#64FFDA" android:strokeAlpha="0.25" android:strokeWidth="5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M28,54 C38,40 70,40 80,54 C70,68 38,68 28,54 Z" />
+    <path android:strokeColor="#B9FFE9" android:strokeWidth="2.5" android:strokeLineCap="round" android:fillColor="#00000000" android:pathData="M28,54 C38,40 70,40 80,54 C70,68 38,68 28,54 Z" />
+
+    <!-- 虹膜+瞳孔 -->
+    <path android:fillColor="#00E5FF" android:fillAlpha="0.30" android:pathData="M54,54 m-9,0 a9,9 0,1 1,18 0 a9,9 0,1 1,-18 0" />
+    <path android:strokeColor="#00E5FF" android:strokeWidth="1.5" android:fillColor="#00000000" android:pathData="M54,54 m-9,0 a9,9 0,1 1,18 0 a9,9 0,1 1,-18 0" />
+    <path android:fillColor="#64FFDA" android:fillAlpha="0.45" android:pathData="M54,54 m-5.5,0 a5.5,5.5 0,1 1,11 0 a5.5,5.5 0,1 1,-11 0" />
+    <path android:fillColor="#FFFFFF" android:pathData="M54,54 m-3.5,0 a3.5,3.5 0,1 1,7 0 a3.5,3.5 0,1 1,-7 0" />
 </vector>

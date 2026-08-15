@@ -106,17 +106,17 @@ class HistoryActivity : AppCompatActivity() {
         }
         clearButton.setOnClickListener {
             androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("清空历史")
-                .setMessage("确定删除全部聊天记录？此操作不可恢复。")
-                .setPositiveButton("清空") { _, _ ->
+                .setTitle(getString(R.string.dlg_clear_title))
+                .setMessage(getString(R.string.dlg_clear_message))
+                .setPositiveButton(getString(R.string.action_clear)) { _, _ ->
                     lifecycleScope.launch {
                         ChatStore.clearAll()
                         adapter.submitList(emptyList())
                         updateEmpty()
-                        toast("已清空")
+                        toast(getString(R.string.toast_cleared))
                     }
                 }
-                .setNegativeButton("取消", null)
+                .setNegativeButton(getString(R.string.dlg_cancel), null)
                 .show()
         }
 
@@ -169,9 +169,9 @@ class HistoryActivity : AppCompatActivity() {
             try {
                 val msgs = ChatStore.loadAll()
                 val count = BackupManager.export(this@HistoryActivity, uri, msgs)
-                toast("已导出 $count 条记录")
+                toast(getString(R.string.toast_exported, count))
             } catch (e: Exception) {
-                toast("导出失败: ${e.message}")
+                toast(getString(R.string.toast_export_failed, e.message))
             }
         }
     }
@@ -181,10 +181,10 @@ class HistoryActivity : AppCompatActivity() {
             try {
                 // 先确认是追加还是替换
                 val count = BackupManager.import(this@HistoryActivity, uri, ChatStore.getDao(), replace = false)
-                toast("已导入 $count 条记录")
+                toast(getString(R.string.toast_imported, count))
                 initialLoad()
             } catch (e: Exception) {
-                toast("导入失败: ${e.message}")
+                toast(getString(R.string.toast_import_failed, e.message))
             }
         }
     }
@@ -217,7 +217,7 @@ class HistoryAdapter(
 
     override fun onBindViewHolder(h: VH, position: Int) {
         val m = items[position]
-        h.prefix.text = if (m.isFromUser) "你" else "助手"
+        h.prefix.text = if (m.isFromUser) h.itemView.context.getString(R.string.prefix_user) else h.itemView.context.getString(R.string.prefix_assistant)
         // 用 MarkdownRenderer 渲染（与主界面一致）
         com.sherva.voiceassistant.ui.MarkdownRenderer.render(h.content, m.content)
         h.time.text = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())

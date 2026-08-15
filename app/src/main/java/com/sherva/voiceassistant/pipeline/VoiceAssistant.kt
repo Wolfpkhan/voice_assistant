@@ -6,6 +6,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import com.sherva.voiceassistant.AppLog
+import com.sherva.voiceassistant.R
 import com.sherva.voiceassistant.asr.KeywordSpotterEngine
 import com.sherva.voiceassistant.asr.StreamingAsrEngine
 import kotlinx.coroutines.delay
@@ -220,7 +221,7 @@ class VoiceAssistant(
                 }
             } catch (e: Throwable) {
                 AppLog.e("VA", "ASR 模型加载失败", e)
-                broadcast { it.onError("ASR 模型加载失败：${e.message}") }
+                broadcast { it.onError(appContext.getString(R.string.err_asr_load, e.message ?: "")) }
                 starting = false
                 setState(State.IDLE)
                 return@launch
@@ -290,7 +291,7 @@ class VoiceAssistant(
             }
         } catch (e: Throwable) {
             AppLog.e("VA", "KWS 启动失败", e)
-            broadcast { it.onError("唤醒词模型加载失败：${e.message}") }
+            broadcast { it.onError(appContext.getString(R.string.err_kws_load, e.message ?: "")) }
             inWakeWord = false
             setState(State.IDLE)
         }
@@ -387,7 +388,7 @@ class VoiceAssistant(
                 if (full.length > reply.length) reply.clear().append(full)
             }
         } catch (e: Throwable) {
-            broadcast { it.onError("LLM 调用失败: ${e.message}") }
+            broadcast { it.onError(appContext.getString(R.string.err_llm_call, e.message ?: "")) }
         }
         val fullReply = reply.toString().trim()
         AppLog.i("VA", "LLM 完成: reasoning=$reasoningSeen, 回复 ${fullReply.length} 字: \"${fullReply.take(50)}\"")
@@ -682,8 +683,11 @@ class VoiceAssistant(
      *   - 去掉：所有其他符号（箭头、括号、冒号、markdown、emoji 代理对等）
      *   - 不再逐个枚举 TTS_STRIP 列表 */
     private fun cleanTextForTts(text: String): String {
-        val sb = StringBuilder(text.length)
-        for (ch in text) {
+        // ★ URL / 链接：整体替换成「链接」——不念协议、域名、路径
+        //   （否则会念成 h-t-t-p 冒号斜杠… 很尴尬）
+        var t = text.replace(Regex("""https?://\S+"""), "链接")
+        val sb = StringBuilder(t.length)
+        for (ch in t) {
             if (Character.isSurrogate(ch)) continue   // 跳过 emoji
             if (ch == '\n') { sb.append('，'); continue }
             if (ch.isLetter() || ch.isDigit()) { sb.append(ch); continue }
@@ -691,7 +695,7 @@ class VoiceAssistant(
             if (ch in "。，、！？,.!?") { sb.append(ch); continue }
             // ★ 保留数字场景符号（供 digitsToChinese 正则匹配）
             //   含 - – 等范围连接符（如 20-21点）
-            if (ch in ":.%°℃¥￥\$元点分-–") { sb.append(ch); continue }
+            if (ch in ":.%°℃¥￥\$元点分-/–") { sb.append(ch); continue }
             // 其他全去掉（括号、冒号、箭头、markdown 等一切标点符号）
         }
         return sb.toString()

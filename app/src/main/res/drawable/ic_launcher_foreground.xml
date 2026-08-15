@@ -1,24 +1,92 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 自适应图标前景：两个交叠圆角对话气泡（一浅一深，白色三点） -->
+<!-- Argus 图标前景：百眼巨人之眼——发光的杏仁形独眼，上下声波涟漪扩散。
+     隐喻：永远睁着的眼睛（持续聆听 KWS）+ 声波（语音交互）。 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 后方气泡（浅色，偏左上） -->
+    <!-- ===== 声波涟漪（上方三道，向外渐隐）===== -->
+    <path
+        android:strokeColor="#64FFDA"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M44,33 Q54,28 64,33" />
+    <path
+        android:strokeColor="#64FFDA"
+        android:strokeAlpha="0.66"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M39,26 Q54,19 69,26" />
+    <path
+        android:strokeColor="#64FFDA"
+        android:strokeAlpha="0.35"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M34,19 Q54,10 74,19" />
+
+    <!-- ===== 声波涟漪（下方三道，镜像）===== -->
+    <path
+        android:strokeColor="#64FFDA"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M44,75 Q54,80 64,75" />
+    <path
+        android:strokeColor="#64FFDA"
+        android:strokeAlpha="0.66"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M39,82 Q54,89 69,82" />
+    <path
+        android:strokeColor="#64FFDA"
+        android:strokeAlpha="0.35"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M34,89 Q54,98 74,89" />
+
+    <!-- ===== 眼睛（杏仁形）外层辉光（粗+低透明度模拟发光）===== -->
+    <path
+        android:strokeColor="#64FFDA"
+        android:strokeAlpha="0.25"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M28,54 C38,40 70,40 80,54 C70,68 38,68 28,54 Z" />
+
+    <!-- ===== 眼睛主体（清晰线条）===== -->
+    <path
+        android:strokeColor="#B9FFE9"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M28,54 C38,40 70,40 80,54 C70,68 38,68 28,54 Z" />
+
+    <!-- ===== 虹膜（青色半透明圆）===== -->
+    <path
+        android:fillColor="#00E5FF"
+        android:fillAlpha="0.30"
+        android:pathData="M54,54 m-9,0 a9,9 0,1 1,18 0 a9,9 0,1 1,-18 0" />
+
+    <!-- ===== 虹膜环（描边）===== -->
+    <path
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="1.5"
+        android:fillColor="#00000000"
+        android:pathData="M54,54 m-9,0 a9,9 0,1 1,18 0 a9,9 0,1 1,-18 0" />
+
+    <!-- ===== 瞳孔（中心亮点，带辉光）===== -->
+    <path
+        android:fillColor="#64FFDA"
+        android:fillAlpha="0.45"
+        android:pathData="M54,54 m-5.5,0 a5.5,5.5 0,1 1,11 0 a5.5,5.5 0,1 1,-11 0" />
     <path
         android:fillColor="#FFFFFF"
-        android:fillAlpha="0.35"
-        android:pathData="M30,34h34c3.3,0 6,2.7 6,6v18c0,3.3 -2.7,6 -6,6h-6l-10,8v-8h-18c-3.3,0 -6,-2.7 -6,-6v-18c0,-3.3 2.7,-6 6,-6z" />
-
-    <!-- 前方气泡（实色白，偏右下，带尖角朝左下） -->
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M44,48h34c3.3,0 6,2.7 6,6v16c0,3.3 -2.7,6 -6,6h-14l-10,8v-8h-10c-3.3,0 -6,-2.7 -6,-6v-16c0,-3.3 2.7,-6 6,-6z" />
-
-    <!-- 前方气泡的三个点（对话感） -->
-    <path android:fillColor="#10A37F" android:pathData="M56,62m-2.2,0a2.2,2.2 0,1 1,4.4 0a2.2,2.2 0,1 1,-4.4 0" />
-    <path android:fillColor="#10A37F" android:pathData="M66,62m-2.2,0a2.2,2.2 0,1 1,4.4 0a2.2,2.2 0,1 1,-4.4 0" />
-    <path android:fillColor="#10A37F" android:pathData="M76,62m-2.2,0a2.2,2.2 0,1 1,4.4 0a2.2,2.2 0,1 1,-4.4 0" />
+        android:pathData="M54,54 m-3.5,0 a3.5,3.5 0,1 1,7 0 a3.5,3.5 0,1 1,-7 0" />
 </vector>

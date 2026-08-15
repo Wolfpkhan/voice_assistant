@@ -119,7 +119,7 @@
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:paddingHorizontal="18dp"
-            android:text="🎤 语音"
+            android:text="@string/btn_voice_mode"
             android:textSize="14sp"
             app:cornerRadius="18dp" />
 
@@ -132,7 +132,7 @@
             android:insetTop="0dp"
             android:insetBottom="0dp"
             android:paddingHorizontal="18dp"
-            android:text="⌨ 文字"
+            android:text="@string/btn_text_mode"
             android:textSize="14sp"
             app:cornerRadius="18dp" />
     </LinearLayout>

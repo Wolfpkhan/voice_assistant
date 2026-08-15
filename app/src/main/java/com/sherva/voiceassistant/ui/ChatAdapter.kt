@@ -82,7 +82,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                 //   （避免完整重绑导致 ViewHolder 被替换成新的 expanded=true 默认值，需点两次）
                 vh.reasoningHeader.setOnClickListener {
                     vh.expanded = !vh.expanded
-                    vh.reasoningHeader.text = if (vh.expanded) "▼ 思考过程" else "▶ 思考过程"
+                    vh.reasoningHeader.text = if (vh.expanded) vh.itemView.context.getString(R.string.reasoning_hide) else vh.itemView.context.getString(R.string.reasoning_toggle)
                     vh.reasoningText.visibility = if (vh.expanded) View.VISIBLE else View.GONE
                 }
                 vh
@@ -106,7 +106,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                 // ★ 折叠思考区（思考结束开始正文时）：设 expanded=false 并直接改 View
                 if (payloads.contains(PAYLOAD_COLLAPSE)) {
                     h.expanded = false
-                    h.reasoningHeader.text = "▶ 思考过程"
+                    h.reasoningHeader.text = h.itemView.context.getString(R.string.reasoning_toggle)
                     h.reasoningText.visibility = View.GONE
                     return
                 }
@@ -120,7 +120,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                 if (payloads.contains(PAYLOAD_REASONING)) {
                     if (!rs.isNullOrBlank()) {
                         h.reasoningHeader.visibility = View.VISIBLE
-                        h.reasoningHeader.text = if (h.expanded) "▼ 思考过程" else "▶ 思考过程"
+                        h.reasoningHeader.text = if (h.expanded) h.itemView.context.getString(R.string.reasoning_hide) else h.itemView.context.getString(R.string.reasoning_toggle)
                         h.reasoningText.text = rs
                         h.reasoningText.visibility = if (h.expanded) View.VISIBLE else View.GONE
                     }
@@ -153,7 +153,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                 }
                 if (!rs.isNullOrBlank()) {
                     h.reasoningHeader.visibility = View.VISIBLE
-                    h.reasoningHeader.text = if (h.expanded) "▼ 思考过程" else "▶ 思考过程"
+                    h.reasoningHeader.text = if (h.expanded) h.itemView.context.getString(R.string.reasoning_hide) else h.itemView.context.getString(R.string.reasoning_toggle)
                     h.reasoningText.text = rs
                     h.reasoningText.visibility = if (h.expanded) View.VISIBLE else View.GONE
                 } else {

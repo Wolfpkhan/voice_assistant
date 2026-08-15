@@ -1,11 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string-array name="tts_engine_entries">
-        <item>Kokoro（高品质，慢，需加载模型）</item>
-        <item>系统 TTS（极速，音色一般）</item>
+        <item>@string/tts_kokoro</item>
+        <item>@string/tts_system</item>
     </string-array>
     <string-array name="tts_engine_values">
         <item>kokoro</item>
         <item>system</item>
+    </string-array>
+
+    <!-- ★ 语言切换（跟随系统/中文/English） -->
+    <string-array name="language_entries">
+        <item>@string/lang_system</item>
+        <item>@string/lang_zh</item>
+        <item>@string/lang_en</item>
+    </string-array>
+    <string-array name="language_values">
+        <item>system</item>
+        <item>zh</item>
+        <item>en</item>
     </string-array>
 </resources>

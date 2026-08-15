@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Argus 之眼（悬浮球版）：简化杏仁眼 + 瞳孔 + 上方一道声波，白色线条可与任意底色叠加 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 声波（上方一道弧） -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M8.5,5.5 Q12,3.5 15.5,5.5" />
+
+    <!-- 杏仁眼轮廓 -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M4,12 C6.5,8.5 17.5,8.5 20,12 C17.5,15.5 6.5,15.5 4,12 Z" />
+
+    <!-- 瞳孔 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,12 m-2.4,0 a2.4,2.4 0,1 1,4.8 0 a2.4,2.4 0,1 1,-4.8 0" />
+</vector>
