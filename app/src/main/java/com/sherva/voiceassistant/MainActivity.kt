@@ -37,10 +37,6 @@ class MainActivity : AppCompatActivity() {
         @JvmStatic
         fun buildServiceConfig(ctx: Context): VoiceAssistant.Config {
             val sp: SharedPreferences = PreferenceManager.getDefaultSharedPreferences(ctx)
-            val cur = sp.getString(ctx.getString(R.string.pref_llm_baseurl), "") ?: ""
-            if (cur.contains("8989")) {
-                sp.edit().putString(ctx.getString(R.string.pref_llm_baseurl), "http://127.0.0.1:8988/v1").apply()
-            }
             val baseUrl = sp.getString(ctx.getString(R.string.pref_llm_baseurl), ctx.getString(R.string.default_baseurl))!!
             val apiKey = sp.getString(ctx.getString(R.string.pref_llm_apikey), ctx.getString(R.string.default_apikey))!!
             val model = sp.getString(ctx.getString(R.string.pref_llm_model), ctx.getString(R.string.default_model))!!

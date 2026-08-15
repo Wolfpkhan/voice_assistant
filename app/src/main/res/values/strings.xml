@@ -53,8 +53,7 @@
     <string name="pref_keep_screen_on">keep_screen_on</string>
     <string name="pref_floating_ball">floating_ball</string>
 
-    <!-- 默认值：pi-proxy（包装 pi agent 为 OpenAI 兼容 API，带工具能力）
-         备选 llm-wire 直连: http://127.0.0.1:8989/v1 -->
+    <!-- 默认值：pi-proxy（包装 pi agent 为 OpenAI 兼容 API，带工具能力） -->
     <string name="default_baseurl">http://127.0.0.1:8988/v1</string>
     <string name="default_model">deepseek-v4-flash</string>
     <string name="default_apikey">sk-4a125f52422534403c0d7edf</string>
