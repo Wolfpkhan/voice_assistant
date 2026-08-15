@@ -108,6 +108,13 @@ app/src/main/java/com/sherva/voiceassistant/
       附带收获：重编过抗崩溃版 libsherpa-onnx-jni.so（SHERPA_ONNX_EXIT→抛异常），
       当前 AAR 即此版本，native 报错不再杀进程。
 
+- **原生 AudioFocus 代替 TermuxRemoteFrontend（2026-08-15 回退）**：尝试
+      `requestAudioFocus(AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)` 让 QQ音乐
+      在 vivo V2303A 自动暂停，**GRANTED 但对方不响应**。结论：vivo
+      中间层拦截 / QQ音乐 vivo 版仅 duck 不暂停，标准焦点机制对该设备不可靠。
+      已回退到原 `/media_pause_all` HTTP 方案。替代方案需走通知使用权 +
+      MediaController（需用户授权特殊权限，暂不实施）。完整试错记录见 git stash 历史。
+
 ## 开发备忘
 
 - **编译**（Termux 环境）：
