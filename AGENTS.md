@@ -92,6 +92,7 @@ app/src/main/java/com/sherva/voiceassistant/
 | 08-10~12 | KWS 唤醒词、AEC、Room 持久化、模式切换、音效 |
 | 08-13 | Markdown 渲染、UI 美化、文字模式系列修复 |
 | 08-14 | reasoning 思考流式显示攻坚（~15 commits）+ KWS 后台恢复修复 |
+| 08-15 | QNN 移除、AudioFocus 试错回退、API Key 去硬编码、文本模式不暂停音乐、四项增强（夜间模式/LLM截断/错误UI/设置备份） |
 
 ### 🔜 待办 / 优化方向
 
