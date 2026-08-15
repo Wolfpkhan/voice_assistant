@@ -510,9 +510,14 @@ class VoiceAssistant(
     }
 
     /** ★ 暂停其他 App 的音乐播放（通过 TermuxRemoteFrontend 的 /media_pause_all）。
-     *  在 IO 线程调用，不阻塞对话。 */
+     *  在 IO 线程调用，不阻塞对话。
+     *  文本模式（用户主动打字）跳过：用户既然在边听歌边发消息，不该打断。 */
     private fun pauseMusic() {
         if (!config.pauseMusic) return
+        if (textMode) {
+            AppLog.i("VA", "pauseMusic: 文本模式，跳过暂停音乐")
+            return
+        }
         scope.launch(Dispatchers.IO) {
             try {
                 val url = java.net.URL("http://127.0.0.1:8765/media_pause_all")
@@ -531,6 +536,10 @@ class VoiceAssistant(
     /** ★ 恢复对话前暂停的音乐。 */
     private fun resumeMusic() {
         if (!config.pauseMusic) return
+        if (textMode) {
+            // 文本模式下没暂停过，也无需恢复
+            return
+        }
         scope.launch(Dispatchers.IO) {
             try {
                 val url = java.net.URL("http://127.0.0.1:8765/media_resume_all")
