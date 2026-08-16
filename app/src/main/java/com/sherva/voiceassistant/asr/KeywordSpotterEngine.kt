@@ -74,7 +74,10 @@ class KeywordSpotterEngine(
                 keywordsFile = keywordsFile,
                 keywordsThreshold = threshold,
                 keywordsScore = 3.0f,  // ★ 大幅 boost 关键词路径（默认 1.0）
-                numTrailingBlanks = 0,  // ★ 0: 词后任意帧可触发; 默认 1 需要 2 帧静音
+                // ★ 0：词后任意帧即触发。真机验证：=2（需尾部静音）会杀死自然连说
+                //   （"小薇小薇"两声间无静音 → 第一声永不触发命中，只剩最后一声）。
+                //   连说场景必须 0；第二声起始丢失由 look-back 重放补救。
+                numTrailingBlanks = 0,
                 maxActivePaths = 4,
             )
         ).also {
@@ -177,6 +180,10 @@ class KeywordSpotterEngine(
             val intervalSamples = (0.1 * sampleRate).toInt()   // 100ms
             val buf = ShortArray(intervalSamples)
             var totalFrames = 0
+            // ★ look-back 缓冲：最近 150ms 音频帧（1.5 帧 × 100ms 取 2 帧）。
+            //   命中 reset 后重放——找回连说第二声落在 reset 前的起始音节。
+            //   必须小于关键词时长（“小薇”≈400ms），否则重放会复制整个第一声导致假命中。
+            val lookback = ArrayDeque<FloatArray>(2)
             try {
                 while (running) {
                     val n = record!!.read(buf, 0, buf.size)
@@ -194,6 +201,9 @@ class KeywordSpotterEngine(
                         FloatArray(n) { buf[it] / 32768.0f }
                     }
                     val st = stream ?: break
+                    // ★ 入 look-back 缓冲（最近 2 帧 = 200ms）
+                    lookback.addLast(raw.copyOf())
+                    if (lookback.size > 2) lookback.removeFirst()
                     st.acceptWaveform(raw, actualSampleRate)
                     totalFrames++
                     var decodeCount = 0
@@ -205,6 +215,12 @@ class KeywordSpotterEngine(
                         if (keyword.isNotBlank()) {
                             AppLog.i("KWS", "唤醒词命中: \"$keyword\" (tokens=${result.tokens.size})")
                             spotter.reset(st)
+                            // ★ look-back 重放：reset 清流会把 reset 前已吃进流的音频一并
+                            //   丢掉——连说时第二声的起始音节正落在此处。重放最近 200ms
+                            //   找回它；200ms < “小薇”时长，不会把第一声完整复制导致假命中。
+                            for (f in lookback) {
+                                try { st.acceptWaveform(f, actualSampleRate) } catch (_: Throwable) {}
+                            }
                             android.os.Handler(android.os.Looper.getMainLooper()).post {
                                 onHit(keyword)
                             }
