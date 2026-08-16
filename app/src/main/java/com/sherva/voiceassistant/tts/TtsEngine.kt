@@ -40,6 +40,7 @@ class TtsEngine(
     context: Context,
     private val numThreads: Int = 2,
 ) : TtsProvider {
+    private val appContext: Context = context.applicationContext
     companion object {
         private const val CN_DIGITS = "零一二三四五六七八九"
 
@@ -297,10 +298,31 @@ class TtsEngine(
             attr, format, bufLength, AudioTrack.MODE_STREAM,
             AudioManager.AUDIO_SESSION_ID_GENERATE
         )
+        // ★ 蓝牙耳机：SCO 通路激活时，TTS 输出也路由到耳机（HFP 双向）。
+        //   否则 SCO 挂起 A2DP 后，媒体流被回落到手机扬声器（耳机沉默）。
+        routeTrackToBluetooth(t)
         t.play()
         track = t
         AppLog.i("TTS", "AudioTrack 创建并 play, sampleRate=$sampleRate")
         return t
+    }
+
+    /** TTS 输出路由到蓝牙耳机（若 SCO 已激活）。每次 speak 前也重试（耳机中途连上）。 */
+    private fun routeTrackToBluetooth(t: AudioTrack): Boolean {
+        return try {
+            if (!com.sherva.voiceassistant.audio.ScoAudioRouter.isConnected(appContext)) return false
+            val am = appContext.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager
+            val bt = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS).firstOrNull {
+                it.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                it.type == android.media.AudioDeviceInfo.TYPE_BLE_HEADSET
+            } ?: return false
+            val ok = t.setPreferredDevice(bt)
+            AppLog.i("TTS", if (ok) "✓ TTS 输出路由到耳机: ${bt.productName}" else "TTS 蓝牙输出路由失败")
+            ok
+        } catch (e: Throwable) {
+            AppLog.i("TTS", "TTS 输出蓝牙路由异常: ${e.message}")
+            false
+        }
     }
 
     override fun isSpeaking() = speakJob?.isActive == true

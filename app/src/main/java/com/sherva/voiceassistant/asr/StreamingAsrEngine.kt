@@ -118,6 +118,24 @@ class StreamingAsrEngine(
             sampleRate, channelConfig, audioFormat, bufBytes
         )
         check(record?.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord 初始化失败" }
+        // ★ 蓝牙耳机：若 SCO 通路已激活（KWS 唤醒时建立），路由到蓝牙麦——
+        //   否则戴耳机说话机内麦听不到。未激活则静默用机内麦。
+        if (com.sherva.voiceassistant.audio.ScoAudioRouter.isConnected(appContext)) {
+            try {
+                val am = appContext.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+                val bt = am.availableCommunicationDevices.firstOrNull {
+                    it.type == android.media.AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                    it.type == android.media.AudioDeviceInfo.TYPE_BLE_HEADSET
+                }
+                if (bt != null && record!!.setPreferredDevice(bt)) {
+                    AppLog.i("SASR", "✓ 录音路由到蓝牙麦克风: ${bt.productName}")
+                } else {
+                    AppLog.i("SASR", "蓝牙麦路由失败，用机内麦")
+                }
+            } catch (e: Throwable) {
+                AppLog.i("SASR", "蓝牙路由异常: ${e.message}")
+            }
+        }
         // ★ MODE_IN_COMMUNICATION 由 VoiceAssistant 统一管理（对话开始时设、结束时切回），
         //    不在 engine 层切换（避免 KWS/ASR 交替时频繁抖动音频路由）
         // ★ 硬件 AEC：消除 TTS / 音乐播放时的扬声器回声

@@ -124,6 +124,21 @@
             android:max="20"
             android:min="5"
             app:defaultValue="8" />
+        <SwitchPreferenceCompat
+            app:key="@string/pref_kws_ns"
+            app:title="@string/pref_title_kws_ns"
+            app:summary="@string/pref_summary_kws_ns"
+            app:defaultValue="true" />
+        <SwitchPreferenceCompat
+            app:key="@string/pref_kws_gtcrn"
+            app:title="@string/pref_title_kws_gtcrn"
+            app:summary="@string/pref_summary_kws_gtcrn"
+            app:defaultValue="false" />
+        <SwitchPreferenceCompat
+            app:key="@string/pref_kws_sco"
+            app:title="@string/pref_title_kws_sco"
+            app:summary="@string/pref_summary_kws_sco"
+            app:defaultValue="false" />
         <EditTextPreference
             app:key="@string/pref_wake_word"
             app:title="@string/pref_title_wake_word"

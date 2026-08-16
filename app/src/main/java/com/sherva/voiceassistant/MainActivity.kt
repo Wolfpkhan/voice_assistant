@@ -53,6 +53,9 @@ class MainActivity : AppCompatActivity() {
             val wakeGraceSec = sp.getInt(ctx.getString(R.string.pref_wake_grace_sec), 8).toFloat()
             val wakeWord = sp.getString(ctx.getString(R.string.pref_wake_word), ctx.getString(R.string.default_wake_word)) ?: ctx.getString(R.string.default_wake_word)
             val globalAec = sp.getBoolean(ctx.getString(R.string.pref_global_aec), false)
+            val kwsNoiseSuppressor = sp.getBoolean(ctx.getString(R.string.pref_kws_ns), true)
+            val kwsGtcrn = sp.getBoolean(ctx.getString(R.string.pref_kws_gtcrn), false)
+            val kwsSco = sp.getBoolean(ctx.getString(R.string.pref_kws_sco), false)
             val pauseMusic = sp.getBoolean(ctx.getString(R.string.pref_pause_music), false)
             return VoiceAssistant.Config(
                 continuous = true, ttsSpeed = speed, ttsSid = ttsSid,
@@ -67,6 +70,9 @@ class MainActivity : AppCompatActivity() {
                 wakeGraceSec = wakeGraceSec,
                 wakeWord = wakeWord,
                 globalAec = globalAec,
+                kwsNoiseSuppressor = kwsNoiseSuppressor,
+                kwsGtcrn = kwsGtcrn,
+                kwsBluetoothSco = kwsSco,
                 pauseMusic = pauseMusic,
             )
         }

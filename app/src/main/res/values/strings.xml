@@ -51,7 +51,10 @@
     <string name="pref_endpoint_silence">endpoint_silence</string>
     <string name="pref_mic_gain">mic_gain</string>
     <string name="pref_wake_word_idle_sec">wake_word_idle_sec</string>
+    <string name="pref_kws_ns">kws_noise_suppressor</string>
     <string name="pref_kws_confirm_window_sec">kws_confirm_window_sec</string>
+    <string name="pref_kws_gtcrn">kws_gtcrn</string>
+    <string name="pref_kws_sco">kws_bluetooth_sco</string>
     <string name="pref_wake_grace_sec">wake_grace_sec</string>
     <string name="pref_wake_word">wake_word</string>
     <string name="pref_global_aec">global_aec</string>
@@ -103,6 +106,12 @@
     <string name="pref_title_mic_gain">Mic gain (×0.1)</string>
     <string name="pref_summary_mic_gain">Boost microphone input</string>
     <string name="cat_wake">Wake word mode</string>
+    <string name="pref_title_kws_ns">KWS noise suppression</string>
+    <string name="pref_summary_kws_ns">Hardware NoiseSuppressor: filters steady noise (fan/AC/traffic)</string>
+    <string name="pref_title_kws_gtcrn">KWS voice enhancement</string>
+    <string name="pref_summary_kws_gtcrn">GTCRN model denoising. For noisy places only: may over-process in quiet rooms</string>
+    <string name="pref_title_kws_sco">Bluetooth headset mic (SCO)</string>
+    <string name="pref_summary_kws_sco">Wake word from BT headset. Music drops to call quality while active</string>
     <string name="pref_title_wake_idle">Idle before wake mode (s)</string>
     <string name="pref_summary_wake_idle">Fall back to wake word after this much silence</string>
     <string name="pref_title_confirm_window">Wake confirm window (s)</string>

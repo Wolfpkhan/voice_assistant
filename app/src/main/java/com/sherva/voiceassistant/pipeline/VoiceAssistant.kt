@@ -77,6 +77,13 @@ class VoiceAssistant(
         /** ★ 全局回声消除（实验性）：true 时 ASR/KWS 用 VOICE_COMMUNICATION + MODE_IN_COMMUNICATION，
          *     系统级 AEC 可消除任意 App 播放的回声。但可能切听筒、影响音质。 */
         val globalAec: Boolean = false,
+        /** ★ KWS 硬件噪声抑制（NoiseSuppressor）：稳态噪声环境提升唤醒命中率，默认开 */
+        val kwsNoiseSuppressor: Boolean = true,
+        /** ★ KWS GTCRN 人声增强：模型级降噪，嘈杂环境开（过度处理可能损特征，安静环境关） */
+        val kwsGtcrn: Boolean = false,
+        /** ★ KWS 蓝牙耳机麦克风（SCO）：经典 HFP 耳机必须建 SCO 通道才能取声。
+        *    代价：SCO 期间 A2DP 音乐降为电话音质，用完自动断开恢复。 */
+        val kwsBluetoothSco: Boolean = false,
         /** ★ 聆听时暂停音乐：对话开始时暂停其他 App（喜马拉雅/QQ音乐/B站等）和 FI 的播放，
          *     对话结束后恢复。通过 TermuxRemoteFrontend 的 /media_pause_all 端点统一管理。 */
         val pauseMusic: Boolean = false,
@@ -118,7 +125,11 @@ class VoiceAssistant(
     }
     private val kwsLazy: Lazy<KeywordSpotterEngine> = lazy {
         AppLog.i("VA", "初始化唤醒词检测引擎...")
-        KeywordSpotterEngine(appContext, globalAec = config.globalAec)
+        KeywordSpotterEngine(appContext,
+            globalAec = config.globalAec,
+            useNoiseSuppressor = config.kwsNoiseSuppressor,
+            useGtcrn = config.kwsGtcrn,
+        ).also { it.setBluetoothSco(config.kwsBluetoothSco) }
     }
     private val ttsLazy: Lazy<TtsProvider> = lazy {
         AppLog.i("VA", "初始化 TTS 引擎: ${config.ttsEngine}")
@@ -686,6 +697,12 @@ class VoiceAssistant(
         if (ttsLazy.isInitialized()) tts.stop()
         releaseWakeLock()
         exitGlobalAecMode()
+        // ★ 会话级 SCO 断开：对话彻底停止才断（KWS/ASR 交替期间保持，由 isConnected 幂等复用）
+        if (config.kwsBluetoothSco) {
+            scope.launch(Dispatchers.IO) {
+                try { com.sherva.voiceassistant.audio.ScoAudioRouter.disconnect(appContext) } catch (_: Throwable) {}
+            }
+        }
         resumeMusic()
         setState(State.IDLE)
     }

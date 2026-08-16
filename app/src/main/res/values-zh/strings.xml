@@ -77,6 +77,12 @@
     <string name="pref_title_mic_gain">麦克风增益 (×0.1)</string>
     <string name="pref_summary_mic_gain">增强麦克风输入</string>
     <string name="cat_wake">唤醒词模式</string>
+    <string name="pref_title_kws_ns">唤醒噪声抑制</string>
+    <string name="pref_summary_kws_ns">硬件降噪：过滤风扇/空调/车噪等稳态噪声</string>
+    <string name="pref_title_kws_gtcrn">唤醒人声增强</string>
+    <string name="pref_summary_kws_gtcrn">GTCRN 模型降噪。仅嘈杂环境开：安静环境可能过度处理</string>
+    <string name="pref_title_kws_sco">蓝牙耳机麦克风（SCO）</string>
+    <string name="pref_summary_kws_sco">用耳机麦唤醒。激活期间音乐降为通话音质，结束自动恢复</string>
     <string name="pref_title_wake_idle">唤醒空闲时间 (秒)</string>
     <string name="pref_summary_wake_idle">多久没说话后退回唤醒词待命</string>
     <string name="pref_title_confirm_window">唤醒确认窗口 (秒)</string>
