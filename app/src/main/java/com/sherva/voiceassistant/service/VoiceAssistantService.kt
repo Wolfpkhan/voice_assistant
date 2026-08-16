@@ -198,6 +198,10 @@ class VoiceAssistantService : Service() {
             AppLog.i(TAG, "状态变更: $state")
             updateBallState(state)
         }
+        override fun onWakeConfirmPending() {
+            // ★ 唤醒词第一声命中：悬浮球闪烁两下（视觉反馈"听到了，再说一声"）
+            ball?.pulseConfirmPending()
+        }
         override fun onPartialText(text: String) {}
         override fun onUserText(text: String) {}
         override fun onAssistantDelta(delta: String) {}

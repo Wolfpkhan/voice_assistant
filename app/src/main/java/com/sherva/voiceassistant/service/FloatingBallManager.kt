@@ -188,6 +188,27 @@ class FloatingBallManager(
         }
     }
 
+    /** ★ 二次确认等待中：悬浮球脉冲闪烁两下（视觉反馈“听到了，再说一声”）。
+     *  仅改背景亮度，不动图标；由 VoiceAssistant 第一声命中时调用。
+     *  必须切主线程：KWS 回调在 workThread，直接改 View 会 CalledFromWrongThreadException 崩溃。 */
+    fun pulseConfirmPending() {
+        val v = view ?: return
+        val handler = android.os.Handler(android.os.Looper.getMainLooper())
+        handler.post {
+            val sz = (v as? LinearLayout)?.width ?: 0
+            val fallback = TypedValue.applyDimension(
+                TypedValue.COMPLEX_UNIT_DIP, 56f, ctx.resources.displayMetrics).toInt()
+            val sizePx = if (sz > 0) sz else fallback
+            val normal = makeBackground(0xFFFFB74D.toInt(), 0xFF8D5A1F.toInt(), sizePx)
+            val bright = makeBackground(0xFFFFE0B2.toInt(), 0xFFBF8A4A.toInt(), sizePx)
+            // 两轮闪烁：亮 150ms → 常规 150ms → 亮 150ms → 回常规
+            v.background = bright
+            v.postDelayed({ v.background = normal }, 150)
+            v.postDelayed({ v.background = bright }, 300)
+            v.postDelayed({ v.background = normal }, 450)
+        }
+    }
+
     /** ★ 长按悬浮球：拉起 App 主界面到前台。
      *  使用 REORDER_TO_FRONT：Activity 已在栈中则提到前台，不重建；
      *  不在则新启动。NEW_TASK 必须（从 Service/Window 上下文启动）。 */

@@ -917,6 +917,9 @@ class MainActivity : AppCompatActivity() {
 
     // ---------- VoiceAssistant 回调（后台线程）→ UI ----------
     private val listener = object : VoiceAssistant.Listener {
+        // ★ 必须显式重写：Kotlin 接口默认方法未开 @JvmDefault，匿名实现缺方法会在
+        //   运行时 AbstractMethodError 崩溃（v57 真机验证）。主界面无需闪烁反馈，空实现。
+        override fun onWakeConfirmPending() {}
         override fun onState(state: VoiceAssistant.State) = runOnUiThread {
             val (label, color) = when (state) {
                 VoiceAssistant.State.IDLE -> R.string.state_idle to 0xFF6E6E80.toInt()

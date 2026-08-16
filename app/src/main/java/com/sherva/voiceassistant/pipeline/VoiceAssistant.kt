@@ -37,6 +37,8 @@ class VoiceAssistant(
     /** 空 listener 默认实现，避免构造时必须传。 */
     private val defaultListener = object : Listener {
         override fun onState(state: State) {}
+        // ★ 接口默认方法未生效时的 AbstractMethodError 防护（同 MainActivity）
+        override fun onWakeConfirmPending() {}
         override fun onUserText(text: String) {}
         override fun onAssistantDelta(delta: String) {}
         override fun onAssistantComplete(text: String) {}
@@ -91,6 +93,8 @@ class VoiceAssistant(
 
     interface Listener {
         fun onState(state: State)
+        /** 唤醒词第一次命中（等待二次确认）——UI 可给视觉反馈（悬浮球闪烁）。 */
+        fun onWakeConfirmPending() {}
         /** 流式实时识别文本（连续纠正更新），UI 直接覆盖显示。 */
         fun onPartialText(text: String) {}
         /** 一句话最终文本（端点命中）。 */
@@ -291,9 +295,15 @@ class VoiceAssistant(
     private var kwsHitCount = 0
     private var kwsFirstHitAt = 0L
 
-    /** KWS 命中处理：返回 true=二次确认通过（激活），false=等待第二次。 */
+    /** KWS 命中处理：返回 true=二次确认通过（激活），false=等待第二次。
+     *  最小间隔约束：两次命中 <300ms 视为 look-back 重放自身的回声（第一声被 400ms
+     *  重放窗口复制出来的假命中），忽略且不计数——真实人声两声不可能 <300ms。 */
     private fun onWakeWordHit(keyword: String): Boolean {
         val now = System.currentTimeMillis()
+        if (kwsHitCount > 0 && now - kwsFirstHitAt < 300) {
+            AppLog.i("VA", "命中间隔 <300ms（look-back 重放回声），忽略")
+            return false
+        }
         // 超出窗口：重新计数
         if (now - kwsFirstHitAt > (config.kwsConfirmWindowSec * 1000).toLong()) kwsHitCount = 0
         kwsHitCount++
@@ -302,7 +312,8 @@ class VoiceAssistant(
             true
         } else {
             kwsFirstHitAt = now
-            AppLog.i("VA", "唤醒词第 1 次命中（$keyword），等待二次确认…（无声）")
+            AppLog.i("VA", "唤醒词第 1 次命中（$keyword），等待二次确认…（无声，悬浮球闪烁）")
+            broadcast { it.onWakeConfirmPending() }
             false
         }
     }

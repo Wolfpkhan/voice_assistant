@@ -180,9 +180,11 @@ class KeywordSpotterEngine(
             val intervalSamples = (0.1 * sampleRate).toInt()   // 100ms
             val buf = ShortArray(intervalSamples)
             var totalFrames = 0
-            // ★ look-back 缓冲：最近 150ms 音频帧（1.5 帧 × 100ms 取 2 帧）。
+            // ★ look-back 缓冲：最近 2 帧 = 200ms。
             //   命中 reset 后重放——找回连说第二声落在 reset 前的起始音节。
-            //   必须小于关键词时长（“小薇”≈400ms），否则重放会复制整个第一声导致假命中。
+            //   真机验证：400ms 版本在蓝牙 SCO 下命中率反而更低（窄带下第一声拖音
+            //   占满重放窗口，噪声干扰第二声识别），回退 200ms。蓝牙下连说丢第二声
+            //   是已知限制，概率性发生；假命中由 VoiceAssistant 的 <300ms 间隔过滤兼底。
             val lookback = ArrayDeque<FloatArray>(2)
             try {
                 while (running) {
