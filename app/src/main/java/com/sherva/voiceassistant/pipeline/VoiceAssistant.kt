@@ -401,8 +401,10 @@ class VoiceAssistant(
         setState(State.THINKING)
         // ★ STT/文字已发送给 pi 服务，开始思考的提示音（仅语音模式）
         if (!textMode) com.sherva.voiceassistant.audio.SoundEffects.sent()
-        // ★ 思考期间（无 ASR/TTS 占用）恢复音乐：让用户听音乐，
-        //   不必干等 3-10s 思考时间。TTS 即将播放时再 pauseMusic。
+        // ★ 思考期间（无 ASR/TTS 占用）恢复音乐：长思考（deepseek 推理可达 30s+）
+        //   干等很难受；TTS 即将播放时再 pauseMusic。
+        //   与 agent 音乐控制的隔离已由 FI 的 caller 分桶解决：
+        //   agent 停的记 agent 桶，App 恢复只查自己的 app 桶 → 不会拉起。
         resumeMusic()
         val reply = StringBuilder()
         val reasoning = StringBuilder()   // ★ 思考过程全文
@@ -565,7 +567,7 @@ class VoiceAssistant(
         }
         scope.launch(Dispatchers.IO) {
             try {
-                val url = java.net.URL("http://127.0.0.1:8765/media_pause_all")
+                val url = java.net.URL("http://127.0.0.1:8765/media_pause_all?caller=app")
                 val conn = url.openConnection() as java.net.HttpURLConnection
                 conn.connectTimeout = 2000
                 conn.readTimeout = 3000
@@ -587,7 +589,7 @@ class VoiceAssistant(
         }
         scope.launch(Dispatchers.IO) {
             try {
-                val url = java.net.URL("http://127.0.0.1:8765/media_resume_all")
+                val url = java.net.URL("http://127.0.0.1:8765/media_resume_all?caller=app")
                 val conn = url.openConnection() as java.net.HttpURLConnection
                 conn.connectTimeout = 2000
                 conn.readTimeout = 3000
