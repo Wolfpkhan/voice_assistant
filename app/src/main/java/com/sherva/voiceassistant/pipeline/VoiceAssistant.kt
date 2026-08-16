@@ -71,7 +71,7 @@ class VoiceAssistant(
         // —— 唤醒词参数（从设置页读取）——
         val enableWakeWord: Boolean = true,           // 是否启用唤醒词模式（语音模式下始终启用）
         val wakeWordIdleSec: Float = 5.0f,           // 进入唤醒模式的空闲时间（秒）：ASR 启动后 X 秒无有效语音 → KWS
-        val kwsConfirmWindowSec: Float = 5.0f,        // 唤醒词二次确认窗口：两次命中间隔不超此值才算连续
+        val kwsConfirmWindowSec: Float = 1.6f,        // 唤醒词二次确认窗口：两次命中间隔不超此值才算连续（0.1s 精度可调，默认实测中位 0.81s 的 2 倍）
         val wakeGraceSec: Float = 8.0f,               // 唤醒激活后首个聆听宽限：组织语言的时间（秒）
         val wakeWord: String = "小薇",           // 唤醒词（可配置，推荐 2~4 字短词，KWS 小模型对长词识别率低）
         /** ★ 全局回声消除（实验性）：true 时 ASR/KWS 用 VOICE_COMMUNICATION + MODE_IN_COMMUNICATION，

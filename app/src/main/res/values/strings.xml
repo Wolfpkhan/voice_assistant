@@ -53,6 +53,7 @@
     <string name="pref_wake_word_idle_sec">wake_word_idle_sec</string>
     <string name="pref_kws_ns">kws_noise_suppressor</string>
     <string name="pref_kws_confirm_window_sec">kws_confirm_window_sec</string>
+    <string name="pref_kws_confirm_ds">kws_confirm_window_ds</string>
     <string name="pref_kws_gtcrn">kws_gtcrn</string>
     <string name="pref_kws_sco">kws_bluetooth_sco</string>
     <string name="pref_wake_grace_sec">wake_grace_sec</string>

@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
             val endpointSilence = sp.getInt(ctx.getString(R.string.pref_endpoint_silence), 12) / 10.0f
             val micGain = sp.getInt(ctx.getString(R.string.pref_mic_gain), 10) / 10.0f
             val wakeWordIdleSec = sp.getInt(ctx.getString(R.string.pref_wake_word_idle_sec), 5).toFloat()
-            val kwsConfirmWindowSec = sp.getInt(ctx.getString(R.string.pref_kws_confirm_window_sec), 5).toFloat()
+            val kwsConfirmWindowSec = sp.getInt(ctx.getString(R.string.pref_kws_confirm_ds), 16) / 10.0f   // 0.1s 单位，默认 16=1.6s
             val wakeGraceSec = sp.getInt(ctx.getString(R.string.pref_wake_grace_sec), 8).toFloat()
             val wakeWord = sp.getString(ctx.getString(R.string.pref_wake_word), ctx.getString(R.string.default_wake_word)) ?: ctx.getString(R.string.default_wake_word)
             val globalAec = sp.getBoolean(ctx.getString(R.string.pref_global_aec), false)

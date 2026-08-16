@@ -65,6 +65,12 @@ class SettingsActivity : AppCompatActivity() {
 
             // ★ 语言切换：AppCompatDelegate.setApplicationLocales（appcompat 1.6 兼容到 API<33，
             //   自动持久化并重建 Activity；API 33+ 走系统 per-app language）
+            // ★ 唤醒确认窗口：内部 0.1s 单位（seek=16 → 1.6s），summary 换算显示人类可读值
+            findPreference<SeekBarPreference>(getString(R.string.pref_kws_confirm_ds))?.apply {
+                summaryProvider = androidx.preference.Preference.SummaryProvider<SeekBarPreference> { p ->
+                    "%.1f s".format(p.value / 10.0)
+                }
+            }
             findPreference<ListPreference>(getString(R.string.pref_app_language))?.apply {
                 setOnPreferenceChangeListener { _, newValue ->
                     val locales = when (newValue as? String) {

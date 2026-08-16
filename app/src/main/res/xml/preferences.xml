@@ -109,13 +109,12 @@
             android:max="30"
             app:defaultValue="5" />
         <SeekBarPreference
-            app:showSeekBarValue="true"
-            app:key="@string/pref_kws_confirm_window_sec"
+            app:key="@string/pref_kws_confirm_ds"
             app:title="@string/pref_title_confirm_window"
             app:summary="@string/pref_summary_confirm_window"
-            android:max="10"
-            android:min="2"
-            app:defaultValue="5" />
+            android:max="50"
+            android:min="5"
+            app:defaultValue="16" />
         <SeekBarPreference
             app:showSeekBarValue="true"
             app:key="@string/pref_wake_grace_sec"
