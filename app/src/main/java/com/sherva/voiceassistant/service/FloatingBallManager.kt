@@ -92,6 +92,20 @@ class FloatingBallManager(
         var initialY = 0
         var touchX = 0f
         var touchY = 0f
+        val downTime = longArrayOf(0L)
+        val isDragging = booleanArrayOf(false)
+        val isLongPressed = booleanArrayOf(false)
+        val longPressTimeoutMs = 500L
+        val dragThresholdPx = TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP, 10f, ctx.resources.displayMetrics
+        )
+        val longPressRunnable = Runnable {
+            // ★ 长按悬浮球：打开 App 主界面
+            if (!isDragging[0]) {
+                isLongPressed[0] = true
+                openMainActivity()
+            }
+        }
         container.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
@@ -99,18 +113,39 @@ class FloatingBallManager(
                     initialY = params.y
                     touchX = event.rawX
                     touchY = event.rawY
+                    isDragging[0] = false
+                    isLongPressed[0] = false
+                    downTime[0] = event.eventTime
+                    container.postDelayed(longPressRunnable, longPressTimeoutMs)
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    params.x = initialX + (event.rawX - touchX).toInt()
-                    params.y = initialY + (event.rawY - touchY).toInt()
-                    wm?.updateViewLayout(container, params)
+                    val dx = abs(event.rawX - touchX)
+                    val dy = abs(event.rawY - touchY)
+                    if (dx > dragThresholdPx || dy > dragThresholdPx) {
+                        // 进入拖动模式：取消长按计时
+                        if (!isDragging[0]) {
+                            isDragging[0] = true
+                            container.removeCallbacks(longPressRunnable)
+                        }
+                        params.x = initialX + (event.rawX - touchX).toInt()
+                        params.y = initialY + (event.rawY - touchY).toInt()
+                        wm?.updateViewLayout(container, params)
+                    }
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    val dx = abs(event.rawX - touchX)
-                    val dy = abs(event.rawY - touchY)
-                    if (dx < 10 && dy < 10) onClick()
+                    container.removeCallbacks(longPressRunnable)
+                    if (isLongPressed[0]) {
+                        // 长按已触发打开 App，不重复处理点击
+                        true
+                    } else if (!isDragging[0]) {
+                        onClick()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    container.removeCallbacks(longPressRunnable)
                     true
                 }
                 else -> false
@@ -150,6 +185,23 @@ class FloatingBallManager(
             (view as? LinearLayout)?.background = if (sz > 0) makeBackground(centerColor, edgeColor, sz)
                 else makeBackground(centerColor, edgeColor, TypedValue.applyDimension(
                     TypedValue.COMPLEX_UNIT_DIP, 56f, ctx.resources.displayMetrics).toInt())
+        }
+    }
+
+    /** ★ 长按悬浮球：拉起 App 主界面到前台。
+     *  使用 REORDER_TO_FRONT：Activity 已在栈中则提到前台，不重建；
+     *  不在则新启动。NEW_TASK 必须（从 Service/Window 上下文启动）。 */
+    private fun openMainActivity() {
+        try {
+            val intent = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)?.apply {
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                    android.content.Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                    android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP
+            } ?: return
+            ctx.startActivity(intent)
+            com.sherva.voiceassistant.AppLog.i(TAG, "长按悬浮球：打开 App 主界面")
+        } catch (e: Exception) {
+            com.sherva.voiceassistant.AppLog.i(TAG, "长按开 App 失败: ${e.message}")
         }
     }
 

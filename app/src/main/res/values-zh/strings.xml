@@ -79,8 +79,12 @@
     <string name="cat_wake">唤醒词模式</string>
     <string name="pref_title_wake_idle">唤醒空闲时间 (秒)</string>
     <string name="pref_summary_wake_idle">多久没说话后退回唤醒词待命</string>
+    <string name="pref_title_confirm_window">唤醒确认窗口 (秒)</string>
+    <string name="pref_summary_confirm_window">两次唤醒词间隔需在此窗口内才算激活</string>
+    <string name="pref_title_wake_grace">唤醒后宽限 (秒)</string>
+    <string name="pref_summary_wake_grace">唤醒激活后组织语言的时间，超时才退回待机</string>
     <string name="pref_title_wake_word">唤醒词</string>
-    <string name="pref_summary_wake_word">支持任意中文。修改后重启 App 生效。推荐 2~4 字</string>
+    <string name="pref_summary_wake_word">支持任意中文，推荐 2~4 字。需在 3 秒内连续说两次唤醒词才能激活（防误触发）。修改后重启 App 生效</string>
     <string name="cat_audio">音频（实验性）</string>
     <string name="pref_title_global_aec">全局回声消除</string>
     <string name="pref_summary_global_aec">开启后可消除任意 App（音乐/视频）播放的回声。但可能切听筒、影响音质。默认关闭，仅本 App TTS 回声被消除</string>

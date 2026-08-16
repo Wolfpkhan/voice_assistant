@@ -49,6 +49,8 @@ class MainActivity : AppCompatActivity() {
             val endpointSilence = sp.getInt(ctx.getString(R.string.pref_endpoint_silence), 12) / 10.0f
             val micGain = sp.getInt(ctx.getString(R.string.pref_mic_gain), 10) / 10.0f
             val wakeWordIdleSec = sp.getInt(ctx.getString(R.string.pref_wake_word_idle_sec), 5).toFloat()
+            val kwsConfirmWindowSec = sp.getInt(ctx.getString(R.string.pref_kws_confirm_window_sec), 5).toFloat()
+            val wakeGraceSec = sp.getInt(ctx.getString(R.string.pref_wake_grace_sec), 8).toFloat()
             val wakeWord = sp.getString(ctx.getString(R.string.pref_wake_word), ctx.getString(R.string.default_wake_word)) ?: ctx.getString(R.string.default_wake_word)
             val globalAec = sp.getBoolean(ctx.getString(R.string.pref_global_aec), false)
             val pauseMusic = sp.getBoolean(ctx.getString(R.string.pref_pause_music), false)
@@ -61,6 +63,8 @@ class MainActivity : AppCompatActivity() {
                 micGain = micGain,
                 enableWakeWord = true,
                 wakeWordIdleSec = wakeWordIdleSec,
+                kwsConfirmWindowSec = kwsConfirmWindowSec,
+                wakeGraceSec = wakeGraceSec,
                 wakeWord = wakeWord,
                 globalAec = globalAec,
                 pauseMusic = pauseMusic,

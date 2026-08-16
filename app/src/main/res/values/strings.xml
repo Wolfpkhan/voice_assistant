@@ -51,6 +51,8 @@
     <string name="pref_endpoint_silence">endpoint_silence</string>
     <string name="pref_mic_gain">mic_gain</string>
     <string name="pref_wake_word_idle_sec">wake_word_idle_sec</string>
+    <string name="pref_kws_confirm_window_sec">kws_confirm_window_sec</string>
+    <string name="pref_wake_grace_sec">wake_grace_sec</string>
     <string name="pref_wake_word">wake_word</string>
     <string name="pref_global_aec">global_aec</string>
     <string name="pref_pause_music">pause_music</string>
@@ -103,8 +105,12 @@
     <string name="cat_wake">Wake word mode</string>
     <string name="pref_title_wake_idle">Idle before wake mode (s)</string>
     <string name="pref_summary_wake_idle">Fall back to wake word after this much silence</string>
+    <string name="pref_title_confirm_window">Wake confirm window (s)</string>
+    <string name="pref_summary_confirm_window">Say the wake word twice within this window to activate</string>
+    <string name="pref_title_wake_grace">Grace after wake (s)</string>
+    <string name="pref_summary_wake_grace">Extra time to start talking after wake activates</string>
     <string name="pref_title_wake_word">Wake word</string>
-    <string name="pref_summary_wake_word">Any Chinese words. Takes effect after app restart. 2-4 chars recommended</string>
+    <string name="pref_summary_wake_word">Any Chinese words, 2-4 chars recommended. Say it TWICE within 3s to wake. Takes effect after app restart</string>
     <string name="cat_audio">Audio (experimental)</string>
     <string name="pref_title_global_aec">Global echo cancellation</string>
     <string name="pref_summary_global_aec">Cancels echo from any app (music/video) via VOICE_COMMUNICATION. May switch to earpiece or lower quality. Off by default — only this app\'s TTS echo is cancelled</string>

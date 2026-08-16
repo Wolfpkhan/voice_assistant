@@ -71,6 +71,8 @@ class VoiceAssistant(
         // —— 唤醒词参数（从设置页读取）——
         val enableWakeWord: Boolean = true,           // 是否启用唤醒词模式（语音模式下始终启用）
         val wakeWordIdleSec: Float = 5.0f,           // 进入唤醒模式的空闲时间（秒）：ASR 启动后 X 秒无有效语音 → KWS
+        val kwsConfirmWindowSec: Float = 5.0f,        // 唤醒词二次确认窗口：两次命中间隔不超此值才算连续
+        val wakeGraceSec: Float = 8.0f,               // 唤醒激活后首个聆听宽限：组织语言的时间（秒）
         val wakeWord: String = "小薇",           // 唤醒词（可配置，推荐 2~4 字短词，KWS 小模型对长词识别率低）
         /** ★ 全局回声消除（实验性）：true 时 ASR/KWS 用 VOICE_COMMUNICATION + MODE_IN_COMMUNICATION，
          *     系统级 AEC 可消除任意 App 播放的回声。但可能切听筒、影响音质。 */
@@ -273,6 +275,27 @@ class VoiceAssistant(
         }
     }
 
+    // ★ 唤醒词二次确认：连续 2 次命中（窗口内）才激活，防误触发
+    //   电视声/环境声误识别率随“要求连续命中”指数下降，真实用户说两声毫不费力
+    private var kwsHitCount = 0
+    private var kwsFirstHitAt = 0L
+
+    /** KWS 命中处理：返回 true=二次确认通过（激活），false=等待第二次。 */
+    private fun onWakeWordHit(keyword: String): Boolean {
+        val now = System.currentTimeMillis()
+        // 超出窗口：重新计数
+        if (now - kwsFirstHitAt > (config.kwsConfirmWindowSec * 1000).toLong()) kwsHitCount = 0
+        kwsHitCount++
+        return if (kwsHitCount >= 2) {
+            kwsHitCount = 0
+            true
+        } else {
+            kwsFirstHitAt = now
+            AppLog.i("VA", "唤醒词第 1 次命中（$keyword），等待二次确认…（无声）")
+            false
+        }
+    }
+
     /** 进入 WAKE_WORD：停 ASR，启动 KWS。 */
     private fun enterWakeWordMode() {
         if (inWakeWord) return
@@ -286,6 +309,8 @@ class VoiceAssistant(
         try {
             kws.start { keyword ->
                 AppLog.i("VA", "唤醒词命中: $keyword")
+                if (!onWakeWordHit(keyword)) return@start
+                AppLog.i("VA", "二次确认通过 → 激活")
                 inWakeWord = false
                 exitWakeWordMode()
             }
@@ -298,6 +323,10 @@ class VoiceAssistant(
     }
 
     /** 唤醒命中：停 KWS，重启 ASR 继续监听。 */
+    /** 唤醒激活后首个聆听宽限：垫时间法——lastPartialAt 设为 now + (grace-idle)，
+     *  watchdog 算出的 idle 负值，等价于 grace 秒后才可能超时。后续 partial 会正常重置。 */
+    @Volatile private var graceApplied: Boolean = false
+
     private fun exitWakeWordMode() {
         try { kws.stop() } catch (_: Throwable) {}
         // ★ 唤醒了，要开始聆听：再次暂停音乐
@@ -309,6 +338,12 @@ class VoiceAssistant(
             scope.launch {
                 setState(State.LISTENING)
                 active = false
+                // ★ 唤醒后首个聆听宽限：给用户组织语言的时间（默认 8s > 普通 idle 5s）
+                val graceExtra = ((config.wakeGraceSec - config.wakeWordIdleSec) * 1000).toLong()
+                if (graceExtra > 0) {
+                    lastPartialAt = System.currentTimeMillis() + graceExtra
+                    graceApplied = true
+                }
                 asr.start(
                     onPartial = { partial ->
                         lastPartialAt = System.currentTimeMillis()
@@ -610,6 +645,8 @@ class VoiceAssistant(
                 try {
                     kws.start { keyword ->
                         AppLog.i("VA", "唤醒词命中: $keyword")
+                        if (!onWakeWordHit(keyword)) return@start
+                        AppLog.i("VA", "二次确认通过 → 激活（回前台路径）")
                         inWakeWord = false
                         exitWakeWordMode()
                     }

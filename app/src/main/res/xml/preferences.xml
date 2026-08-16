@@ -56,12 +56,14 @@
             app:entryValues="@array/tts_engine_values"
             app:defaultValue="kokoro" />
         <SeekBarPreference
+            app:showSeekBarValue="true"
             app:key="@string/pref_tts_speed"
             app:title="@string/pref_title_tts_speed"
             app:summary="@string/pref_summary_tts_speed"
             android:max="20"
             app:defaultValue="10" />
         <SeekBarPreference
+            app:showSeekBarValue="true"
             app:key="@string/pref_tts_sid"
             app:title="@string/pref_title_tts_sid"
             app:summary="@string/pref_summary_tts_sid"
@@ -75,18 +77,21 @@
     <!-- 高级 · 对话节奏 -->
     <PreferenceCategory app:title="@string/cat_timing">
         <SeekBarPreference
+            app:showSeekBarValue="true"
             app:key="@string/pref_cooldown_ms"
             app:title="@string/pref_title_cooldown"
             app:summary="@string/pref_summary_cooldown"
             android:max="3000"
             app:defaultValue="600" />
         <SeekBarPreference
+            app:showSeekBarValue="true"
             app:key="@string/pref_endpoint_silence"
             app:title="@string/pref_title_endpoint_silence"
             app:summary="@string/pref_summary_endpoint_silence"
             android:max="30"
             app:defaultValue="12" />
         <SeekBarPreference
+            app:showSeekBarValue="true"
             app:key="@string/pref_mic_gain"
             app:title="@string/pref_title_mic_gain"
             app:summary="@string/pref_summary_mic_gain"
@@ -97,11 +102,28 @@
     <!-- 唤醒词模式 -->
     <PreferenceCategory app:title="@string/cat_wake">
         <SeekBarPreference
+            app:showSeekBarValue="true"
             app:key="@string/pref_wake_word_idle_sec"
             app:title="@string/pref_title_wake_idle"
             app:summary="@string/pref_summary_wake_idle"
             android:max="30"
             app:defaultValue="5" />
+        <SeekBarPreference
+            app:showSeekBarValue="true"
+            app:key="@string/pref_kws_confirm_window_sec"
+            app:title="@string/pref_title_confirm_window"
+            app:summary="@string/pref_summary_confirm_window"
+            android:max="10"
+            android:min="2"
+            app:defaultValue="5" />
+        <SeekBarPreference
+            app:showSeekBarValue="true"
+            app:key="@string/pref_wake_grace_sec"
+            app:title="@string/pref_title_wake_grace"
+            app:summary="@string/pref_summary_wake_grace"
+            android:max="20"
+            android:min="5"
+            app:defaultValue="8" />
         <EditTextPreference
             app:key="@string/pref_wake_word"
             app:title="@string/pref_title_wake_word"
