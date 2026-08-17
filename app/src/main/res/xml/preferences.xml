@@ -157,6 +157,11 @@
             app:title="@string/pref_title_pause_music"
             app:summary="@string/pref_summary_pause_music"
             app:defaultValue="false" />
+        <SwitchPreferenceCompat
+            app:key="@string/pref_focus_pause"
+            app:title="@string/pref_title_focus_pause"
+            app:summary="@string/pref_summary_focus_pause"
+            app:defaultValue="false" />
     </PreferenceCategory>
 
     <!-- ★ 设置备份：导出/导入 SharedPreferences 为 JSON，方便换机/重装 -->

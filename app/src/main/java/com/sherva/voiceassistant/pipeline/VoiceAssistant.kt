@@ -89,6 +89,10 @@ class VoiceAssistant(
         /** ★ 聆听时暂停音乐：对话开始时暂停其他 App（喜马拉雅/QQ音乐/B站等）和 FI 的播放，
          *     对话结束后恢复。通过 TermuxRemoteFrontend 的 /media_pause_all 端点统一管理。 */
         val pauseMusic: Boolean = false,
+        /** ★ 焦点让路（微信模式）：pause/resumeMusic 用 AudioFocus 而非 FI HTTP。
+         *   电话语义（USAGE_VOICE_COMMUNICATION）焦点丢失，音乐 App 自愿暂停+释放后自愿恢复。
+         *   零权限零状态；08-15 首次尝试失败疑因 EXCLUSIVE 标志/usage 不对，重试。 */
+        val useFocusPause: Boolean = false,
     )
 
     interface Listener {
@@ -581,10 +585,36 @@ class VoiceAssistant(
     /** ★ 暂停其他 App 的音乐播放（通过 TermuxRemoteFrontend 的 /media_pause_all）。
      *  在 IO 线程调用，不阻塞对话。
      *  文本模式（用户主动打字）跳过：用户既然在边听歌边发消息，不该打断。 */
+    // ★ 焦点让路（微信模式）：请求 USAGE_VOICE_COMMUNICATION 焦点 → 所有音乐 App
+    //   收 FOCUS_LOSS_TRANSIENT 自愿暂停；abandon 时收 FOCUS_GAIN 自愿恢复。
+    //   零权限、无状态、无 FI 依赖。与 FI HTTP 方式二选一（useFocusPause 设置）。
+    private var focusRequest: android.media.AudioFocusRequest? = null
+
     private fun pauseMusic() {
         if (!config.pauseMusic) return
         if (textMode) {
             AppLog.i("VA", "pauseMusic: 文本模式，跳过暂停音乐")
+            return
+        }
+        // ★ 焦点让路模式（微信模式）：电话语义焦点请求，音乐 App 自愿暂停
+        if (config.useFocusPause) {
+            try {
+                val am = appContext.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+                val req = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    .setAudioAttributes(
+                        android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    .setOnAudioFocusChangeListener { /* 忽略：我们不处理被抢回 */ }
+                    .build()
+                val res = am.requestAudioFocus(req)
+                focusRequest = req
+                AppLog.i("VA", "焦点让路: requestAudioFocus(TRANSIENT, VOICE_COMM) = $res")
+            } catch (e: Throwable) {
+                AppLog.i("VA", "焦点让路请求异常: ${e.message}")
+            }
             return
         }
         scope.launch(Dispatchers.IO) {
@@ -607,6 +637,23 @@ class VoiceAssistant(
         if (!config.pauseMusic) return
         if (textMode) {
             // 文本模式下没暂停过，也无需恢复
+            return
+        }
+        // ★ 焦点让路模式：释放焦点 → 音乐 App 收 FOCUS_GAIN 自愿恢复（无缝，播放位置自己管）
+        if (config.useFocusPause) {
+            try {
+                val req = focusRequest
+                if (req != null) {
+                    val am = appContext.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+                    val res = am.abandonAudioFocusRequest(req)
+                    focusRequest = null
+                    AppLog.i("VA", "焦点让路: abandonAudioFocus = $res")
+                } else {
+                    AppLog.i("VA", "焦点让路: 无未释放的焦点请求，跳过")
+                }
+            } catch (e: Throwable) {
+                AppLog.i("VA", "焦点让路释放异常: ${e.message}")
+            }
             return
         }
         scope.launch(Dispatchers.IO) {

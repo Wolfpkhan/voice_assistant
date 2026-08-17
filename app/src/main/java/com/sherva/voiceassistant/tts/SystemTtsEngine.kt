@@ -88,24 +88,22 @@ class SystemTtsEngine(context: Context) : TtsProvider {
         pendingComplete = onComplete
         val rate = speed.coerceIn(0.1f, 4.0f)
         tts?.setSpeechRate(rate)
-        // ★ 蓝牙耳机：SCO 激活时把 TTS 流切为通话用途（USAGE_VOICE_COMMUNICATION）
-        //   → 路由跟随 communicationDevice（耳机）；否则用 ASSISTANT 默认（扬声器/A2DP）。
-        //   系统 TTS 的 AudioTrack 在引擎进程，只能通过 setAudioAttributes 影响其路由。
+        // ★ 蓝牙耳机：SCO 激活时才把 TTS 流切为通话用途（USAGE_VOICE_COMMUNICATION）
+        //   → 路由跟随 communicationDevice（耳机 HFP 双向）。
+        //   SCO 关闭时不设置任何 attributes（保持引擎默认 MEDIA 流）——
+        //   真机踩坑：设 USAGE_ASSISTANT 会被 vivo 路由到听筒/超低音量
+        //   （STREAM_ASSISTANT 是语音助手专用流），车载 A2DP 场景 TTS 无声。
         try {
             val scoOn = com.sherva.voiceassistant.audio.ScoAudioRouter.isConnected(appContext)
-            val attr = if (scoOn) {
-                android.media.AudioAttributes.Builder()
+            if (scoOn) {
+                val attr = android.media.AudioAttributes.Builder()
                     .setUsage(android.media.AudioAttributes.USAGE_VOICE_COMMUNICATION)
                     .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
-            } else {
-                android.media.AudioAttributes.Builder()
-                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
-                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build()
+                tts?.setAudioAttributes(attr)
+                AppLog.i("SysTTS", "SCO 激活 → TTS 流切为通话用途（路由到耳机）")
             }
-            tts?.setAudioAttributes(attr)
-            if (scoOn) AppLog.i("SysTTS", "SCO 激活 → TTS 流切为通话用途（路由到耳机）")
+            // SCO 关闭：不动 attributes，引擎默认 MEDIA 流走 A2DP/扬声器
         } catch (e: Throwable) {
             AppLog.i("SysTTS", "setAudioAttributes 异常: ${e.message}")
         }
