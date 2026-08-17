@@ -115,6 +115,9 @@ class MainActivity : AppCompatActivity() {
     private val pendingDelta = StringBuilder()
     private var flushRunnable: Runnable? = null
     private val FLUSH_INTERVAL_MS = 100L
+
+    /** ★ 工具区实时刷新节流间隔。 */
+    private val TOOLS_FLUSH_INTERVAL_MS = 400L
     /** ★ reasoning 节流间隔（比 text 慢，避免高频重绘眼花）。 */
     private val REASONING_FLUSH_INTERVAL_MS = 300L
     /** ★ 当前助手气泡已写入 UI 的文本同步追踪（避免 AsyncListDiffer 异步 currentList 带来的竞态）。 */
@@ -127,6 +130,37 @@ class MainActivity : AppCompatActivity() {
     private val toolCallsMap = LinkedHashMap<String, ToolCallEntry>()
     /** ★ 当前助手气泡是否已经产生过 tool call（决定 onAssistantComplete 时是否填 toolCalls）。 */
     private var hasToolCalls = false
+    /** ★ 工具区实时刷新节流（onToolCallDelta 高频，不能每帧刷 UI）。 */
+    private var flushToolsRunnable: Runnable? = null
+
+    /** ★ 实时刷新工具区：agent 每完成/新增一个工具，气泡立刻更新。
+     *    气泡未建时（工具先于首帧正文到达）建占位气泡（空文本+已有 reasoning）。 */
+    private fun renderToolCallsNow() {
+        val displays: List<ToolCallDisplay> = synchronized(toolCallsMap) {
+            if (!hasToolCalls) return
+            toolCallsMap.values.map { entry -> entry.display() }
+        }
+        if (displays.isEmpty()) return
+        if (curAssistantId == -1L) {
+            // ★ 工具先于正文到达：先建占位气泡，后续正文 delta 走 append 分支
+            val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "")
+                .copy(reasoning = streamedReasoning.toString().ifBlank { null })
+            curAssistantId = msg.id
+            adapter.add(msg)
+            scrollToEnd(smooth = false)
+        }
+        adapter.setLastToolCalls(displays)
+    }
+
+    /** ★ 节流 400ms 刷新（工具 args 增量高频，防抖）。 */
+    private fun scheduleToolsRefresh() {
+        if (flushToolsRunnable != null) return  // 已排队
+        flushToolsRunnable = Runnable {
+            flushToolsRunnable = null
+            renderToolCallsNow()
+        }
+        uiHandler.postDelayed(flushToolsRunnable!!, TOOLS_FLUSH_INTERVAL_MS)
+    }
 
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -958,7 +992,9 @@ class MainActivity : AppCompatActivity() {
             curAssistantId = -1L   // 新一轮，下一条助手消息会是新的
             streamedText.setLength(0)
             streamedReasoning.setLength(0)
-            // ★ 工具调用累积：重置（新一轮）
+            // ★ 工具调用累积：重置（新一轮），取消 pending 的节流刷新
+            flushToolsRunnable?.let { uiHandler.removeCallbacks(it) }
+            flushToolsRunnable = null
             synchronized(toolCallsMap) {
                 toolCallsMap.clear()
                 hasToolCalls = false
@@ -1079,17 +1115,20 @@ class MainActivity : AppCompatActivity() {
                 if (name != null) entry.name = name
                 if (argsDelta.isNotEmpty()) entry.args.append(argsDelta)
             }
-            // ★ 不再在状态栏显示工具调用状态——状态显示在气泡的工具信息区域即可
+            // ★ 实时刷新工具区（节流 400ms）——用户能看到 agent 正在调工具
+            scheduleToolsRefresh()
         }
 
         // ★ 工具执行结束（pi-proxy SSE 注释行）
         override fun onToolExecEnd(callId: String, toolName: String, isError: Boolean) = runOnUiThread {
             AppLog.i("Main", "onToolExecEnd $toolName id=$callId err=$isError")
-            // 找到对应 index，标记完成
+            // 找到对应 entry，标记完成
             synchronized(toolCallsMap) {
                 val entry = toolCallsMap.values.firstOrNull { it.id == callId }
                 if (entry != null) entry.status = if (isError) "error" else "done"
             }
+            // ★ 工具完成立即刷新（不等节流）——⏳ 变 ✓ 的即时反馈
+            renderToolCallsNow()
         }
 
         // ★ 流结束（含 finish_reason + usage）

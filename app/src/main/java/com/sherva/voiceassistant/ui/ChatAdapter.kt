@@ -282,8 +282,11 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         }
         h.toolsHeader.visibility = View.VISIBLE
         val ctx = h.itemView.context
-        h.toolsHeader.text = when (tools.size) {
-            1 -> ctx.getString(R.string.tools_toggle_one)
+        // ★ 有 running 状态时显示“正在调用”文案，全部结束显示“调用了”
+        val hasRunning = tools.any { it.status == "running" }
+        h.toolsHeader.text = when {
+            hasRunning -> ctx.getString(R.string.tools_running_header).replace("N", tools.size.toString())
+            tools.size == 1 -> ctx.getString(R.string.tools_toggle_one)
             else -> ctx.getString(R.string.tools_toggle).replace("N", tools.size.toString())
         }
         val sb = StringBuilder()

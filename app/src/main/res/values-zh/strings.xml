@@ -38,6 +38,7 @@
     <!-- 工具调用区 -->
     <string name="tools_toggle">🔧 调用了 N 个工具</string>
     <string name="tools_toggle_one">🔧 调用了 1 个工具</string>
+    <string name="tools_running_header">🔧 正在调用 N 个工具…</string>
     <string name="tools_running">⏳</string>
     <string name="tools_done">✓</string>
     <string name="tools_error">✗</string>
