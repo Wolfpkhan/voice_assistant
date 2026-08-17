@@ -14,6 +14,11 @@ data class ChatMessage(
     val reasoning: String? = null,
     /** ★ 工具调用列表（agent 类调用才有）。可折叠展示。 */
     val toolCalls: List<ToolCallDisplay> = emptyList(),
+    /** ★ 是否已定稿（onAssistantComplete 后）。true 时 onBindViewHolder 强制走 Markdown。
+     *   背景：流式累积文本 == trim 后 final 时 DiffUtil 判定内容未变不重绑，
+     *   TextView 停留在"首批 Markdown + 后续纯文本 append"混合态。committed
+     *   参与内容比对，保证 commit 后必重绑必渲染。 */
+    val committed: Boolean = false,
 ) {
     enum class Role { USER, ASSISTANT, NOTICE }
 

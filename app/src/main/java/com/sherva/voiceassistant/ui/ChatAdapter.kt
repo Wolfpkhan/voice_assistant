@@ -7,6 +7,7 @@ import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.sherva.voiceassistant.AppLog
 import com.sherva.voiceassistant.R
 
 /**
@@ -44,7 +45,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         private val DIFF = object : DiffUtil.ItemCallback<ChatMessage>() {
             override fun areItemsTheSame(a: ChatMessage, b: ChatMessage) = a.id == b.id
             override fun areContentsTheSame(a: ChatMessage, b: ChatMessage) =
-                a.role == b.role && a.text == b.text && a.reasoning == b.reasoning && a.toolCalls == b.toolCalls
+                a.role == b.role && a.text == b.text && a.reasoning == b.reasoning && a.toolCalls == b.toolCalls && a.committed == b.committed
         }
     }
 
@@ -143,12 +144,20 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                     renderTools(h, m.toolCalls)
                     return
                 }
-                val forceMarkdown = payloads.contains(PAYLOAD_FORCE_MARKDOWN)
+                val forceMarkdown = payloads.contains(PAYLOAD_FORCE_MARKDOWN) || m.committed
                 val newText = m.text
                 if (forceMarkdown) {
-                    MarkdownRenderer.render(h.text, newText)
-                    h.lastWasMarkdown = true
-                    h.lastBoundTextLen = newText.length
+                    // ★ 定稿（committed=true）或强制 payload：必走 Markdown。
+                    //   修复：流式累积文本 == trim 后 final 时 DiffUtil 不重绑，
+                    //   混合态（首批 MD + 后续纯文本）永远不修复的随机 bug。
+                    if (h.lastWasMarkdown && h.lastBoundTextLen == newText.length) {
+                        // 已是同长度 Markdown 渲染，跳过重渲（防闪烁）
+                    } else {
+                        AppLog.i("ChatAdapter", "Markdown 渲染(定稿): ${newText.length}字")
+                        MarkdownRenderer.render(h.text, newText)
+                        h.lastWasMarkdown = true
+                        h.lastBoundTextLen = newText.length
+                    }
                 } else {
                     val oldLen = h.lastBoundTextLen
                     val curText = h.text.text.toString()
@@ -162,9 +171,11 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                     if (isIncrementalAppend) {
                         h.text.text = newText
                         h.lastWasMarkdown = false
+                        AppLog.i("ChatAdapter", "增量绑定(纯文本): ${newText.length}字")
                     } else {
                         MarkdownRenderer.render(h.text, newText)
                         h.lastWasMarkdown = true
+                        AppLog.i("ChatAdapter", "Markdown 渲染(其它): ${newText.length}字")
                     }
                     h.lastBoundTextLen = newText.length
                 }
@@ -229,19 +240,16 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         submitList(ArrayList(backingList))
     }
 
-    /** ★ 最终提交（用于 onAssistantComplete）：用 submitList 触发正常 DiffUtil 重绑。
-     *   onBindViewHolder 会走到 isFirstBind=true 分支（lastBoundTextLen=0 来自首次空文本 bind，
-     *   appendLastAssistant 路径不更新 lastBoundTextLen），强制走 Markdown 渲染。
-     *
-     *   之前用 findViewHolderForAdapterPosition + notifyItemChanged(PAYLOAD_FORCE_MARKDOWN) 有 bug：
-     *   notifyItemChanged 路径里 m.text = getItem(idx).text 来自 currentList（未更新为 final），
-     *   会用旧累积文本覆盖主动渲染的正确 final 文本。 */
+    /** ★ 最终提交（用于 onAssistantComplete）：committed=true 强制下次重绑走 Markdown。
+     *   依赖 ChatMessage.committed 参与 DIFF 内容比对：false→true 必触发重绑，
+     *   即使流式累积文本 == trim 后 final（DiffUtil 判内容未变不重绑 →
+     *   混合态不修复的随机 bug，见 ChatMessage.committed 注释）。 */
     fun commitLastAssistant(text: String) {
         val idx = backingList.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
         if (idx >= 0) {
-            backingList[idx] = backingList[idx].copy(text = text)
+            backingList[idx] = backingList[idx].copy(text = text, committed = true)
         } else {
-            backingList.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text))
+            backingList.add(ChatMessage.create(ChatMessage.Role.ASSISTANT, text).copy(committed = true))
         }
         submitList(ArrayList(backingList))
     }
