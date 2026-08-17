@@ -93,12 +93,27 @@ app/src/main/java/com/sherva/voiceassistant/
 | 08-13 | Markdown 渲染、UI 美化、文字模式系列修复 |
 | 08-14 | reasoning 思考流式显示攻坚（~15 commits）+ KWS 后台恢复修复 |
 | 08-15 | QNN 移除、AudioFocus 试错回退、API Key 去硬编码、文本模式不暂停音乐、四项增强（夜间模式/LLM截断/错误UI/设置备份） |
+| 08-17 | reasoning 双格式（v63/v64）、readTimeout=0（v65）、tool_calls/finish_reason/usage 全链路（v66-v70） |
 
 ### 🔜 待办 / 优化方向
 
 - [ ] **APK 瘦身**（优先）：模型不打包 assets，改运行时下载到 `filesDir`，~350MB → ~15MB
 - [ ] **低延迟**：VAD `minSilenceDuration` 降至 0.3s
 - [ ] 可选：VITS-Baker 不存在，若要 VITS 架构用 `vits-melo-tts-zh_en`（见 `ModelPaths.kt` 注释）
+
+### 📗 agent 可见性（08-17 v65-v70）
+
+**问题起源**：用户问"有没有"后 19 字正文卡死 2 分钟——实为 DeepSeek 调 baidu-search 工具（429 限流 sleep 120s+180s 重试），但 Argus 看不到 tool_calls 盲等到 readTimeout。pi-proxy 之前只透传 text/reasoning，tool_calls/finish_reason/usage 全部丢弃。
+
+**三层修复**：
+- **pi-proxy**（`eb58807`）：sseToolCallChunk（首帧 id/name + 后续 arguments 增量）、sseFinishChunk（finish_reason + usage）、tool_execution_start/end 以 SSE 注释行透传。★ finish 来源：`ae.done` 实测不触发，stopReason/usage 在顶层 `message_end`（role=assistant 才有）
+- **Argus LlmClient**：parseFrame 四路回调（content/reasoning/tool_calls/finish）；finish_reason 只在 [DONE]/EOF 后回调最终值；readTimeout=0 等用户主动 abort
+- **Argus UI**：气泡内工具区（蓝紫 pill 折叠区，与 reasoning 区独立）+ Listener 新增 onToolCallDelta/onToolExecEnd/onFinish（默认实现向后兼容）
+
+**踩坑**：
+- `toolCallsMap` key 不能用 contentIndex —— pi 每轮 assistant message 从 0 重数 index，多轮工具互相覆盖/args 拼接（实测 8 次工具只显示 3 个）；改用 callId（LinkedHashMap 保序）
+- SSE 注释行（`: [tool_end] ...`）标准 OpenAI 客户端自动忽略，Argus 端单独解析
+- "App 启动"日志会被 onResume 里的 AppLog.init 重复打 —— 看日志判断进程生死要认 PID，别信这句文案（logcat 实证：5 分钟后台跨 4 次 onRestart 进程 PID 未变，SSE 流不断，最终完整 commit）
 
 ### ❌ 已否决方向（避免重复踩坑）
 
