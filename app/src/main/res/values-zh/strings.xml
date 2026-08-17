@@ -96,8 +96,6 @@
     <string name="pref_summary_global_aec">开启后可消除任意 App（音乐/视频）播放的回声。但可能切听筒、影响音质。默认关闭，仅本 App TTS 回声被消除</string>
     <string name="pref_title_pause_music">聆听时暂停音乐</string>
     <string name="pref_summary_pause_music">对话开始时自动暂停其他 App（喜马拉雅/QQ音乐/B站等）的播放，结束后恢复。需开启远程前台 App</string>
-    <string name="pref_title_focus_pause">音频焦点模式（实验）</string>
-    <string name="pref_summary_focus_pause">用音频焦点（电话语义）让音乐自动暂停/恢复，不经远程前台 App。零权限零状态</string>
     <string name="cat_backup">设置备份</string>
     <string name="pref_title_settings_export">导出设置</string>
     <string name="pref_summary_settings_export">把当前全部设置（含 LLM 配置/TTS/唤醒词等）导出为 JSON 文件</string>

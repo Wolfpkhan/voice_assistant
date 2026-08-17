@@ -57,7 +57,6 @@ class MainActivity : AppCompatActivity() {
             val kwsGtcrn = sp.getBoolean(ctx.getString(R.string.pref_kws_gtcrn), false)
             val kwsSco = sp.getBoolean(ctx.getString(R.string.pref_kws_sco), false)
             val pauseMusic = sp.getBoolean(ctx.getString(R.string.pref_pause_music), false)
-            val useFocusPause = sp.getBoolean(ctx.getString(R.string.pref_focus_pause), false)
             return VoiceAssistant.Config(
                 continuous = true, ttsSpeed = speed, ttsSid = ttsSid,
                 ttsEngine = ttsEngine,
@@ -75,7 +74,6 @@ class MainActivity : AppCompatActivity() {
                 kwsGtcrn = kwsGtcrn,
                 kwsBluetoothSco = kwsSco,
                 pauseMusic = pauseMusic,
-                useFocusPause = useFocusPause,
             )
         }
     }
