@@ -49,6 +49,33 @@
             android:fontFamily="monospace"
             android:textIsSelectable="true" />
 
+        <!-- ★ 工具调用区（折叠/展开，默认隐藏）—— 与 reasoning 同结构，独立区域 -->
+        <TextView
+            android:id="@+id/toolsHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:layout_marginTop="4dp"
+            android:paddingVertical="4dp"
+            android:paddingHorizontal="10dp"
+            android:background="@drawable/bg_tools_pill"
+            android:text="@string/tools_toggle"
+            android:textColor="@color/tools_pill_text"
+            android:textSize="12sp" />
+
+        <TextView
+            android:id="@+id/toolsText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:layout_marginTop="4dp"
+            android:padding="8dp"
+            android:background="@drawable/bg_tools_box"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="13sp"
+            android:fontFamily="monospace"
+            android:textIsSelectable="true" />
+
         <TextView
             android:id="@+id/messageText"
             style="@style/MessageText"

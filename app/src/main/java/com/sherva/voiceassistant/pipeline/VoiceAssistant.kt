@@ -45,6 +45,9 @@ class VoiceAssistant(
         override fun onError(message: String) {}
         override fun onReasoningStart() {}
         override fun onReasoningDelta(delta: String) {}
+        override fun onToolCallDelta(index: Int, id: String?, name: String?, argsDelta: String) {}
+        override fun onToolExecEnd(callId: String, toolName: String, isError: Boolean) {}
+        override fun onFinish(reason: String, promptTokens: Int, completionTokens: Int, totalTokens: Int) {}
     }
 
     /**
@@ -106,6 +109,12 @@ class VoiceAssistant(
         fun onReasoningStart() {}
         /** ★ 思考过程增量（用于 UI 折叠展示）。 */
         fun onReasoningDelta(delta: String) {}
+        /** ★ 工具调用增量（OpenAI delta.tool_calls）。同一 index 的多个 delta 会被合并。 */
+        fun onToolCallDelta(index: Int, id: String?, name: String?, argsDelta: String) {}
+        /** ★ 工具执行结束（pi-proxy SSE 注释行 [tool_end]）。 */
+        fun onToolExecEnd(callId: String, toolName: String, isError: Boolean) {}
+        /** ★ 流结束回调（含 finish_reason + usage）。reason ∈ {stop, length, tool_calls, ...}。 */
+        fun onFinish(reason: String, promptTokens: Int, completionTokens: Int, totalTokens: Int) {}
     }
 
     companion object {
@@ -442,6 +451,18 @@ class VoiceAssistant(
                     if (!reasoningSeen) { reasoningSeen = true; broadcast { it.onReasoningStart() } }
                     reasoning.append(delta)   // ★ 累积思考全文
                     broadcast { l -> l.onReasoningDelta(delta) }
+                },
+                onToolCallDelta = { tcd ->
+                    broadcast { it.onToolCallDelta(tcd.index, tcd.id, tcd.name, tcd.argsDelta) }
+                },
+                onToolExecEnd = { end ->
+                    broadcast { it.onToolExecEnd(end.callId, end.toolName, end.isError) }
+                },
+                onFinish = { reason, usage ->
+                    val pt = usage?.promptTokens ?: 0
+                    val ct = usage?.completionTokens ?: 0
+                    val tt = usage?.totalTokens ?: 0
+                    broadcast { it.onFinish(reason, pt, ct, tt) }
                 },
             ).collect { full ->
                 if (full.length > reply.length) reply.clear().append(full)

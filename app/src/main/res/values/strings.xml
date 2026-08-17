@@ -36,6 +36,12 @@
     <string name="notice_new_chat">New conversation</string>
     <string name="reasoning_toggle">▶ Thinking</string>
     <string name="reasoning_hide">▼ Thinking</string>
+    <!-- 工具调用区（agent 类调用：bash / read / grep ...） -->
+    <string name="tools_toggle">🔧 Used N tools</string>
+    <string name="tools_toggle_one">🔧 Used 1 tool</string>
+    <string name="tools_running">⏳</string>
+    <string name="tools_done">✓</string>
+    <string name="tools_error">✗</string>
 
     <!-- 设置键（存储 key，不翻译） / Pref keys (do not translate) -->
     <string name="pref_llm_baseurl">llm_baseurl</string>

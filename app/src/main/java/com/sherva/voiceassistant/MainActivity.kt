@@ -25,6 +25,7 @@ import com.sherva.voiceassistant.data.MessageEntity
 import com.sherva.voiceassistant.pipeline.VoiceAssistant
 import com.sherva.voiceassistant.ui.ChatAdapter
 import com.sherva.voiceassistant.ui.ChatMessage
+import com.sherva.voiceassistant.ui.ToolCallDisplay
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -120,6 +121,12 @@ class MainActivity : AppCompatActivity() {
     private val streamedText = StringBuilder()
     /** ★ 当前助手气泡已写入 UI 的 reasoning 同步追踪。 */
     private val streamedReasoning = StringBuilder()
+    /** ★ 当前助手气泡累积的原始工具调用条目（按 callId 唯一，保持到达顺序）。
+     *    注意：key 不能用 contentIndex —— pi 的每轮 assistant message 从 0 重数 index，
+     *    多轮工具会互相覆盖/拼接；callId 全局唯一（call_00_xxx），是正确 key。 */
+    private val toolCallsMap = LinkedHashMap<String, ToolCallEntry>()
+    /** ★ 当前助手气泡是否已经产生过 tool call（决定 onAssistantComplete 时是否填 toolCalls）。 */
+    private var hasToolCalls = false
 
     private val requestPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -951,6 +958,11 @@ class MainActivity : AppCompatActivity() {
             curAssistantId = -1L   // 新一轮，下一条助手消息会是新的
             streamedText.setLength(0)
             streamedReasoning.setLength(0)
+            // ★ 工具调用累积：重置（新一轮）
+            synchronized(toolCallsMap) {
+                toolCallsMap.clear()
+                hasToolCalls = false
+            }
             adapter.add(ChatMessage.create(ChatMessage.Role.USER, text))
             ChatStore.save(text, isFromUser = true)   // 落库
             // ★ 双重滚动：立即 + 延迟（应对布局刷新延迟）
@@ -1005,20 +1017,29 @@ class MainActivity : AppCompatActivity() {
             // 以完整文本为准：覆盖或重建最后一条助手气泡，避免 delta 拼接不完整
             val final = text.trim()
             if (final.isEmpty()) return@runOnUiThread
+            // ★ 工具调用转 ChatMessage.ToolCallDisplay（LinkedHashMap 保序，按到达顺序）
+            val toolCallDisplays: List<ToolCallDisplay> = synchronized(toolCallsMap) {
+                if (!hasToolCalls) emptyList()
+                else toolCallsMap.values.map { entry -> entry.display() }
+            }
             // ★ 只信任同步的 curAssistantId：last?.id 不可靠（AsyncListDiffer 异步）
             if (curAssistantId != -1L) {
                 adapter.commitLastAssistant(final)   // ★ 覆盖 + 强制走 Markdown
+                if (toolCallDisplays.isNotEmpty()) adapter.setLastToolCalls(toolCallDisplays)
                 streamedText.setLength(0)
                 streamedText.append(final)
-                AppLog.i("Main", "提交助手气泡 (id=${curAssistantId})")
+                AppLog.i("Main", "提交助手气泡 (id=${curAssistantId}) 含 ${toolCallDisplays.size} 个工具调用")
             } else {
                 val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, final)
-                    .copy(reasoning = streamedReasoning.toString().ifBlank { null })
+                    .copy(
+                        reasoning = streamedReasoning.toString().ifBlank { null },
+                        toolCalls = toolCallDisplays,
+                    )
                 curAssistantId = msg.id
                 streamedText.setLength(0)
                 streamedText.append(final)
                 adapter.add(msg)
-                AppLog.i("Main", "新增助手气泡 (id=${curAssistantId})")
+                AppLog.i("Main", "新增助手气泡 (id=${curAssistantId}) 含 ${toolCallDisplays.size} 个工具调用")
             }
             ChatStore.save(final, isFromUser = false)   // 落库
             scrollToEnd()
@@ -1044,6 +1065,63 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+        // ★ 工具调用增量（OpenAI delta.tool_calls）
+        override fun onToolCallDelta(index: Int, id: String?, name: String?, argsDelta: String) = runOnUiThread {
+            AppLog.i("Main", "onToolCallDelta idx=$index name=$name argsLen=${argsDelta.length} id=$id")
+            // ★ key 用 callId（全局唯一）。contentIndex 每轮重数不能用；
+            //   理论上首帧必带 id，兜底用 "idx:$index" 兼容异常流
+            val key = id ?: "idx:$index"
+            synchronized(toolCallsMap) {
+                hasToolCalls = true
+                val entry = toolCallsMap.getOrPut(key) { ToolCallEntry(id = key) }
+                if (id != null) entry.id = id
+                if (name != null) entry.name = name
+                if (argsDelta.isNotEmpty()) entry.args.append(argsDelta)
+            }
+            // ★ 不再在状态栏显示工具调用状态——状态显示在气泡的工具信息区域即可
+        }
+
+        // ★ 工具执行结束（pi-proxy SSE 注释行）
+        override fun onToolExecEnd(callId: String, toolName: String, isError: Boolean) = runOnUiThread {
+            AppLog.i("Main", "onToolExecEnd $toolName id=$callId err=$isError")
+            // 找到对应 index，标记完成
+            synchronized(toolCallsMap) {
+                val entry = toolCallsMap.values.firstOrNull { it.id == callId }
+                if (entry != null) entry.status = if (isError) "error" else "done"
+            }
+        }
+
+        // ★ 流结束（含 finish_reason + usage）
+        override fun onFinish(reason: String, promptTokens: Int, completionTokens: Int, totalTokens: Int) = runOnUiThread {
+            AppLog.i("Main", "onFinish reason=$reason prompt=$promptTokens completion=$completionTokens total=$totalTokens")
+            // 仅在异常原因时提示（tool_calls 是中间状态不算异常）
+            if (reason == "length") {
+                stateText.text = "⚠️ 回复被截断（达到 token 限制）"
+            } else if (reason == "stop" && totalTokens > 0) {
+                AppLog.i("Main", "本次 LLM 调用消耗 $totalTokens tokens ($promptTokens+$completionTokens)")
+            }
+        }
+    }
+
+    /** ★ 工具调用累积容器（按 index）。 */
+    private data class ToolCallEntry(
+        var id: String = "",
+        var name: String = "",
+        val args: StringBuilder = StringBuilder(),
+        var status: String = "running",  // running / done / error
+    ) {
+        /** args 可能是增量 JSON 拼接，preview 时截断到 80 字。 */
+        fun display(): ToolCallDisplay = ToolCallDisplay(
+            name = name.ifBlank { "?" },
+            argsPreview = args.toString()
+                .replace('\n', ' ')
+                .replace("\\s+".toRegex(), " ")
+                .trim()
+                .take(80)
+                .let { if (it.length >= 80) "$it…" else it },
+            status = status,
+        )
     }
 
     /** ★ 思考增量节流缓冲（与正文 delta 独立）。 */

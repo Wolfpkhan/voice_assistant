@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 工具调用头部 pill：蓝紫渐变（区别 reasoning 的灰） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="10dp" />
+    <gradient
+        android:angle="135"
+        android:startColor="@color/tools_pill_start"
+        android:endColor="@color/tools_pill_end" />
+</shape>

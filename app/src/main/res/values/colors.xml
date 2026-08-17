@@ -29,4 +29,11 @@
     <color name="state_speaking">#A855F7</color>    <!-- 播报 紫 -->
     <color name="state_idle">#6E6E80</color>        <!-- 待机 灰 -->
     <color name="warn">#E5484D</color>              <!-- 停止/警示 红 -->
+
+    <!-- ===== 工具调用区（区别 reasoning 的灰） -->
+    <color name="tools_pill_start">#7C4DFF</color>  <!-- 紫 -->
+    <color name="tools_pill_end">#5B8DEF</color>    <!-- 蓝 -->
+    <color name="tools_pill_text">#FFFFFF</color>   <!-- 白 -->
+    <color name="tools_box_bg">#1A1F2E</color>      <!-- 深蓝紫底 -->
+    <color name="tools_box_stroke">#3F4B7A</color>  <!-- 边框 -->
 </resources>

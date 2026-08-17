@@ -35,6 +35,8 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         const val PAYLOAD_FORCE_MARKDOWN = "force_markdown"
         /** ★ notifyItemChanged payload：只重渲染折叠区（用于 setLastReasoning）。 */
         const val PAYLOAD_REASONING = "reasoning_only"
+        /** ★ payload：只重渲染工具调用区（用于 setLastToolCalls）。 */
+        const val PAYLOAD_TOOLS = "tools_only"
         /** ★ payload：折叠思考区（思考结束开始正文时）。 */
         const val PAYLOAD_COLLAPSE = "collapse_reasoning"
         /** ★ 增量追加正文（流式 delta，只 append 不重渲染，避免高频闪烁） */
@@ -42,7 +44,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         private val DIFF = object : DiffUtil.ItemCallback<ChatMessage>() {
             override fun areItemsTheSame(a: ChatMessage, b: ChatMessage) = a.id == b.id
             override fun areContentsTheSame(a: ChatMessage, b: ChatMessage) =
-                a.role == b.role && a.text == b.text && a.reasoning == b.reasoning
+                a.role == b.role && a.text == b.text && a.reasoning == b.reasoning && a.toolCalls == b.toolCalls
         }
     }
 
@@ -51,7 +53,12 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         // ★ 思考过程折叠区（默认隐藏）
         val reasoningHeader: TextView = v.findViewById(R.id.reasoningHeader)
         val reasoningText: TextView = v.findViewById(R.id.reasoningText)
+        // ★ 工具调用折叠区（默认隐藏）
+        val toolsHeader: TextView = v.findViewById(R.id.toolsHeader)
+        val toolsText: TextView = v.findViewById(R.id.toolsText)
         var expanded = true   // ★ 默认展开，让用户看到实时思考过程
+        /** ★ 工具调用区展开状态。 */
+        var toolsExpanded = false   // ★ 默认折叠——完成后才展开看
         /** ★ 上一轮 onBind 时的文本长度：用于检测流式增量。 */
         var lastBoundTextLen: Int = 0
         /** ★ 是否上一轮走的是 Markdown（用于决定本次是否重渲染）。 */
@@ -84,6 +91,11 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                     vh.expanded = !vh.expanded
                     vh.reasoningHeader.text = if (vh.expanded) vh.itemView.context.getString(R.string.reasoning_hide) else vh.itemView.context.getString(R.string.reasoning_toggle)
                     vh.reasoningText.visibility = if (vh.expanded) View.VISIBLE else View.GONE
+                }
+                // ★ 工具调用区头部点击展开/折叠
+                vh.toolsHeader.setOnClickListener {
+                    vh.toolsExpanded = !vh.toolsExpanded
+                    vh.toolsText.visibility = if (vh.toolsExpanded) View.VISIBLE else View.GONE
                 }
                 vh
             }
@@ -126,6 +138,11 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                     }
                     return
                 }
+                // ★ 仅重渲染工具调用区（不动 reasoning/text）
+                if (payloads.contains(PAYLOAD_TOOLS)) {
+                    renderTools(h, m.toolCalls)
+                    return
+                }
                 val forceMarkdown = payloads.contains(PAYLOAD_FORCE_MARKDOWN)
                 val newText = m.text
                 if (forceMarkdown) {
@@ -160,6 +177,8 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                     h.reasoningHeader.visibility = View.GONE
                     h.reasoningText.visibility = View.GONE
                 }
+                // ★ 工具调用区渲染
+                renderTools(h, m.toolCalls)
             }
             is UserVH -> MarkdownRenderer.render(h.text, m.text)
             is NoticeVH -> h.text.text = m.text
@@ -236,6 +255,50 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
             submitList(ArrayList(backingList))
             notifyItemChanged(idx, PAYLOAD_REASONING)
         }
+    }
+
+    /** ★ 设置最后一条助手消息的工具调用列表（完整覆盖）。 */
+    fun setLastToolCalls(toolCalls: List<ToolCallDisplay>) {
+        val idx = backingList.indexOfLast { it.role == ChatMessage.Role.ASSISTANT }
+        if (idx >= 0) {
+            backingList[idx] = backingList[idx].copy(toolCalls = toolCalls)
+            submitList(ArrayList(backingList))
+            notifyItemChanged(idx, PAYLOAD_TOOLS)
+        }
+    }
+
+    /** ★ 渲染工具调用区。格式（每行一个）：
+     *  ```
+     *  ⏳ [bash] python3 baidu-search.py ...
+     *  ✓ [read] foo.json
+     *  ✗ [bash] sleep 60  (error)
+     *  ```
+     */
+    private fun renderTools(h: AssistantVH, tools: List<ToolCallDisplay>) {
+        if (tools.isEmpty()) {
+            h.toolsHeader.visibility = View.GONE
+            h.toolsText.visibility = View.GONE
+            return
+        }
+        h.toolsHeader.visibility = View.VISIBLE
+        val ctx = h.itemView.context
+        h.toolsHeader.text = when (tools.size) {
+            1 -> ctx.getString(R.string.tools_toggle_one)
+            else -> ctx.getString(R.string.tools_toggle).replace("N", tools.size.toString())
+        }
+        val sb = StringBuilder()
+        for (tc in tools) {
+            val icon = when (tc.status) {
+                "done" -> ctx.getString(R.string.tools_done)
+                "error" -> ctx.getString(R.string.tools_error)
+                else -> ctx.getString(R.string.tools_running)  // running
+            }
+            sb.append(icon).append(' ').append('[').append(tc.name).append(']').append(' ').append(tc.argsPreview)
+            if (tc.status == "error") sb.append("  (error)")
+            sb.append('\n')
+        }
+        h.toolsText.text = sb.toString().trimEnd()
+        h.toolsText.visibility = if (h.toolsExpanded) View.VISIBLE else View.GONE
     }
 
     fun clearAll() {
