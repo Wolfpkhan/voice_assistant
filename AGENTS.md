@@ -117,6 +117,10 @@ app/src/main/java/com/sherva/voiceassistant/
 
 ### ❌ 已否决方向（避免重复踩坑）
 
+- **MCP 协议层 + FI 架构重构（2026-08-17 评估否决）**：调研 lamda/agentic-nexus/OpenClaw 生态后提出的“先抽象架构→加 MCP→升级 Skills”三步走。否决理由：①链路只有单消费者（pi agent），SKILL.md 本身就是发现机制且信息量大于 MCP tool schema，MCP 是零新能力的协议管道；②FI 每个 App 手动适配的痛点是覆盖广度不是架构，重构引入回归风险；③真人否决 AccessibilityService 时已肯定手动 API 路线。触发重评条件：出现第二个 agent（如 Claude Desktop）需要直接控机。mmx 搜索作为 baidu-search 备用（同日落地）是唯一有价值的产出——当天百度 429 把 agent 卡了 5 分钟。
+
+- **AccessibilityService UI 操控（2026-08-17 用户否决）**：风险过高，宁可每个 API 手动实现。能读屏/控所有 App，隐私不可控，且云端 LLM 会拿到屏幕内容。
+
 - **QNN/NPU 加速（2026-08-15 真机验证否决）**：vivo V2303A（SM8550/Android 16）
       cDSP 拒载任何第三方 HTP Skel（deviceCreate 14001，unsigned 官方库与 odm
       签名版均不行），高通量产安全模型所致，需厂商白名单/系统签名/root。
