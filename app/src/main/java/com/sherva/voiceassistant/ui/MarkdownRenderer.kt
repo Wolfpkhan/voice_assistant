@@ -46,7 +46,7 @@ object MarkdownRenderer {
         ta.recycle()
         textView.setTextColor(color)
 
-        get(ctx).setMarkdown(textView, markdown)
+        get(ctx).setMarkdown(textView, flattenTableCells(markdown))
         // 纯文本 URL 自动识别（markdown 链接由 Markwon 处理）
         android.text.util.Linkify.addLinks(
             textView,
@@ -54,6 +54,47 @@ object MarkdownRenderer {
         )
         // 链接点击：默认打开浏览器
         textView.movementMethod = linkMovementMethod(ctx)
+    }
+
+    /** ★ 表格 cell 内换行拍平：LLM 常在 cell 里输出真实换行（GPT 表格习惯），
+     *    Markwon TableRowSpan 对多行 cell 绘制越界（内容溢出单元格/行高错乱）。
+     *    处理：定位表格行（以 | 开头且含 | ），把行内除行尾外的 \n 替换为 "；"分隔，
+     *    <br> 同样拍平（cell 内换行在窄列里用分隔号可读性更好）。
+     *    非表格行不动。 */
+    private fun flattenTableCells(markdown: String): String {
+        if (!markdown.contains('|')) return markdown
+        return markdown.split('\n').joinToString("\n") { line ->
+            if (line.trimStart().startsWith("|") && line.count { it == '|' } >= 2) {
+                // 表格行：内部换行已不可能（split 已按 \n 拆）——主要处理 <br>
+                line.replace("<br>", "；").replace("<br/>", "；").replace("<br />", "；")
+            } else {
+                line
+            }
+        }.let { joined ->
+            // 再处理真实 \n 混入 cell 的场景：某行以 | 开头但下一行以非 | 非空开头且上一行未闭合（| 数量为奇）
+            // 简单可靠版：连续两个“以|开头”的行之间插入的“不以|开头且非空”的行，合并进上一行
+            val lines = joined.split('\n').toMutableList()
+            val out = mutableListOf<String>()
+            var i = 0
+            while (i < lines.size) {
+                val cur = lines[i]
+                val isTableRow = cur.trimStart().startsWith("|")
+                if (isTableRow && i + 1 < lines.size) {
+                    val nxt = lines[i + 1]
+                    val nxtIsTableRow = nxt.trimStart().startsWith("|")
+                    val nxtIsSep = nxt.trim().matches(Regex("\\|?[\\s:|-]+\\|?.*")) && nxt.contains('-')
+                    // 中断行：不以 | 开头、非空、非分隔行 → 视为误入 cell 的换行内容
+                    if (!nxtIsTableRow && nxt.isNotBlank() && !nxtIsSep) {
+                        out.add(cur + "；" + nxt.trim())
+                        i += 2
+                        continue
+                    }
+                }
+                out.add(cur)
+                i++
+            }
+            out.joinToString("\n")
+        }
     }
 
     private fun linkMovementMethod(ctx: Context): LinkMovementMethod = object : LinkMovementMethod() {
