@@ -51,6 +51,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
 
     private class AssistantVH(v: View) : RecyclerView.ViewHolder(v) {
         val text: TextView = v.findViewById(R.id.messageText)
+        val time: TextView = v.findViewById(R.id.timeText)
         // ★ 思考过程折叠区（默认隐藏）
         val reasoningHeader: TextView = v.findViewById(R.id.reasoningHeader)
         val reasoningText: TextView = v.findViewById(R.id.reasoningText)
@@ -67,6 +68,7 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
     }
     private class UserVH(v: View) : RecyclerView.ViewHolder(v) {
         val text: TextView = v.findViewById(R.id.messageText)
+        val time: TextView = v.findViewById(R.id.timeText)
     }
     private class NoticeVH(v: View) : RecyclerView.ViewHolder(v) {
         val text: TextView = v.findViewById(R.id.noticeText)
@@ -101,6 +103,42 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                 vh
             }
         }
+    }
+
+    private val timeFmt = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+    private val dateFmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
+
+    /** 毫秒 epoch → 当天零点（本地时区），用于跨天判断。 */
+    private fun dayOf(ts: Long): Long {
+        val cal = java.util.Calendar.getInstance()
+        cal.timeInMillis = ts
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0); cal.set(java.util.Calendar.MINUTE, 0)
+        cal.set(java.util.Calendar.SECOND, 0); cal.set(java.util.Calendar.MILLISECOND, 0)
+        return cal.timeInMillis
+    }
+
+    /** ★ 气泡底部时间小字。
+     *  合并规则：与上一条同分钟隐藏；同一天只显 HH:mm，跨天（相对上一条）显 MM-dd HH:mm。
+     *  timestamp=0（未设）隐藏。 */
+    private fun renderTime(h: RecyclerView.ViewHolder, m: ChatMessage, position: Int) {
+        val tv = when (h) {
+            is AssistantVH -> h.time
+            is UserVH -> h.time
+            else -> return
+        }
+        if (m.timestamp <= 0L) { tv.visibility = View.GONE; return }
+        if (position > 0) {
+            val prev = getItem(position - 1).timestamp
+            val sameMinute = prev > 0 && (prev / 60000L) == (m.timestamp / 60000L)
+            if (sameMinute) { tv.visibility = View.GONE; return }
+        }
+        tv.visibility = View.VISIBLE
+        // ★ 跨天相对上一条可见消息：带日期；今天内只显时刻
+        val prevTs = if (position > 0) getItem(position - 1).timestamp else 0L
+        tv.text = if (prevTs > 0 && dayOf(prevTs) != dayOf(m.timestamp))
+            dateFmt.format(java.util.Date(m.timestamp))
+        else
+            timeFmt.format(java.util.Date(m.timestamp))
     }
 
     override fun onBindViewHolder(h: RecyclerView.ViewHolder, position: Int) {
@@ -190,8 +228,13 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                 }
                 // ★ 工具调用区渲染
                 renderTools(h, m.toolCalls)
+                // ★ 时间小字
+                renderTime(h, m, position)
             }
-            is UserVH -> MarkdownRenderer.render(h.text, m.text)
+            is UserVH -> {
+                MarkdownRenderer.render(h.text, m.text)
+                renderTime(h, m, position)
+            }
             is NoticeVH -> h.text.text = m.text
         }
     }

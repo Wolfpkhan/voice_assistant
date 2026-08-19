@@ -83,6 +83,16 @@
             android:layout_height="wrap_content"
             android:textIsSelectable="true" />
 
+        <!-- ★ 时间小字：正文下方，同分钟合并隐藏 -->
+        <TextView
+            android:id="@+id/timeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:paddingTop="1dp"
+            android:textColor="?android:attr/textColorSecondary"
+            android:textSize="10sp" />
+
     </LinearLayout>
 
 </LinearLayout>

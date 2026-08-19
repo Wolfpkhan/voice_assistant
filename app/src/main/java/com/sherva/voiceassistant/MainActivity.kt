@@ -143,7 +143,7 @@ class MainActivity : AppCompatActivity() {
         if (displays.isEmpty()) return
         if (curAssistantId == -1L) {
             // ★ 工具先于正文到达：先建占位气泡，后续正文 delta 走 append 分支
-            val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "")
+            val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "", System.currentTimeMillis())
                 .copy(reasoning = streamedReasoning.toString().ifBlank { null })
             curAssistantId = msg.id
             adapter.add(msg)
@@ -843,6 +843,7 @@ class MainActivity : AppCompatActivity() {
                 ChatMessage.create(
                     if (m.isFromUser) ChatMessage.Role.USER else ChatMessage.Role.ASSISTANT,
                     m.content,
+                    timestamp = m.timestamp,
                 )
             }
             adapter.submitAll(msgs)
@@ -999,7 +1000,7 @@ class MainActivity : AppCompatActivity() {
                 toolCallsMap.clear()
                 hasToolCalls = false
             }
-            adapter.add(ChatMessage.create(ChatMessage.Role.USER, text))
+            adapter.add(ChatMessage.create(ChatMessage.Role.USER, text, System.currentTimeMillis()))
             ChatStore.save(text, isFromUser = true)   // 落库
             // ★ 双重滚动：立即 + 延迟（应对布局刷新延迟）
             scrollToEnd(smooth = false)
@@ -1031,7 +1032,7 @@ class MainActivity : AppCompatActivity() {
             // ★ 第一次 text 到达时建气泡（和之前没 think 时一样的时机，保证在 USER 之后）
             //   同时把已累积的 reasoning 一起带上（思考内容已有但气泡刚建）
             if (curAssistantId == -1L) {
-                val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, batch)
+                val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, batch, System.currentTimeMillis())
                     .copy(reasoning = streamedReasoning.toString().ifBlank { null })
                 curAssistantId = msg.id
                 streamedText.clear()
@@ -1066,7 +1067,7 @@ class MainActivity : AppCompatActivity() {
                 streamedText.append(final)
                 AppLog.i("Main", "提交助手气泡 (id=${curAssistantId}) 含 ${toolCallDisplays.size} 个工具调用")
             } else {
-                val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, final)
+                val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, final, System.currentTimeMillis())
                     .copy(
                         reasoning = streamedReasoning.toString().ifBlank { null },
                         toolCalls = toolCallDisplays,
@@ -1183,7 +1184,7 @@ class MainActivity : AppCompatActivity() {
         //   顺序安全：onUserText 的 broadcast 在 handleLlmTurn 之前调用，Handler FIFO 保证
         //   USER 气泡先建；ChatAdapter backingList 同步，不会丢数据。
         if (curAssistantId == -1L) {
-            val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "")
+            val msg = ChatMessage.create(ChatMessage.Role.ASSISTANT, "", System.currentTimeMillis())
                 .copy(reasoning = batch)
             curAssistantId = msg.id
             streamedReasoning.clear()

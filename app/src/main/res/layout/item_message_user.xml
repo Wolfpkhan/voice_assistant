@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 用户消息：右对齐，灰底圆角气泡 -->
+<!-- 用户消息：右对齐，灰底圆角气泡；外层 vertical 承载气泡+时间 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
+    android:orientation="vertical"
     android:gravity="end"
     android:paddingHorizontal="16dp"
     android:paddingTop="10dp"
@@ -20,5 +20,16 @@
         android:paddingHorizontal="@dimen/bubble_padding_h"
         android:paddingVertical="@dimen/bubble_padding_v"
         android:textIsSelectable="true" />
+
+    <!-- ★ 时间小字：气泡下方，同分钟合并隐藏 -->
+    <TextView
+        android:id="@+id/timeText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginEnd="4dp"
+        android:paddingTop="1dp"
+        android:textColor="?android:attr/textColorSecondary"
+        android:textSize="10sp" />
 
 </LinearLayout>
