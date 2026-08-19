@@ -615,6 +615,9 @@ class MainActivity : AppCompatActivity() {
         mode = newMode
         // 切走时若语音在跑，立即停止
         if (newMode == Mode.TEXT && assistant != null && assistant?.textMode == false) stopAssistant()
+        // ★ 切模式一律停手动播报：语音模式要开麦（SysTTS 外进程播放 AEC 无参考，
+        //   播报声会被 ASR 当人声识别/误触 KWS）；切 TEXT 也无需继续听
+        stopManualTts()
         // ★ 切到文字模式：自动关闭悬浮球
         if (newMode == Mode.TEXT && com.sherva.voiceassistant.service.VoiceAssistantService.instance != null) {
             disableFloatingBall()
@@ -654,6 +657,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun ensurePermissionAndStart() {
+        // ★ 开麦前停手动播报：SysTTS 外进程播放 AEC 无参考，播报声会被
+        //   ASR 当人声识别/误触 KWS（同"小西街"案例）
+        stopManualTts()
         if (hasRecordPermission()) startAssistant()
         else requestPermission.launch(Manifest.permission.RECORD_AUDIO)
     }
@@ -696,6 +702,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopAssistant() {
+        // ★ 停语音同时停手动播报（麦克风即将关闭，但避免声叠声）
+        stopManualTts()
         assistant?.stop()
         // 不释放也不清 null，共享实例供 Service 接管
         setStartedUi(false)
