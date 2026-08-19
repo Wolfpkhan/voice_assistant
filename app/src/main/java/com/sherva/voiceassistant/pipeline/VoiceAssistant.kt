@@ -481,8 +481,10 @@ class VoiceAssistant(
                 AppLog.i("VA", "文字模式，跳过 TTS 播报")
                 // 下方统一在进入 IDLE 时 resumeMusic
             } else {
-                // ★ TTS 即将播放：再次暂停音乐（让 TTS 独占扬声器）
-                pauseMusic()
+                // ★ TTS 即将播放：同步暂停音乐 —— 必须等 FI 记录完成再让 SysTTS 开口。
+                //   异步版曾与 SysTTS.speak 竞态：vivo TTS 抢焦点导致 xmly 自停，
+                //   FI 后到的 pause_all 扫不到 playing → 无记录 → resume 无从恢复。
+                pauseMusicSync()
                 // TTS 播报：整段一次性喂 sherpa（内部按 token 分 batch 连续生成）
                 //   不再外层按句分——避免每句 generate 的启动开销
                 //   barge-in 通过 callback 返回 0 实现
@@ -530,14 +532,35 @@ class VoiceAssistant(
     /**
      * TTS 播报（唤醒词打断：说“小薇”可中断 TTS）。
      * 复用 KWS 监听，不依赖 AEC，跨设备一致。
+     * ★ 打断也走二次确认：SysTTS 是外部进程播放，硬件 AEC 拿不到回声参考，
+     *   TTS 自身声音会漏进麦克风——攻略文本里“小西街”(xiǎo xī) 等谐音词被误判
+     *   曾打断 85 秒播报（08-19 案例）。要求窗口内连续 2 次命中才打断，
+     *   误触发概率平方级下降；用户本就习惯连说“小薇小薇”。
      */
     private suspend fun speakAll(text: String) {
         if (text.isBlank()) return
         AppLog.i("VA", "TTS 播报：${text.length}字 (引擎=${config.ttsEngine})")
         var speakCont: CancellableContinuation<Unit>? = null
+        // ★ 播报期间 barge-in 二次确认状态（复用 onWakeWordHit 的窗口/间隔约束）
+        var bargeHitCount = 0
+        var bargeFirstHitAt = 0L
         // ★ 唤醒词打断：TTS 播报期间开 KWS 监听
         kws.start { keyword ->
-            AppLog.i("VA", "TTS 播报中唤醒词命中: $keyword → 打断")
+            val now = System.currentTimeMillis()
+            // 间隔 <300ms：look-back 重放回声，忽略
+            if (bargeHitCount > 0 && now - bargeFirstHitAt < 300) {
+                AppLog.i("VA", "barge-in 命中间隔 <300ms（回声），忽略")
+                return@start
+            }
+            // 超窗口重计
+            if (now - bargeFirstHitAt > (config.kwsConfirmWindowSec * 1000).toLong()) bargeHitCount = 0
+            bargeHitCount++
+            if (bargeHitCount < 2) {
+                bargeFirstHitAt = now
+                AppLog.i("VA", "TTS 播报中唤醒词第 1 次命中（$keyword），等待二次确认（防谐音误判）")
+                return@start
+            }
+            AppLog.i("VA", "TTS 播报中唤醒词二次确认通过: $keyword → 打断")
             com.sherva.voiceassistant.audio.SoundEffects.interrupt()
             interrupted = true
             tts.stop()
@@ -619,6 +642,29 @@ class VoiceAssistant(
                 AppLog.i("VA", "暂停音乐: $resp")
             } catch (e: Exception) {
                 AppLog.w("VA", "暂停音乐失败（FI 可能没启动）: ${e.message}")
+            }
+        }
+    }
+
+    /** ★ 同步版 pauseMusic：挂起直到 FI 返回（带 3s 上限）。
+     *    TTS 播报前必须用它：异步版与 SysTTS.speak() 有 50ms 级竞态——
+     *    vivo TTS 引擎请求音频焦点 → xmly 等标准 App 主动自停（不经 FI）→
+     *    FI 的 pause_all 后到扫不到 playing → paused=[] 无记录 → 打断后 resume 无从恢复。
+     *    同步确保 FI 先记录，TTS 后开口。 */
+    private suspend fun pauseMusicSync() {
+        if (!config.pauseMusic) return
+        if (textMode) { AppLog.i("VA", "pauseMusic: 文本模式，跳过暂停音乐"); return }
+        withContext(Dispatchers.IO) {
+            try {
+                val url = java.net.URL("http://127.0.0.1:8765/media_pause_all?caller=app")
+                val conn = url.openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 2000
+                conn.readTimeout = 3000
+                val resp = conn.inputStream.bufferedReader().readText()
+                conn.disconnect()
+                AppLog.i("VA", "暂停音乐(同步): $resp")
+            } catch (e: Exception) {
+                AppLog.w("VA", "暂停音乐(同步)失败（FI 可能没启动）: ${e.message}")
             }
         }
     }
