@@ -83,15 +83,33 @@
             android:layout_height="wrap_content"
             android:textIsSelectable="true" />
 
-        <!-- ★ 时间小字：正文下方，同分钟合并隐藏 -->
-        <TextView
-            android:id="@+id/timeText"
+        <!-- ★ 手动 TTS 播报按钮 + 时间（同行） -->
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:visibility="gone"
-            android:paddingTop="1dp"
-            android:textColor="?android:attr/textColorSecondary"
-            android:textSize="10sp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:id="@+id/ttsButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingHorizontal="6dp"
+                android:paddingVertical="2dp"
+                android:text="🔊"
+                android:textSize="14sp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="TTS 播报" />
+
+            <TextView
+                android:id="@+id/timeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:visibility="gone"
+                android:paddingTop="1dp"
+                android:textColor="?android:attr/textColorSecondary"
+                android:textSize="10sp" />
+        </LinearLayout>
 
     </LinearLayout>
 

@@ -816,25 +816,6 @@ class VoiceAssistant(
      *   - 保留句末标点（。，、！？,.!?）—— Kokoro 需要这些做停顿
      *   - 去掉：所有其他符号（箭头、括号、冒号、markdown、emoji 代理对等）
      *   - 不再逐个枚举 TTS_STRIP 列表 */
-    private fun cleanTextForTts(text: String): String {
-        // ★ URL / 链接：整体替换成「链接」——不念协议、域名、路径
-        //   （否则会念成 h-t-t-p 冒号斜杠… 很尴尬）
-        var t = text.replace(Regex("""https?://\S+"""), "链接")
-        val sb = StringBuilder(t.length)
-        for (ch in t) {
-            if (Character.isSurrogate(ch)) continue   // 跳过 emoji
-            if (ch == '\n') { sb.append('，'); continue }
-            if (ch.isLetter() || ch.isDigit()) { sb.append(ch); continue }
-            if (ch == ' ' || ch == '\t') { sb.append(ch); continue }
-            if (ch in "。，、！？,.!?") { sb.append(ch); continue }
-            // ★ 保留数字场景符号（供 digitsToChinese 正则匹配）
-            //   含 - – 等范围连接符（如 20-21点）
-            if (ch in ":.%°℃¥￥\$元点分-/–") { sb.append(ch); continue }
-            // 其他全去掉（括号、冒号、箭头、markdown 等一切标点符号）
-        }
-        return sb.toString()
-            .replace(Regex("[ \t]+"), " ")
-            .replace(Regex("[，。]{2,}"), "。")
-            .trim()
-    }
+    private fun cleanTextForTts(text: String): String =
+        com.sherva.voiceassistant.tts.TtsTextCleaner.clean(text)
 }

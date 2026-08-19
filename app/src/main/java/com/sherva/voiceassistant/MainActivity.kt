@@ -124,6 +124,12 @@ class MainActivity : AppCompatActivity() {
     private val streamedText = StringBuilder()
     /** ★ 当前助手气泡已写入 UI 的 reasoning 同步追踪。 */
     private val streamedReasoning = StringBuilder()
+
+    // ===== 手动 TTS 播报（文字模式听消息）=====
+    /** ★ 独立系统 TTS 实例：不碰 VoiceAssistant 状态机/KWS/ASR/本地 TTS。 */
+    private var manualTts: com.sherva.voiceassistant.tts.SystemTtsEngine? = null
+    /** ★ 手动播报中的消息 id（-1=无）。 */
+    @Volatile private var manualTtsMsgId: Long = -1L
     /** ★ 当前助手气泡累积的原始工具调用条目（按 callId 唯一，保持到达顺序）。
      *    注意：key 不能用 contentIndex —— pi 的每轮 assistant message 从 0 重数 index，
      *    多轮工具会互相覆盖/拼接；callId 全局唯一（call_00_xxx），是正确 key。 */
@@ -425,6 +431,16 @@ class MainActivity : AppCompatActivity() {
         loadHistoryFromDb()
 
         startButton.setOnClickListener { toggleConversation() }
+
+        // ★ 手动 TTS 播报：点 🔊 播 / 点 ⏹ 停。独立系统 TTS 实例，
+        //   不碰 VoiceAssistant 状态机（KWS/ASR/语音 TTS 均不受影响）。
+        adapter.onToggleTts = { msgId, text ->
+            if (manualTtsMsgId == msgId) {
+                stopManualTts()
+            } else {
+                playManualTts(msgId, text)
+            }
+        }
         settingsButton.setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
@@ -830,6 +846,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     /** 从数据库加载最近一页历史到列表。仅在没有活跃对话时刷新。 */
+    // ===== 手动 TTS 播报实现 =====
+
+    /** 播报指定消息（清洗 markdown 后）。 */
+    private fun playManualTts(msgId: Long, rawText: String) {
+        val cleaned = com.sherva.voiceassistant.tts.TtsTextCleaner.clean(rawText)
+        if (cleaned.isBlank()) { toast(getString(com.sherva.voiceassistant.R.string.tts_manual_empty)); return }
+        stopManualTts()   // 若有旧播报先停
+        val engine = manualTts ?: com.sherva.voiceassistant.tts.SystemTtsEngine(applicationContext)
+            .also { manualTts = it }
+        manualTtsMsgId = msgId
+        adapter.setPlayingMsgId(msgId)
+        AppLog.i("Main", "手动播报: id=$msgId ${cleaned.length}字")
+        engine.speak(cleaned, 0, 1.0f) {
+            runOnUiThread {
+                if (manualTtsMsgId == msgId) {
+                    manualTtsMsgId = -1L
+                    adapter.setPlayingMsgId(-1L)
+                    AppLog.i("Main", "手动播报完成: id=$msgId")
+                }
+            }
+        }
+    }
+
+    /** 停止当前手动播报。 */
+    private fun stopManualTts() {
+        if (manualTtsMsgId == -1L) return
+        val id = manualTtsMsgId
+        manualTtsMsgId = -1L
+        try { manualTts?.stop() } catch (_: Throwable) {}
+        adapter.setPlayingMsgId(-1L)
+        AppLog.i("Main", "手动播报停止: id=$id")
+    }
+
     private fun loadHistoryFromDb() {
         // 对话进行中不刷新（避免清掉正在流式显示的内容）
         if (assistant != null) return
@@ -951,6 +1000,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // ★ 手动播报：停播 + 释放独立 TTS 实例
+        stopManualTts()
+        try { manualTts?.release() } catch (_: Throwable) {}
+        manualTts = null
         // ★ 不释放：Service 可能还在使用这个 VoiceAssistant 实例
         //   只取消订阅避免 Activity 回调泄露
         App.getAssistant(this)?.removeListener(listener)

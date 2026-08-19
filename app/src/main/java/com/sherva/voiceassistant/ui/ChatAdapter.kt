@@ -40,6 +40,8 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         const val PAYLOAD_TOOLS = "tools_only"
         /** ★ payload：折叠思考区（思考结束开始正文时）。 */
         const val PAYLOAD_COLLAPSE = "collapse_reasoning"
+        /** ★ payload：只刷新 TTS 播报按钮状态。 */
+        const val PAYLOAD_TTS_STATE = "tts_state"
         /** ★ 增量追加正文（流式 delta，只 append 不重渲染，避免高频闪烁） */
         data class PayloadAppendText(val delta: String)
         private val DIFF = object : DiffUtil.ItemCallback<ChatMessage>() {
@@ -58,6 +60,8 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         // ★ 工具调用折叠区（默认隐藏）
         val toolsHeader: TextView = v.findViewById(R.id.toolsHeader)
         val toolsText: TextView = v.findViewById(R.id.toolsText)
+        // ★ 手动 TTS 播报按钮（🔊/⏹）
+        val ttsBtn: TextView = v.findViewById(R.id.ttsButton)
         var expanded = true   // ★ 默认展开，让用户看到实时思考过程
         /** ★ 工具调用区展开状态。 */
         var toolsExpanded = false   // ★ 默认折叠——完成后才展开看
@@ -107,6 +111,31 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
 
     private val timeFmt = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
     private val dateFmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
+
+    /** ★ 当前手动播报中的消息 id（-1=无）。设后局部刷新对应气泡按钮。 */
+    private var playingMsgId: Long = -1L
+
+    /** ★ 手动播报回调：点击 🔊 开始 / 点击 ⏹ 停止。由 MainActivity 实现。 */
+    var onToggleTts: ((msgId: Long, text: String) -> Unit)? = null
+
+    /** ★ 外部更新播报状态（MainActivity 播放开始/结束/停止时调）。 */
+    fun setPlayingMsgId(msgId: Long) {
+        val old = playingMsgId
+        playingMsgId = msgId
+        // 局部刷新新旧两个气泡的按钮
+        val oldIdx = backingList.indexOfFirst { it.id == old }
+        if (oldIdx >= 0) notifyItemChanged(oldIdx, PAYLOAD_TTS_STATE)
+        val newIdx = backingList.indexOfFirst { it.id == msgId }
+        if (newIdx >= 0) notifyItemChanged(newIdx, PAYLOAD_TTS_STATE)
+    }
+
+    private fun bindTtsButton(h: AssistantVH, m: ChatMessage) {
+        val playing = m.id == playingMsgId
+        h.ttsBtn.text = if (playing) "⏹" else "🔊"
+        h.ttsBtn.setOnClickListener {
+            onToggleTts?.invoke(m.id, m.text)
+        }
+    }
 
     /** 毫秒 epoch → 当天零点（本地时区），用于跨天判断。 */
     private fun dayOf(ts: Long): Long {
@@ -184,6 +213,11 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                     renderTools(h, m.toolCalls)
                     return
                 }
+                // ★ 仅刷新 TTS 播报按钮状态
+                if (payloads.contains(PAYLOAD_TTS_STATE)) {
+                    bindTtsButton(h, m)
+                    return
+                }
                 val forceMarkdown = payloads.contains(PAYLOAD_FORCE_MARKDOWN) || m.committed
                 val newText = m.text
                 if (forceMarkdown) {
@@ -230,6 +264,8 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
                 }
                 // ★ 工具调用区渲染
                 renderTools(h, m.toolCalls)
+                // ★ TTS 播报按钮
+                bindTtsButton(h, m)
                 // ★ 时间小字
                 renderTime(h, m, position)
             }

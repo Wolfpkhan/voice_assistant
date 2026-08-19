@@ -40,6 +40,7 @@
     <string name="tools_toggle">🔧 Used N tools</string>
     <string name="tools_toggle_one">🔧 Used 1 tool</string>
     <string name="tools_running_header">🔧 Running N tools…</string>
+    <string name="tts_manual_empty">No readable text in this message</string>
     <string name="tools_running">⏳</string>
     <string name="tools_done">✓</string>
     <string name="tools_error">✗</string>
