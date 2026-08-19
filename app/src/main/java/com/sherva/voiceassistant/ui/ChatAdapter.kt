@@ -118,8 +118,9 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
     }
 
     /** ★ 气泡底部时间小字。
-     *  合并规则：与上一条同分钟隐藏；同一天只显 HH:mm，跨天（相对上一条）显 MM-dd HH:mm。
-     *  timestamp=0（未设）隐藏。 */
+     *  合并规则：仅【同角色】且同分钟才隐藏（用户/助手分居两侧，各自该有
+     *  可查的时间；跨角色即使同分钟也各自显示）。
+     *  同天 HH:mm，跨天（相对上一条可见消息）MM-dd HH:mm；timestamp=0 隐藏。 */
     private fun renderTime(h: RecyclerView.ViewHolder, m: ChatMessage, position: Int) {
         val tv = when (h) {
             is AssistantVH -> h.time
@@ -128,9 +129,10 @@ class ChatAdapter : ListAdapter<ChatMessage, RecyclerView.ViewHolder>(DIFF) {
         }
         if (m.timestamp <= 0L) { tv.visibility = View.GONE; return }
         if (position > 0) {
-            val prev = getItem(position - 1).timestamp
-            val sameMinute = prev > 0 && (prev / 60000L) == (m.timestamp / 60000L)
-            if (sameMinute) { tv.visibility = View.GONE; return }
+            val prev = getItem(position - 1)
+            val sameRoleSameMin = prev.role == m.role && prev.timestamp > 0 &&
+                (prev.timestamp / 60000L) == (m.timestamp / 60000L)
+            if (sameRoleSameMin) { tv.visibility = View.GONE; return }
         }
         tv.visibility = View.VISIBLE
         // ★ 跨天相对上一条可见消息：带日期；今天内只显时刻
