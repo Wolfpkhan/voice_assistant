@@ -133,7 +133,10 @@
     <string name="pref_title_global_aec">Global echo cancellation</string>
     <string name="pref_summary_global_aec">Cancels echo from any app (music/video) via VOICE_COMMUNICATION. May switch to earpiece or lower quality. Off by default — only this app\'s TTS echo is cancelled</string>
     <string name="pref_title_pause_music">Pause music while listening</string>
-    <string name="pref_summary_pause_music">Pause other apps (Ximalaya/QQ Music/Bilibili etc.) during conversation, resume after. Requires the remote frontend app</string>
+    <string name="pref_summary_pause_music">Pause other apps (Ximalaya/QQ Music/Bilibili etc.) during conversation, resume after. Requires notification access</string>
+    <string name="pref_title_media_access">Grant notification access</string>
+    <string name="pref_summary_media_access">Required to pause/resume other apps\' music. Tap to open system settings</string>
+    <string name="pref_summary_media_ok">✓ Granted — music pause/resume is active</string>
     <string name="cat_backup">Settings backup</string>
     <string name="pref_title_settings_export">Export settings</string>
     <string name="pref_summary_settings_export">Export all current settings (LLM/TTS/wake word etc.) as JSON</string>

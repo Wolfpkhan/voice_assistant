@@ -103,6 +103,15 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
 
+            // ★ 媒体控制授权引导：点击跳系统「通知使用权」设置页，返回时刷新状态显示
+            findPreference<Preference>("pref_media_access")?.apply {
+                setOnPreferenceClickListener {
+                    com.sherva.voiceassistant.media.MediaControllerHelper.openAccessSettings(requireActivity())
+                    true
+                }
+                refreshMediaAccessSummary()
+            }
+
             // ★ 设置导出/导入：SharedPreferences → JSON，方便换机/重装
             findPreference<Preference>("settings_export")?.setOnPreferenceClickListener {
                 exportLauncher.launch("settings_backup_${System.currentTimeMillis()}.json")
@@ -197,6 +206,19 @@ class SettingsActivity : AppCompatActivity() {
                     }
                 }
             }
+        }
+
+        /** 授权状态回显：从系统设置返回后刷新（未授权时明确提示） */
+        private fun refreshMediaAccessSummary() {
+            val granted = com.sherva.voiceassistant.media.MediaControllerHelper
+                .hasNotificationAccess(requireActivity())
+            findPreference<Preference>("pref_media_access")?.summary =
+                getString(if (granted) R.string.pref_summary_media_ok else R.string.pref_summary_media_access)
+        }
+
+        override fun onResume() {
+            super.onResume()
+            refreshMediaAccessSummary()
         }
 
         private fun onPreviewClick() {

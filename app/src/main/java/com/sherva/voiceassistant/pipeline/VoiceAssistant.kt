@@ -632,17 +632,9 @@ class VoiceAssistant(
             return
         }
         scope.launch(Dispatchers.IO) {
-            try {
-                val url = java.net.URL("http://127.0.0.1:8765/media_pause_all?caller=app")
-                val conn = url.openConnection() as java.net.HttpURLConnection
-                conn.connectTimeout = 2000
-                conn.readTimeout = 3000
-                val resp = conn.inputStream.bufferedReader().readText()
-                conn.disconnect()
-                AppLog.i("VA", "暂停音乐: $resp")
-            } catch (e: Exception) {
-                AppLog.w("VA", "暂停音乐失败（FI 可能没启动）: ${e.message}")
-            }
+            // ★ 本地 MediaController（不再依赖 TermuxRemoteFrontend HTTP API）
+            val r = com.sherva.voiceassistant.media.MediaControllerHelper.pauseAll(appContext)
+            AppLog.i("VA", "暂停音乐: paused=${r.paused} ${r.note}")
         }
     }
 
@@ -655,17 +647,8 @@ class VoiceAssistant(
         if (!config.pauseMusic) return
         if (textMode) { AppLog.i("VA", "pauseMusic: 文本模式，跳过暂停音乐"); return }
         withContext(Dispatchers.IO) {
-            try {
-                val url = java.net.URL("http://127.0.0.1:8765/media_pause_all?caller=app")
-                val conn = url.openConnection() as java.net.HttpURLConnection
-                conn.connectTimeout = 2000
-                conn.readTimeout = 3000
-                val resp = conn.inputStream.bufferedReader().readText()
-                conn.disconnect()
-                AppLog.i("VA", "暂停音乐(同步): $resp")
-            } catch (e: Exception) {
-                AppLog.w("VA", "暂停音乐(同步)失败（FI 可能没启动）: ${e.message}")
-            }
+            val r = com.sherva.voiceassistant.media.MediaControllerHelper.pauseAll(appContext)
+            AppLog.i("VA", "暂停音乐(同步): paused=${r.paused} ${r.note}")
         }
     }
 
@@ -677,17 +660,9 @@ class VoiceAssistant(
             return
         }
         scope.launch(Dispatchers.IO) {
-            try {
-                val url = java.net.URL("http://127.0.0.1:8765/media_resume_all?caller=app")
-                val conn = url.openConnection() as java.net.HttpURLConnection
-                conn.connectTimeout = 2000
-                conn.readTimeout = 3000
-                val resp = conn.inputStream.bufferedReader().readText()
-                conn.disconnect()
-                AppLog.i("VA", "恢复音乐: $resp")
-            } catch (e: Exception) {
-                AppLog.w("VA", "恢复音乐失败: ${e.message}")
-            }
+            // ★ 本地 MediaController（不再依赖 TermuxRemoteFrontend HTTP API）
+            val r = com.sherva.voiceassistant.media.MediaControllerHelper.resumeAll(appContext)
+            AppLog.i("VA", "恢复音乐: restarted=${r.restarted} ${r.note}")
         }
     }
 
