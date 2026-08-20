@@ -371,6 +371,9 @@ class MainActivity : AppCompatActivity() {
             showStoragePermissionDialog()
         }
 
+        // ★ 权限引导（新）：首启动未弹过且缺必需项时，弹统一引导页
+        maybeShowPermissionGuideOnFirstLaunch()
+
         try {
             setContentView(R.layout.activity_main)
         } catch (t: Throwable) {
@@ -732,6 +735,9 @@ class MainActivity : AppCompatActivity() {
         if (StoragePermission.granted()) AppLog.init(this)
         applyKeepScreenOn()  // 从设置页返回后重新应用
         syncFloatingBallButton()  // 同步悬浮球按钮高亮
+        // ★ 权限监测：从系统设置/权限弹窗返回时，若引导对话框开着则重建刷新状态；
+        //   首启动缺必需项时自动弹引导（一次性，不打扰）
+        refreshPermissionDialogIfNeeded()
         // ★ 接管 App.sharedAssistant（如果 Service 正在运行的话就是它）
         val shared = App.getAssistant(this)
         if (shared != null && shared !== assistant) {
@@ -1282,6 +1288,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    // ================ 权限引导（新） ================
+
+    private var permissionDialog: androidx.appcompat.app.AlertDialog? = null
+    private var permissionGuideShown = false   // 本次进程只自动弹一次（避免反复打扰）
+
+    /** 首启动自动弹：缺必需权限且本次进程没弹过。*/
+    private fun maybeShowPermissionGuideOnFirstLaunch() {
+        if (permissionGuideShown) return
+        val missing = com.sherva.voiceassistant.permission.PermissionCenter.missingRequired(this)
+        if (missing.isEmpty()) return
+        permissionGuideShown = true
+        AppLog.i("Main", "权限引导：缺 ${missing.size} 项必需权限，弹出统一引导")
+        permissionDialog = com.sherva.voiceassistant.permission.PermissionDialog.show(this)
+    }
+
+    /** onResume：从系统设置/权限弹窗返回时重建引导对话框（刷新授权状态显示）。*/
+    private fun refreshPermissionDialogIfNeeded() {
+        val dlg = permissionDialog ?: return
+        // 对话框还开着（用户刚从设置页回来）→ 重建刷新每项状态
+        if (dlg.isShowing) {
+            dlg.dismiss()
+            permissionDialog = com.sherva.voiceassistant.permission.PermissionDialog.show(this)
+        } else {
+            permissionDialog = null
+        }
+    }
 
     /** ★ 错误提示：Snackbar（比 Toast 持久，可滑动/点按关闭；长消息可展开）。
      *  LLM/ASR/TTS 异常都用这里；"重试"按钮仅 LLM 错误时有意义（重新发送上一句）。 */

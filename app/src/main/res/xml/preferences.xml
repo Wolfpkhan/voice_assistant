@@ -32,6 +32,11 @@
 
     <!-- 界面 -->
     <PreferenceCategory app:title="@string/cat_ui">
+        <!-- ★ 权限引导：置顶（用户第一关注点，随时查看/补授权） -->
+        <Preference
+            app:key="pref_media_access"
+            app:title="@string/pref_title_perms_guide"
+            app:summary="@string/pref_summary_perms_missing" />
         <!-- ★ 语言切换：AppCompatDelegate.setApplicationLocales（appcompat 1.6 兼容 API<33） -->
         <ListPreference
             app:key="@string/pref_app_language"
@@ -157,10 +162,6 @@
             app:title="@string/pref_title_pause_music"
             app:summary="@string/pref_summary_pause_music"
             app:defaultValue="false" />
-        <Preference
-            app:key="pref_media_access"
-            app:title="@string/pref_title_media_access"
-            app:summary="@string/pref_summary_media_access" />
     </PreferenceCategory>
 
     <!-- ★ 设置备份：导出/导入 SharedPreferences 为 JSON，方便换机/重装 -->

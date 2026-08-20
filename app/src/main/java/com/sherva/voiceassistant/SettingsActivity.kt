@@ -103,10 +103,11 @@ class SettingsActivity : AppCompatActivity() {
                 true
             }
 
-            // ★ 媒体控制授权引导：点击跳系统「通知使用权」设置页，返回时刷新状态显示
+            // ★ 权限引导入口：点击弹统一引导对话框（全部权限+状态+原因，取代单项跳转）
             findPreference<Preference>("pref_media_access")?.apply {
+                setTitle(R.string.pref_title_perms_guide)
                 setOnPreferenceClickListener {
-                    com.sherva.voiceassistant.media.MediaControllerHelper.openAccessSettings(requireActivity())
+                    com.sherva.voiceassistant.permission.PermissionDialog.show(requireActivity())
                     true
                 }
                 refreshMediaAccessSummary()
@@ -208,12 +209,13 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
-        /** 授权状态回显：从系统设置返回后刷新（未授权时明确提示） */
+        /** 授权状态回显：从系统设置/引导页返回后刷新（显示缺失项数量） */
         private fun refreshMediaAccessSummary() {
-            val granted = com.sherva.voiceassistant.media.MediaControllerHelper
-                .hasNotificationAccess(requireActivity())
+            val missing = com.sherva.voiceassistant.permission.PermissionCenter
+                .missingAll(requireActivity())
             findPreference<Preference>("pref_media_access")?.summary =
-                getString(if (granted) R.string.pref_summary_media_ok else R.string.pref_summary_media_access)
+                getString(if (missing.isEmpty()) R.string.pref_summary_perms_ok
+                          else R.string.pref_summary_perms_missing, missing.size)
         }
 
         override fun onResume() {
