@@ -60,7 +60,7 @@ bash scripts/download-models.sh
    - DeepSeek: `https://api.deepseek.com/v1` + `deepseek-chat`
    - 通义(DashScope 兼容): `https://dashscope.aliyuncs.com/compatible-mode/v1` + `qwen-plus`
    - 智谱: `https://open.bigmodel.cn/api/paas/v4` + `glm-4-flash`
-   - 本地 agent（推荐，配套 [pi_proxy](https://github.com/Wolfpkhan/pi_proxy)）：`http://127.0.0.1:8988/v1`
+   - 本地 agent（推荐，配套 [pi_proxy](https://github.com/Wolfpkhan/pi_proxy)）：`http://127.0.0.1:8988/v1`——任何遵循其 [PROTOCOL.md](https://github.com/Wolfpkhan/pi_proxy/blob/master/PROTOCOL.md) 的 OpenAI 兼容代理均可替换
 2. 授予录音权限 → 「开始对话」→ 说话即可，答完自动继续聆听。
 3. 状态栏颜色：🟢聆听 🟠识别 🔵思考 🟣播报。
 4. 图片：消息中带上本地图片路径（选图附件），`inlineImage` 开关决定压缩成 base64 `image_url` 还是留路径给 agent 用工具读。
@@ -155,7 +155,7 @@ The first `assembleDebug` downloads Gradle/Kotlin dependencies (~3–5 min).
    - DeepSeek: `https://api.deepseek.com/v1` + `deepseek-chat`
    - Qwen (DashScope compatible): `https://dashscope.aliyuncs.com/compatible-mode/v1` + `qwen-plus`
    - Zhipu: `https://open.bigmodel.cn/api/paas/v4` + `glm-4-flash`
-   - Local agent (recommended, pairs with [pi_proxy](https://github.com/Wolfpkhan/pi_proxy)): `http://127.0.0.1:8988/v1`
+   - Local agent (recommended, pairs with [pi_proxy](https://github.com/Wolfpkhan/pi_proxy)): `http://127.0.0.1:8988/v1` — any OpenAI-compatible proxy following its [PROTOCOL.md](https://github.com/Wolfpkhan/pi_proxy/blob/master/PROTOCOL.md) works as a drop-in replacement
 2. Grant mic permission → tap “Start conversation” → just talk; it keeps listening after each reply.
 3. Status colors: 🟢listening 🟠recognizing 🔵thinking 🟣speaking.
 4. Images: attach a local image path in a message; the `inlineImage` setting decides whether it's compressed into a base64 `image_url` or left as a path for the agent's tools.
