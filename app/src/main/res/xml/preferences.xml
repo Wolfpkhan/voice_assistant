@@ -2,6 +2,18 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <!-- ★ 重启生效说明：带 ＊ 的项存在 Config 快照，改后需重启 App -->
+    <Preference
+        app:key="pref_restart_hint"
+        app:title="@string/pref_title_restart_hint"
+        app:summary="@string/pref_summary_restart_hint"
+        app:selectable="false" />
+    <!-- 一键重启：杀进程 + 自动拉起（Config 快照重新读 sp） -->
+    <Preference
+        app:key="pref_restart_now"
+        app:title="@string/pref_title_restart_now"
+        app:summary="@string/pref_summary_restart_now" />
+
     <!-- 云端大模型 -->
     <PreferenceCategory app:title="@string/cat_llm">
         <EditTextPreference
@@ -161,6 +173,15 @@
             app:key="@string/pref_pause_music"
             app:title="@string/pref_title_pause_music"
             app:summary="@string/pref_summary_pause_music"
+            app:defaultValue="false" />
+    </PreferenceCategory>
+
+    <!-- 附件模式（图片内联） -->
+    <PreferenceCategory app:title="@string/cat_attach">
+        <SwitchPreferenceCompat
+            app:key="@string/pref_attach_inline_image"
+            app:title="@string/pref_title_attach_inline"
+            app:summary="@string/pref_summary_attach_inline"
             app:defaultValue="false" />
     </PreferenceCategory>
 

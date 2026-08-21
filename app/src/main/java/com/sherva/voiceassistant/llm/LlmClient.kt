@@ -37,11 +37,24 @@ class LlmClient(
 ) {
     companion object { private const val TAG = "LlmClient" }
 
-    data class Message(val role: String, val content: String) {
+    /** ★ 多模态 content 部分（OpenAI vision 格式）。 */
+    sealed class ContentPart {
+        data class Text(val text: String) : ContentPart()
+        data class ImageUrl(val url: String) : ContentPart()   // "data:image/jpeg;base64,..." 或 https URL
+    }
+
+    /** ★ 消息：content 可以是纯文本（常规）或多模态数组（图片内联模式）。 */
+    data class Message(val role: String, val content: Any) {
         companion object {
             fun system(text: String) = Message("system", text)
             fun user(text: String) = Message("user", text)
             fun assistant(text: String) = Message("assistant", text)
+            /** 多模态：文本 + 图片 */
+            fun userMulti(text: String, images: List<ContentPart.ImageUrl>) =
+                Message("user", buildList {
+                    if (text.isNotBlank()) add(ContentPart.Text(text))
+                    addAll(images)
+                })
         }
     }
 
@@ -108,7 +121,27 @@ class LlmClient(
             put("stream", true)
             put("temperature", 0.7)
             put("messages", JSONArray().apply {
-                messages.forEach { put(JSONObject().put("role", it.role).put("content", it.content)) }
+                messages.forEach { m ->
+                    val msgObj = JSONObject().put("role", m.role)
+                    when (val c = m.content) {
+                        is String -> msgObj.put("content", c)
+                        is List<*> -> {
+                            // ★ 多模态：[{type:text,text:...},{type:image_url,image_url:{url:...}}]
+                            val arr = JSONArray()
+                            c.forEach { part ->
+                                when (part) {
+                                    is ContentPart.Text -> arr.put(JSONObject()
+                                        .put("type", "text").put("text", part.text))
+                                    is ContentPart.ImageUrl -> arr.put(JSONObject()
+                                        .put("type", "image_url")
+                                        .put("image_url", JSONObject().put("url", part.url)))
+                                }
+                            }
+                            msgObj.put("content", arr)
+                        }
+                    }
+                    put(msgObj)
+                }
             })
         }.toString()
 
@@ -309,22 +342,10 @@ class LlmClient(
     private var pendingThink = ""
 
     fun cancel() {
+        // ★ OpenAI 标准中断语义：断开 SSE 连接即可。
+        //   pi-proxy 检测到客户端断连（res close，未完成）会自动 session.abort()。
+        //   不再需要自定义 /v1/abort 接口——代理对任何 OpenAI 客户端透明。
         currentCall?.cancel()
         currentCall = null
-        // ★ 通知 pi-proxy 中断 pi 端正在运行的 agent run
-        //   避免 Agent is already processing 错误导致后续请求被拒绝
-        Thread {
-            try {
-                val abortUrl = baseUrl.trimEnd('/').removeSuffix("/v1") + "/v1/abort"
-                val req = Request.Builder()
-                    .url(abortUrl)
-                    .post("".toRequestBody("application/json".toMediaType()))
-                    .build()
-                client.newCall(req).execute().close()
-                Log.i(TAG, "已发送 abort 到 pi-proxy")
-            } catch (e: Throwable) {
-                Log.w(TAG, "abort pi-proxy 失败（可能是 pi-proxy 未运行）: ${e.message}")
-            }
-        }.apply { name = "llm-abort" }.start()
     }
 }

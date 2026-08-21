@@ -92,6 +92,9 @@ class VoiceAssistant(
         /** ★ 聆听时暂停音乐：对话开始时暂停其他 App（喜马拉雅/QQ音乐/B站等）和 FI 的播放，
          *     对话结束后恢复。通过 TermuxRemoteFrontend 的 /media_pause_all 端点统一管理。 */
         val pauseMusic: Boolean = false,
+        /** 图片内联：消息中的本地图片转 base64 image_url 发送（vision LLM 直接看图）。
+         *  false=路径模式（agent 用 read 工具读）。 */
+        val inlineImage: Boolean = false,
     )
 
     interface Listener {
@@ -421,9 +424,35 @@ class VoiceAssistant(
             // 若语音引擎已初始化（此前切过语音模式）则停掉聆听，避免冲突
             if (asrLazy.isInitialized()) asr.stop()
             broadcast { it.onUserText(t) }
-            history += LlmClient.Message.user(t)
+            // ★ 附件模式：图片内联 base64（vision LLM 直接看图）；关闭则纯文本路径（agent 用 read 工具读）
+            history += buildUserMessage(t)
             handleLlmTurn()
         }
+    }
+
+    /** ★ 构建用户消息：根据附件模式设置决定纯文本或多模态。
+     *  内联模式：扫文本中的本地图片路径 → 压缩 → base64 image_url；
+     *           文本中的图片路径会被移除（图片单独传）。
+     *  路径模式：原样发送（agent 用 read 工具读）。 */
+    private fun buildUserMessage(text: String): LlmClient.Message {
+        if (!config.inlineImage) return LlmClient.Message.user(text)
+        val imgPaths = com.sherva.voiceassistant.llm.ImageAttachment.extractImagePaths(text)
+        if (imgPaths.isEmpty()) return LlmClient.Message.user(text)
+
+        val images = mutableListOf<LlmClient.ContentPart.ImageUrl>()
+        var cleaned = text
+        for (p in imgPaths) {
+            val dataUrl = com.sherva.voiceassistant.llm.ImageAttachment.toDataUrl(p)
+            if (dataUrl != null) {
+                images += LlmClient.ContentPart.ImageUrl(dataUrl)
+                cleaned = cleaned.replace(p, "")   // 从文本里移除（避免重复）
+                AppLog.i("VA", "图片内联: $p (${dataUrl.length / 1024}KB base64)")
+            }
+            // 编码失败的（超大/损坏）保留路径文本，agent 还能用 read 工具试
+        }
+        cleaned = cleaned.trim()
+        return if (images.isEmpty()) LlmClient.Message.user(text)
+        else LlmClient.Message.userMulti(cleaned.ifEmpty { "（见图片）" }, images)
     }
 
     /** LLM 流式 → TTS 播报（共用逻辑）。 */

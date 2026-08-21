@@ -75,6 +75,7 @@ class MainActivity : AppCompatActivity() {
                 kwsGtcrn = kwsGtcrn,
                 kwsBluetoothSco = kwsSco,
                 pauseMusic = pauseMusic,
+                inlineImage = sp.getBoolean(ctx.getString(R.string.pref_attach_inline_image), false),
             )
         }
     }
@@ -452,7 +453,7 @@ class MainActivity : AppCompatActivity() {
         }
         // ★ 悬浮球开关：顶部按钮，默认关闭
         floatingBallButton.setOnClickListener { toggleFloatingBall() }
-        // ★ 新对话：调 proxy /v1/new-session 开新 session（旧会话保留供 agent grep）
+        // ★ 新对话：调代理可选扩展端点 /v1/new-session 重置服务端 session（agent 类需要；纯 OpenAI 服务 404 忽略）
         newChatButton.setOnClickListener { startNewChat() }
         interruptButton.setOnClickListener {
             // ★ 同时中断 LLM 输出 + 停 TTS 播放（用户期望点'中断'就是全停）
@@ -507,12 +508,13 @@ class MainActivity : AppCompatActivity() {
         // ★ 双重滚动到底部，确保显示新对话提示胶囊
         scrollToEnd(smooth = false)
         messagesView.postDelayed({ scrollToEnd(smooth = false) }, 200)
-        // 后台调 proxy /v1/new-session（旧会话存盘，agent 可 grep）
+        // ★ 后台调代理 /v1/new-session 重置服务端 session（agent 类必需；纯 OpenAI 服务 404 无副作用）
+        //   直连 OpenAI 时由 Argus 本地 history.clear() 完成新对话，无需服务端信号。
         lifecycleScope.launch {
             runCatching {
                 val sp = androidx.preference.PreferenceManager.getDefaultSharedPreferences(this@MainActivity)
                 val baseUrl = sp.getString(getString(R.string.pref_llm_baseurl), getString(R.string.default_baseurl))!!
-                val url = baseUrl.trimEnd('/') + "/new-session"
+                val url = baseUrl.trimEnd('/') + "/v1/new-session"
                 val client = okhttp3.OkHttpClient()
                 val req = okhttp3.Request.Builder().url(url)
                     .header("Authorization", "Bearer " + sp.getString(getString(R.string.pref_llm_apikey), ""))

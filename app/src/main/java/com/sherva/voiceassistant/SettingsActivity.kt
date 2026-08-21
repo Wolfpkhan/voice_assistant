@@ -1,6 +1,7 @@
 package com.sherva.voiceassistant
 
 import android.content.Context
+import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
@@ -81,6 +82,17 @@ class SettingsActivity : AppCompatActivity() {
                     androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(locales)
                     true
                 }
+            }
+
+            // ★ 一键重启：launch intent + exit(0)，让 Config 快照重读 sp（＊ 项生效）
+            findPreference<Preference>("pref_restart_now")?.setOnPreferenceClickListener {
+                val ctx = requireContext().applicationContext
+                ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)?.let { launch ->
+                    launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    ctx.startActivity(launch)
+                }
+                Runtime.getRuntime().exit(0)
+                true
             }
 
             // ★ sid 滑块联动：实时显示当前音色名称
