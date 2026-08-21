@@ -2,6 +2,8 @@
 
 [中文](#中文) | [English](#english)
 
+<p align="center"><img src="docs/screenshot.jpg" alt="App screenshot" width="360"></p>
+
 An end-to-end Android voice assistant built on [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), targeting Snapdragon (arm64) phones. Developed entirely on a phone, from Termux, without Android Studio.
 
 > 🙏 **Special thanks to the [sherpa project](https://github.com/k2-fsa/sherpa-onnx)** ([k2-fsa](https://github.com/k2-fsa)) — its on-device speech stack (VAD / ASR / TTS) runs the entire offline voice pipeline of this app. Without sherpa-onnx, a phone-only development workflow like this would not be possible.
@@ -11,6 +13,8 @@ An end-to-end Android voice assistant built on [sherpa-onnx](https://github.com/
 ## 中文
 
 基于 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) 的端到端安卓语音助手，目标骁龙（arm64）手机。全程在手机 Termux 上开发，无需 Android Studio。
+
+<p align="center"><img src="docs/screenshot.jpg" alt="App 界面截图" width="360"></p>
 
 ```
 说话 → [VAD 端点检测] → [ASR 语音识别] → [云端 LLM 流式] → [TTS 分句播报] → 继续聆听
@@ -108,6 +112,8 @@ app/src/main/java/com/sherva/voiceassistant/
 ## English
 
 An end-to-end Android voice assistant powered by [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), targeting Snapdragon (arm64) phones. Developed entirely on-device via Termux — no Android Studio involved.
+
+<p align="center"><img src="docs/screenshot.jpg" alt="App screenshot" width="360"></p>
 
 ```
 Speak → [VAD endpoint detection] → [ASR recognition] → [cloud LLM streaming] → [TTS sentence-by-sentence] → keep listening
